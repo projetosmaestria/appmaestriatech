@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="100%" height="100%">
+  <defs>
+    <linearGradient id="gradFin2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f2027;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#203a43;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2c5364;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="iconFin2Grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+    <pattern id="gridFin2" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255, 255, 255, 0.05)" stroke-width="1"/>
+    </pattern>
+    <filter id="shadowFin2" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="15" flood-color="#000000" flood-opacity="0.45" />
+    </filter>
+  </defs>
+
+  <rect width="800" height="450" fill="url(#gradFin2)" />
+  <rect width="800" height="450" fill="url(#gridFin2)" />
+
+  <circle cx="400" cy="130" r="130" fill="#10b981" opacity="0.15" filter="blur(40px)" />
+  <circle cx="720" cy="380" r="160" fill="#059669" opacity="0.2" filter="blur(50px)" />
+  <circle cx="80" cy="380" r="140" fill="#064e3b" opacity="0.2" filter="blur(40px)" />
+
+  <!-- ÍCONE TEMÁTICO CENTRAL -->
+  <g transform="translate(400, 125)" filter="url(#shadowFin2)">
+    <rect x="-48" y="-48" width="96" height="96" rx="26" fill="rgba(255, 255, 255, 0.12)" stroke="rgba(255, 255, 255, 0.25)" stroke-width="2" />
+    <rect x="-40" y="-40" width="80" height="80" rx="20" fill="url(#iconFin2Grad)" />
+    <text x="0" y="14" font-family="'Segoe UI', Roboto, sans-serif" font-size="38" font-weight="900" fill="#ffffff" text-anchor="middle">R$</text>
+  </g>
+
+  <!-- TIPOGRAFIA DO CURSO -->
+  <text x="400" y="245" font-family="'Segoe UI', Roboto, 'Helvetica Neue', sans-serif" font-size="44" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="-0.5" filter="drop-shadow(0 4px 10px rgba(0,0,0,0.6))">
+    Conciliação de Títulos
+  </text>
+
+  <text x="400" y="295" font-family="'Segoe UI', Roboto, 'Helvetica Neue', sans-serif" font-size="22" font-weight="500" fill="rgba(255,255,255,0.9)" text-anchor="middle" filter="drop-shadow(0 2px 6px rgba(0,0,0,0.5))">
+    Baixa de parcelas e conciliação bancária
+  </text>
+
+  <g transform="translate(400, 360)">
+    <rect x="-105" y="-18" width="210" height="36" rx="18" fill="rgba(255,255,255,0.14)" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" />
+    <text x="0" y="6" font-family="'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="1.5">
+      MAESTRIA TECH
+    </text>
+  </g>
+</svg>

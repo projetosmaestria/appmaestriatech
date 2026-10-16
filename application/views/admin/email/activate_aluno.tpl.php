@@ -1,0 +1,31 @@
+<html>
+	<body>
+		<div style="width:100%; height:100%; display:table; padding:20px; background:#EEE;">
+			<div style="min-width:550px; max-width:550px; margin:0 auto; font:14px sans-serif, tahoma; color:#003366">
+				<div style="border-radius:5px; border:1px solid #999; padding:15px; background:#FFF;">
+					<p>Uma conta no aplicativo foi criada para você!</p>
+					<br class="clear-15">
+					<p>Acesse agora mesmo e comece a utilizar.</p>
+					<br class="clear-15">
+					<p>{email}</p>
+					<br class="clear-15">
+					<p><a href="{link_ativacao}">Acessar</i></a></p>
+					<br class="clear-15">
+					<p>Assim que entrar na conta pela primeira vez, preencha seus dados.</p>
+					<br class="clear">
+					<p><strong>Baixe nosso App</strong></p>
+					<p></p>
+					<p></p>
+					<br>
+				</div>
+
+				<div style="font-size:13px; text-align: center;">
+					<p>Por gentileza, não responda este e-mail.</p>
+					<br><br>
+					<p>Atenciosamente</p>
+					<p style="background-color:#212854; color:#FFF; border-radius:5px; padding:5px; font-size:12px; text-align:center;">Powered by XKey STI</p>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>
