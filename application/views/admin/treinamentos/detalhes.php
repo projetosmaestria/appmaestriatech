@@ -13,6 +13,39 @@
         <?php if (!empty($message)) echo $message; ?>
 
         <style>
+            /* Organização do cabeçalho padrão AdminLTE sem sobreposição */
+            .content-header {
+                position: relative;
+                padding: 15px 15px 5px 15px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            .content-header > h1 {
+                margin: 0;
+                font-size: 24px;
+                flex: 1 1 auto;
+                min-width: 0;
+            }
+            .content-header > .breadcrumb {
+                position: static !important;
+                float: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: transparent !important;
+                flex: 0 0 auto;
+                white-space: nowrap;
+            }
+            @media (max-width: 767px) {
+                .content-header {
+                    display: block;
+                }
+                .content-header > .breadcrumb {
+                    margin-top: 6px !important;
+                }
+            }
             .course-header-box {
                 background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
                 color: #fff; border-radius: 12px; padding: 30px; margin-bottom: 25px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);

@@ -62,6 +62,7 @@ $route['treinamentos/modulo/(:num)']            = 'treinamentos/modulo/$1';
 $route['treinamentos/ver/(:num)']               = 'treinamentos/ver/$1';
 $route['treinamentos/detalhes/(:num)']          = 'treinamentos/detalhes/$1';
 $route['treinamentos/etapa/(:num)/(:num)']      = 'treinamentos/etapa/$1/$2';
+$route['treinamentos/etapa/(:num)']             = 'treinamentos/etapa/$1';
 $route['treinamentos/meu_progresso']            = 'treinamentos/meu_progresso';
 $route['treinamentos/salvar_progresso_video']   = 'treinamentos/salvar_progresso_video';
 $route['treinamentos/toggle_atividade']         = 'treinamentos/toggle_atividade';

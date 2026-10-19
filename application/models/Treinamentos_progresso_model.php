@@ -329,10 +329,10 @@ class Treinamentos_progresso_model extends CI_Model {
 
         $prog = $this->get_progresso_etapa($etapa_id, $user_id);
 
-        // 1. Validar video obrigatorio
-        if ($etapa->video_obrigatorio == 1 && $etapa->video_tipo !== 'nenhum' && !empty($etapa->video_url)) {
+        // 1. Validar video da etapa (obrigatorio para avancar sempre que houver video cadastrado)
+        if ($etapa->video_tipo !== 'nenhum' && !empty($etapa->video_url)) {
             if (!$prog || $prog->video_concluido != 1) {
-                return array('permitido' => false, 'motivo' => 'Você precisa assistir ao vídeo obrigatório integralmente antes de concluir esta etapa.');
+                return array('permitido' => false, 'motivo' => 'Você precisa assistir ao vídeo desta etapa integralmente antes de concluir e avançar para a próxima atividade.');
             }
         }
 

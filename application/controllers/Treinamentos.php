@@ -151,7 +151,11 @@ class Treinamentos extends Admin_Controller {
             redirect('treinamentos');
         }
 
-        $this->breadcrumbs->unshift(2, $treinamento->titulo, 'treinamentos/ver/' . $id);
+        $tituloTreinamentoBreadcrumb = (mb_strlen($treinamento->titulo) > 35) 
+            ? mb_substr($treinamento->titulo, 0, 33) . '...' 
+            : $treinamento->titulo;
+
+        $this->breadcrumbs->unshift(2, $tituloTreinamentoBreadcrumb, 'treinamentos/ver/' . $id);
         $this->data['breadcrumb'] = $this->breadcrumbs->show();
         $this->data['treinamento'] = $treinamento;
 
@@ -183,20 +187,44 @@ class Treinamentos extends Admin_Controller {
     /**
      * Sala de aula interativa da etapa
      */
-    public function etapa($treinamento_id, $etapa_id)
+    public function etapa($treinamento_id = null, $etapa_id = null)
     {
+        if (!$treinamento_id) {
+            redirect('treinamentos');
+            return;
+        }
+
         $userId = (int)$this->session->userdata('user_id');
 
         $treinamento = $this->treinamentos_model->get_treinamento($treinamento_id);
         if (!$treinamento || $treinamento->ativo != 1) {
             $this->session->set_flashdata('message', show_alert_error('Treinamento não encontrado.'));
             redirect('treinamentos');
+            return;
         }
 
         // Validação de acesso ao treinamento
         if (!$this->treinamentos_model->verificar_acesso($treinamento_id, $userId)) {
             $this->session->set_flashdata('message', show_alert_error('Acesso não autorizado a este treinamento.'));
             redirect('treinamentos');
+            return;
+        }
+
+        // Se a etapa_id não for informada na URL, redireciona para onde o usuário parou ou a 1ª etapa
+        if (!$etapa_id) {
+            $etapaContinuar = $this->treinamentos_progresso_model->get_etapa_continuar($treinamento_id, $userId);
+            if ($etapaContinuar) {
+                redirect('treinamentos/etapa/' . $treinamento_id . '/' . $etapaContinuar->id);
+                return;
+            }
+            $primeiraEtapa = $this->treinamentos_etapas_model->get_primeira_etapa($treinamento_id);
+            if ($primeiraEtapa) {
+                redirect('treinamentos/etapa/' . $treinamento_id . '/' . $primeiraEtapa->id);
+                return;
+            }
+            $this->session->set_flashdata('message', show_alert_error('Nenhuma etapa disponível neste treinamento.'));
+            redirect('treinamentos/ver/' . $treinamento_id);
+            return;
         }
 
         $etapa = $this->treinamentos_etapas_model->get_etapa($etapa_id);
@@ -214,9 +242,17 @@ class Treinamentos extends Admin_Controller {
         // Registrar acesso a etapa atual e controle de atividade onde o usuario parou
         $this->treinamentos_progresso_model->registrar_acesso_etapa($treinamento_id, $etapa_id, $userId);
 
-        // Breadcrumbs
-        $this->breadcrumbs->unshift(2, $treinamento->titulo, 'treinamentos/ver/' . $treinamento_id);
-        $this->breadcrumbs->unshift(3, $etapa->titulo, 'treinamentos/etapa/' . $treinamento_id . '/' . $etapa_id);
+        // Breadcrumbs formatados de forma concisa e elegante
+        $tituloTreinamentoBreadcrumb = (mb_strlen($treinamento->titulo) > 28) 
+            ? mb_substr($treinamento->titulo, 0, 26) . '...' 
+            : $treinamento->titulo;
+
+        $tituloEtapaBreadcrumb = 'Etapa ' . $etapa->ordem . ': ' . ((mb_strlen($etapa->titulo) > 24) 
+            ? mb_substr($etapa->titulo, 0, 22) . '...' 
+            : $etapa->titulo);
+
+        $this->breadcrumbs->unshift(2, $tituloTreinamentoBreadcrumb, 'treinamentos/ver/' . $treinamento_id);
+        $this->breadcrumbs->unshift(3, $tituloEtapaBreadcrumb, 'treinamentos/etapa/' . $treinamento_id . '/' . $etapa_id);
         $this->data['breadcrumb'] = $this->breadcrumbs->show();
 
         $this->data['treinamento'] = $treinamento;
@@ -244,11 +280,28 @@ class Treinamentos extends Admin_Controller {
         // Progresso atual da etapa
         $this->data['progresso_etapa'] = $this->treinamentos_progresso_model->get_progresso_etapa($etapa_id, $userId);
 
-        // Avaliação (se for última etapa ou geral)
-        $this->data['minha_avaliacao'] = $this->treinamentos_avaliacoes_model->get_avaliacao_usuario($treinamento_id, $userId);
+        // Avaliação desta etapa específica
+        $this->data['minha_avaliacao'] = $this->treinamentos_avaliacoes_model->get_avaliacao_usuario($treinamento_id, $userId, $etapa_id);
         $this->data['eh_ultima_etapa'] = ($this->data['proxima_etapa'] === null);
 
         $this->template->admin_render('admin/treinamentos/etapa', $this->data);
+    }
+
+    /**
+     * Retorna resposta JSON segura sem conflito de compressão Gzip
+     */
+    private function _responder_json($data)
+    {
+        if (ob_get_level() > 0) {
+            @ob_clean();
+        }
+        return $this->output
+            ->set_status_header(200)
+            ->set_content_type('application/json', 'utf-8')
+            ->set_header('Content-Encoding: none')
+            ->set_header('Cache-Control: no-store, no-cache, must-revalidate, post-check=0, pre-check=0')
+            ->set_header('Pragma: no-cache')
+            ->set_output(json_encode($data));
     }
 
     /**
@@ -262,8 +315,7 @@ class Treinamentos extends Admin_Controller {
         $concluido = ($this->input->post('concluido') == '1' || $this->input->post('concluido') === 'true');
 
         if (!$etapaId) {
-            echo json_encode(array('success' => false, 'message' => 'Etapa inválida.'));
-            return;
+            return $this->_responder_json(array('success' => false, 'message' => 'Etapa inválida.'));
         }
 
         $etapa = $this->treinamentos_etapas_model->get_etapa($etapaId);
@@ -275,7 +327,7 @@ class Treinamentos extends Admin_Controller {
         }
 
         $res = $this->treinamentos_progresso_model->salvar_progresso_video($etapaId, $userId, $tempoSegundos, $concluido);
-        echo json_encode(array('success' => $res, 'concluido' => $concluido));
+        return $this->_responder_json(array('success' => $res, 'concluido' => $concluido));
     }
 
     /**
@@ -287,8 +339,7 @@ class Treinamentos extends Admin_Controller {
         $atividadeId = (int)$this->input->post('atividade_id');
 
         if (!$atividadeId) {
-            echo json_encode(array('success' => false, 'message' => 'Atividade inválida.'));
-            return;
+            return $this->_responder_json(array('success' => false, 'message' => 'Atividade inválida.'));
         }
 
         $atividade = $this->treinamentos_etapas_model->get_atividade($atividadeId);
@@ -299,7 +350,7 @@ class Treinamentos extends Admin_Controller {
             $this->treinamentos_progresso_model->iniciar_treinamento($atividade->treinamento_id, $userId, $atividade->etapa_id, $statusStr . $atividade->titulo);
         }
 
-        echo json_encode(array('success' => true, 'concluida' => ($novoStatus == 1)));
+        return $this->_responder_json(array('success' => true, 'concluida' => ($novoStatus == 1)));
     }
 
     /**
@@ -311,8 +362,7 @@ class Treinamentos extends Admin_Controller {
         $etapaId = (int)$this->input->post('etapa_id');
 
         if (!$etapaId) {
-            echo json_encode(array('success' => false, 'message' => 'Etapa inválida.'));
-            return;
+            return $this->_responder_json(array('success' => false, 'message' => 'Etapa inválida.'));
         }
 
         $resultado = $this->treinamentos_progresso_model->concluir_etapa($etapaId, $userId);
@@ -331,14 +381,14 @@ class Treinamentos extends Admin_Controller {
                 ? site_url('treinamentos/etapa/' . $etapa->treinamento_id . '/' . $proxima->id)
                 : site_url('treinamentos/ver/' . $etapa->treinamento_id);
 
-            echo json_encode(array(
+            return $this->_responder_json(array(
                 'success' => true,
                 'message' => $resultado['motivo'],
                 'eh_ultima' => ($proxima === null),
                 'proxima_url' => $proximaUrl
             ));
         } else {
-            echo json_encode(array(
+            return $this->_responder_json(array(
                 'success' => false,
                 'message' => $resultado['motivo']
             ));
@@ -352,25 +402,50 @@ class Treinamentos extends Admin_Controller {
     {
         $userId = (int)$this->session->userdata('user_id');
         $treinamentoId = (int)$this->input->post('treinamento_id');
+        $etapaId = (int)$this->input->post('etapa_id');
         $nota = (int)$this->input->post('nota');
         $comentario = $this->input->post('comentario', TRUE);
 
         if (!$treinamentoId || $nota < 1 || $nota > 5) {
-            echo json_encode(array('success' => false, 'message' => 'Por favor, selecione uma nota de 1 a 5 estrelas.'));
-            return;
+            return $this->_responder_json(array('success' => false, 'message' => 'Por favor, selecione uma nota de 1 a 5 estrelas.'));
         }
 
-        $salvou = $this->treinamentos_avaliacoes_model->salvar_avaliacao($treinamentoId, $userId, $nota, $comentario);
+        // Validação: Só pode avaliar depois de assistir ao vídeo!
+        if ($etapaId) {
+            $etapa = $this->treinamentos_etapas_model->get_etapa($etapaId);
+            if ($etapa && $etapa->video_tipo !== 'nenhum' && !empty($etapa->video_url)) {
+                $prog = $this->treinamentos_progresso_model->get_progresso_etapa($etapaId, $userId);
+                if (!$prog || $prog->video_concluido != 1) {
+                    return $this->_responder_json(array(
+                        'success' => false, 
+                        'message' => 'Você precisa assistir ao vídeo desta etapa integralmente antes de enviar sua avaliação.'
+                    ));
+                }
+            }
+        }
+
+        // Validação: Só pode avaliar uma vez!
+        $jaAvaliou = $this->treinamentos_avaliacoes_model->get_avaliacao_usuario($treinamentoId, $userId, $etapaId ?: null);
+        if ($jaAvaliou) {
+            return $this->_responder_json(array(
+                'success' => false, 
+                'message' => 'Você já avaliou esta etapa anteriormente. Só é permitido avaliar uma única vez.'
+            ));
+        }
+
+        $salvou = $this->treinamentos_avaliacoes_model->salvar_avaliacao($treinamentoId, $userId, $nota, $comentario, $etapaId ?: null);
 
         if ($salvou) {
-            echo json_encode(array(
+            return $this->_responder_json(array(
                 'success' => true,
-                'message' => 'Muito obrigado! Sua avaliação foi registrada com sucesso.'
+                'message' => 'Muito obrigado! Sua avaliação foi registrada com sucesso.',
+                'nota' => $nota,
+                'comentario' => $comentario
             ));
         } else {
-            echo json_encode(array(
+            return $this->_responder_json(array(
                 'success' => false,
-                'message' => 'Ocorreu um erro ao salvar sua avaliação. Tente novamente.'
+                'message' => 'Ocorreu um erro ao salvar sua avaliação ou esta etapa já foi avaliada.'
             ));
         }
     }

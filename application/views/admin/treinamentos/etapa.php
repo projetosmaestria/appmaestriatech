@@ -1,5 +1,9 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed'); ?>
 
+<!-- SweetAlert2 (CSS e JS) para Modais e Alertas Modernos -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <div class="content-wrapper">
     <section class="content-header">
         <h1>
@@ -13,6 +17,39 @@
         <?php if (!empty($message)) echo $message; ?>
 
         <style>
+            /* Organização do cabeçalho padrão AdminLTE sem sobreposição */
+            .content-header {
+                position: relative;
+                padding: 15px 15px 5px 15px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            .content-header > h1 {
+                margin: 0;
+                font-size: 24px;
+                flex: 1 1 auto;
+                min-width: 0;
+            }
+            .content-header > .breadcrumb {
+                position: static !important;
+                float: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: transparent !important;
+                flex: 0 0 auto;
+                white-space: nowrap;
+            }
+            @media (max-width: 767px) {
+                .content-header {
+                    display: block;
+                }
+                .content-header > .breadcrumb {
+                    margin-top: 6px !important;
+                }
+            }
             .classroom-container { font-family: 'Source Sans Pro', 'Helvetica Neue', Helvetica, Arial, sans-serif; }
             
             /* Player Area */
@@ -86,7 +123,18 @@
             .star-btn span { font-size: 11px; font-weight: 700; color: #4a5568; display: block; }
         </style>
 
-        <div class="classroom-container">
+        <div class="classroom-container"
+             data-etapa-id="<?php echo (int)$etapa->id; ?>"
+             data-treinamento-id="<?php echo (int)$treinamento->id; ?>"
+             data-tem-video="<?php echo ($etapa->video_tipo !== 'nenhum' && !empty($etapa->video_url)) ? '1' : '0'; ?>"
+             data-video-duracao="<?php echo (int)($etapa->video_duracao_segundos ?? 0); ?>"
+             data-video-obrigatorio="1"
+             data-video-concluido="<?php echo (!empty($progresso_etapa) && $progresso_etapa->video_concluido == 1) ? '1' : '0'; ?>"
+             data-avaliacao-feita="<?php echo (!empty($minha_avaliacao)) ? '1' : '0'; ?>"
+             data-url-salvar-video="<?php echo site_url('treinamentos/salvar_progresso_video'); ?>"
+             data-url-toggle-atividade="<?php echo site_url('treinamentos/toggle_atividade'); ?>"
+             data-url-avaliar="<?php echo site_url('treinamentos/avaliar'); ?>"
+             data-url-concluir-etapa="<?php echo site_url('treinamentos/concluir_etapa'); ?>">
             <div class="row">
 
                 <!-- COLUNA PRINCIPAL: CONTEÚDO DA AULA -->
@@ -95,54 +143,105 @@
                     <!-- 1. PLAYER DE VÍDEO -->
                     <?php if ($etapa->video_tipo !== 'nenhum' && !empty($etapa->video_url)): ?>
                         <?php 
-                            // Identificar ID do YouTube ou Vimeo
+                            $videoUrl = trim($etapa->video_url);
                             $videoEmbedUrl = '';
                             $isYoutube = false;
                             $youtubeId = '';
+                            $isVimeo = false;
+                            $vimeoId = '';
+                            $isHtml5 = false;
 
-                            if (strpos($etapa->video_url, 'youtube.com') !== false || strpos($etapa->video_url, 'youtu.be') !== false) {
+                            // 1. Identificar YouTube
+                            if ($etapa->video_tipo === 'youtube' || strpos($videoUrl, 'youtube.com') !== false || strpos($videoUrl, 'youtu.be') !== false) {
                                 $isYoutube = true;
-                                if (preg_match('/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/', $etapa->video_url, $matches)) {
-                                    $youtubeId = $matches[1];
-                                    $videoEmbedUrl = 'https://www.youtube.com/embed/' . $youtubeId . '?enablejsapi=1&origin=' . urlencode(base_url()) . '&rel=0';
+                                if (preg_match('/^[a-zA-Z0-9_-]{11}$/', $videoUrl)) {
+                                    $youtubeId = $videoUrl;
+                                } elseif (preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts|live)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/ ]{11})/i', $videoUrl, $m)) {
+                                    $youtubeId = $m[1];
                                 }
-                            } elseif (strpos($etapa->video_url, 'vimeo.com') !== false) {
-                                if (preg_match('/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+)/', $etapa->video_url, $matches)) {
-                                    $vimeoId = end($matches);
+                                if (!empty($youtubeId)) {
+                                    $videoEmbedUrl = 'https://www.youtube-nocookie.com/embed/' . $youtubeId . '?rel=0';
+                                }
+                            } 
+                            // 2. Identificar Vimeo
+                            elseif ($etapa->video_tipo === 'vimeo' || strpos($videoUrl, 'vimeo.com') !== false) {
+                                $isVimeo = true;
+                                if (preg_match('/(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|))(\d+)/i', $videoUrl, $m)) {
+                                    $vimeoId = end($m);
                                     $videoEmbedUrl = 'https://player.vimeo.com/video/' . $vimeoId . '?api=1';
                                 }
-                            } else {
-                                $videoEmbedUrl = $etapa->video_url;
+                            } 
+                            // 3. Link Direto / HTML5
+                            else {
+                                $isHtml5 = true;
+                                $videoEmbedUrl = (preg_match('/^https?:\/\//i', $videoUrl)) ? $videoUrl : base_url($videoUrl);
                             }
                         ?>
 
                         <div class="video-box-wrapper">
                             <div class="video-responsive-container">
                                 <?php if ($isYoutube && !empty($youtubeId)): ?>
-                                    <div id="youtubePlayer" data-youtube-id="<?php echo $youtubeId; ?>" style="width: 100%; height: 100%;"></div>
+                                    <iframe id="youtubePlayer" 
+                                            src="<?php echo $videoEmbedUrl; ?>" 
+                                            title="Vídeo da Etapa"
+                                            frameborder="0" 
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                                            allowfullscreen 
+                                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;">
+                                    </iframe>
+                                <?php elseif ($isVimeo && !empty($videoEmbedUrl)): ?>
+                                    <iframe id="vimeoPlayer" 
+                                            src="<?php echo $videoEmbedUrl; ?>" 
+                                            title="Vídeo da Etapa"
+                                            frameborder="0" 
+                                            allow="autoplay; fullscreen; picture-in-picture" 
+                                            allowfullscreen 
+                                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;">
+                                    </iframe>
                                 <?php elseif (!empty($videoEmbedUrl)): ?>
-                                    <iframe id="videoIframe" src="<?php echo $videoEmbedUrl; ?>" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                                <?php else: ?>
-                                    <video id="html5Video" controls style="width: 100%; height: 100%;">
-                                        <source src="<?php echo base_url($etapa->video_url); ?>">
+                                    <video id="html5Video" controls style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;">
+                                        <source src="<?php echo htmlspecialchars($videoEmbedUrl); ?>">
                                         Seu navegador não suporta a tag de vídeo.
                                     </video>
+                                <?php else: ?>
+                                    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #1e293b; color: #fff;">
+                                        <p class="text-muted"><i class="fa fa-info-circle"></i> O vídeo desta etapa estará disponível em breve.</p>
+                                    </div>
                                 <?php endif; ?>
                             </div>
 
                             <div class="video-status-bar">
-                                <div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
                                     <i class="fa fa-video-camera text-primary"></i> 
                                     <span>Vídeo da Etapa</span>
                                     <?php if ($etapa->video_obrigatorio == 1): ?>
-                                        <span class="label label-warning" style="margin-left: 8px;">Obrigatório</span>
+                                        <span class="label label-warning">Obrigatório</span>
                                     <?php endif; ?>
                                 </div>
-                                <div id="videoProgressText">
-                                    <?php if (!empty($progresso_etapa) && $progresso_etapa->video_concluido == 1): ?>
-                                        <span class="text-green"><i class="fa fa-check-circle"></i> Vídeo Concluído</span>
-                                    <?php else: ?>
-                                        <span class="text-muted"><i class="fa fa-clock-o"></i> Reproduza o conteúdo</span>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <?php if ($isYoutube && !empty($youtubeId)): ?>
+                                        <a href="https://www.youtube.com/watch?v=<?php echo htmlspecialchars($youtubeId); ?>" 
+                                           target="_blank" 
+                                           rel="noopener noreferrer" 
+                                           class="btn btn-xs btn-default" 
+                                           style="font-size: 11px; border-radius: 4px; padding: 2px 8px; color: #cbd5e1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);" 
+                                           title="Caso o vídeo não carregue devido a bloqueadores de anúncios, abra diretamente no YouTube">
+                                            <i class="fa fa-external-link"></i> Abrir no YouTube
+                                        </a>
+                                    <?php endif; ?>
+
+                                    <div id="videoProgressText">
+                                        <?php if (!empty($progresso_etapa) && $progresso_etapa->video_concluido == 1): ?>
+                                            <span class="text-green" style="font-weight: 600;"><i class="fa fa-check-circle"></i> Vídeo Concluído</span>
+                                        <?php else: ?>
+                                            <span class="text-muted"><i class="fa fa-clock-o"></i> Reproduza o conteúdo</span>
+                                        <?php endif; ?>
+                                    </div>
+
+                                    <?php if (empty($progresso_etapa) || $progresso_etapa->video_concluido != 1): ?>
+                                        <button type="button" id="btnMarcarVideoManual" onclick="marcarVideoManual()" class="btn btn-xs btn-success" style="font-size: 11px; font-weight: 600; border-radius: 4px; padding: 2px 10px;" title="Clique aqui caso já tenha assistido ao vídeo acima">
+                                            <i class="fa fa-check"></i> Marcar como assistido
+                                        </button>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -245,52 +344,124 @@
                     </div>
                     <?php endif; ?>
 
-                    <!-- 5. AVALIAÇÃO DE SATISFAÇÃO (Exibida no final do treinamento) -->
+                    <!-- 5. AVALIAÇÃO DE SATISFAÇÃO DA ETAPA -->
                     <?php if ($eh_ultima_etapa || $treinamento->avaliacao_obrigatoria == 1): ?>
-                    <div class="content-card" id="cardAvaliacao" style="border: 2px solid #fefcbf; background: #fffff0;">
-                        <h4 style="font-size: 17px; font-weight: 800; text-align: center; color: #744210; margin: 0 0 6px 0;">
-                            <i class="fa fa-star text-yellow"></i> Avaliação do Treinamento
-                        </h4>
-                        <p style="text-align: center; color: #975a16; font-size: 14px; margin-bottom: 15px;">
-                            O que você achou deste treinamento? Sua opinião é essencial para aprimorarmos nossos conteúdos!
-                        </p>
+                        <?php 
+                            $videoJaConcluido = (!empty($progresso_etapa) && $progresso_etapa->video_concluido == 1);
+                            $temVideo = ($etapa->video_tipo !== 'nenhum' && !empty($etapa->video_url));
+                            $jaAvaliou = !empty($minha_avaliacao);
+                            $opcoesNotas = [
+                                1 => ['Muito ruim', 'fa-frown-o'],
+                                2 => ['Ruim', 'fa-meh-o'],
+                                3 => ['Regular', 'fa-smile-o'],
+                                4 => ['Bom', 'fa-star-half-o'],
+                                5 => ['Excelente', 'fa-star']
+                            ];
+                        ?>
 
-                        <form id="formAvaliacao" onsubmit="enviarAvaliacao(event)">
-                            <input type="hidden" name="treinamento_id" value="<?php echo $treinamento->id; ?>">
-                            <input type="hidden" id="inputNota" name="nota" value="<?php echo !empty($minha_avaliacao) ? $minha_avaliacao->nota : 5; ?>">
-
-                            <div class="rating-container">
-                                <?php 
-                                    $notaAtual = !empty($minha_avaliacao) ? (int)$minha_avaliacao->nota : 5;
-                                    $opcoes = [
-                                        1 => ['Muito ruim', 'fa-frown-o'],
-                                        2 => ['Ruim', 'fa-meh-o'],
-                                        3 => ['Regular', 'fa-smile-o'],
-                                        4 => ['Bom', 'fa-star-half-o'],
-                                        5 => ['Excelente', 'fa-star']
-                                    ];
-                                ?>
-                                <?php foreach ($opcoes as $val => $opt): ?>
-                                    <div class="star-btn <?php echo ($notaAtual == $val) ? 'selected' : ''; ?>" onclick="selecionarNota(<?php echo $val; ?>)">
-                                        <i class="fa <?php echo $opt[1]; ?>"></i>
-                                        <span><?php echo $opt[0]; ?></span>
+                        <!-- Cenário A: Usuário JÁ avaliou esta etapa (Modo Somente Leitura - Não permite reavaliar) -->
+                        <?php if ($jaAvaliou): ?>
+                            <div class="content-card" style="border: 2px solid #bbf7d0; background: #f0fdf4;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                                    <span class="label label-success" style="font-size: 11px; padding: 4px 10px; border-radius: 12px; font-weight: 700;">
+                                        <i class="fa fa-check-circle"></i> Etapa Avaliada
+                                    </span>
+                                    <span class="text-muted" style="font-size: 12px;">
+                                        Registrada em <?php echo date('d/m/Y H:i', strtotime($minha_avaliacao->created_at)); ?>
+                                    </span>
+                                </div>
+                                <h4 style="font-size: 16px; font-weight: 700; color: #166534; margin: 0 0 10px 0;">
+                                    Sua Avaliação desta Etapa
+                                </h4>
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                                    <div style="font-size: 20px; color: #f59e0b;">
+                                        <?php for ($s = 1; $s <= 5; $s++): ?>
+                                            <i class="fa <?php echo ($s <= $minha_avaliacao->nota) ? 'fa-star' : 'fa-star-o'; ?>"></i>
+                                        <?php endfor; ?>
                                     </div>
-                                <?php endforeach; ?>
+                                    <span style="font-weight: 700; color: #1e293b; font-size: 14px;">
+                                        <?php echo $opcoesNotas[$minha_avaliacao->nota][0] ?? ''; ?> (Nota <?php echo $minha_avaliacao->nota; ?> de 5)
+                                    </span>
+                                </div>
+                                <?php if (!empty($minha_avaliacao->comentario)): ?>
+                                    <div style="background: #fff; border: 1px solid #dcfce7; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #334155; line-height: 1.6;">
+                                        <i class="fa fa-quote-left text-muted" style="margin-right: 6px;"></i>
+                                        <?php echo nl2br(htmlspecialchars($minha_avaliacao->comentario)); ?>
+                                    </div>
+                                <?php endif; ?>
                             </div>
 
-                            <div class="form-group" style="max-width: 600px; margin: 0 auto 15px auto;">
-                                <label style="font-size: 13px; color: #744210; font-weight: 600;">Quer deixar alguma sugestão ou comentário? (Opcional)</label>
-                                <textarea name="comentario" id="inputComentario" rows="2" class="form-control" placeholder="Conte-nos o que achou, dúvidas que surgiram ou sugestões de melhoria..." style="border-radius: 8px;"><?php echo htmlspecialchars($minha_avaliacao->comentario ?? ''); ?></textarea>
+                        <!-- Cenário B: Usuário AINDA NÃO avaliou esta etapa -->
+                        <?php else: ?>
+                            <!-- B.1: Se tem vídeo e o vídeo AINDA NÃO foi concluído, mostra bloqueado com aviso -->
+                            <div class="content-card" id="cardAvaliacaoBloqueada" style="border: 2px dashed #cbd5e1; background: #f8fafc; text-align: center; padding: 25px; <?php echo ($temVideo && !$videoJaConcluido) ? '' : 'display: none;'; ?>">
+                                <div style="width: 48px; height: 48px; line-height: 48px; border-radius: 50%; background: #e2e8f0; margin: 0 auto 12px auto; font-size: 20px; color: #64748b;">
+                                    <i class="fa fa-lock"></i>
+                                </div>
+                                <h4 style="font-size: 16px; font-weight: 700; color: #334155; margin: 0 0 6px 0;">Avaliação da Etapa Bloqueada</h4>
+                                <p style="font-size: 13px; color: #64748b; max-width: 450px; margin: 0 auto;">
+                                    Você precisa assistir ao vídeo desta etapa integralmente para liberar o envio da sua avaliação e comentário.
+                                </p>
                             </div>
 
-                            <div class="text-center">
-                                <button type="submit" id="btnSalvarAvaliacao" class="btn btn-warning" style="font-weight: 700; border-radius: 20px; padding: 7px 25px;">
-                                    <i class="fa fa-send"></i> Enviar Avaliação
-                                </button>
-                                <span id="msgFeedbackAvaliacao" style="margin-left: 10px; font-weight: 700; color: #276749; display: none;"></span>
+                            <!-- B.2: Formulário liberado (visível se vídeo concluído ou etapa sem vídeo) -->
+                            <div class="content-card" id="cardAvaliacaoForm" style="border: 2px solid #fefcbf; background: #fffff0; <?php echo ($temVideo && !$videoJaConcluido) ? 'display: none;' : ''; ?>">
+                                <h4 style="font-size: 17px; font-weight: 800; text-align: center; color: #744210; margin: 0 0 6px 0;">
+                                    <i class="fa fa-star text-yellow"></i> Avaliação desta Etapa
+                                </h4>
+                                <p style="text-align: center; color: #975a16; font-size: 14px; margin-bottom: 15px;">
+                                    O que você achou das instruções e conteúdos desta etapa? Sua opinião é essencial para aprimorarmos nossos materiais!
+                                </p>
+
+                                <form id="formAvaliacao" onsubmit="enviarAvaliacao(event)">
+                                    <input type="hidden" name="treinamento_id" value="<?php echo $treinamento->id; ?>">
+                                    <input type="hidden" name="etapa_id" id="inputAvaliacaoEtapaId" value="<?php echo (int)$etapa->id; ?>">
+                                    <input type="hidden" id="inputNota" name="nota" value="5">
+
+                                    <div class="rating-container">
+                                        <?php foreach ($opcoesNotas as $val => $opt): ?>
+                                            <div class="star-btn <?php echo (5 == $val) ? 'selected' : ''; ?>" onclick="selecionarNota(<?php echo $val; ?>)">
+                                                <i class="fa <?php echo $opt[1]; ?>"></i>
+                                                <span><?php echo $opt[0]; ?></span>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+
+                                    <div class="form-group" style="max-width: 600px; margin: 0 auto 15px auto;">
+                                        <label style="font-size: 13px; color: #744210; font-weight: 600;">Quer deixar alguma sugestão ou comentário sobre esta etapa? (Opcional)</label>
+                                        <textarea name="comentario" id="inputComentario" rows="2" class="form-control" placeholder="Conte-nos o que achou das instruções desta etapa, dúvidas que surgiram ou melhorias..." style="border-radius: 8px;"></textarea>
+                                    </div>
+
+                                    <div class="text-center">
+                                        <button type="submit" id="btnSalvarAvaliacao" class="btn btn-warning" style="font-weight: 700; border-radius: 20px; padding: 7px 25px;">
+                                            <i class="fa fa-send"></i> Enviar Avaliação
+                                        </button>
+                                        <span id="msgFeedbackAvaliacao" style="margin-left: 10px; font-weight: 700; color: #276749; display: none;"></span>
+                                    </div>
+                                </form>
                             </div>
-                        </form>
-                    </div>
+
+                            <!-- Card de sucesso dinâmico após envio (substitui o form) -->
+                            <div class="content-card" id="cardAvaliacaoSucessoDinamico" style="display: none; border: 2px solid #bbf7d0; background: #f0fdf4;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                                    <span class="label label-success" style="font-size: 11px; padding: 4px 10px; border-radius: 12px; font-weight: 700;">
+                                        <i class="fa fa-check-circle"></i> Etapa Avaliada
+                                    </span>
+                                    <span class="text-muted" style="font-size: 12px;">Agora mesmo</span>
+                                </div>
+                                <h4 style="font-size: 16px; font-weight: 700; color: #166534; margin: 0 0 10px 0;">
+                                    Sua Avaliação desta Etapa
+                                </h4>
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                                    <div id="estrelasDinamicas" style="font-size: 20px; color: #f59e0b;"></div>
+                                    <span id="textoNotaDinamica" style="font-weight: 700; color: #1e293b; font-size: 14px;"></span>
+                                </div>
+                                <div id="boxComentarioDinamico" style="display: none; background: #fff; border: 1px solid #dcfce7; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #334155; line-height: 1.6;">
+                                    <i class="fa fa-quote-left text-muted" style="margin-right: 6px;"></i>
+                                    <span id="textoComentarioDinamico"></span>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     <?php endif; ?>
 
                     <!-- 6. BARRA DE AÇÕES INFERIOR -->
@@ -336,7 +507,7 @@
                                 ?>
                                 <a href="<?php echo $isLocked ? 'javascript:void(0);' : site_url('treinamentos/etapa/' . $treinamento->id . '/' . $s->id); ?>" 
                                    class="nav-step-item <?php echo $isCurrent ? 'active' : ''; ?> <?php echo $isLocked ? 'locked' : ''; ?>"
-                                   <?php if ($isLocked): ?>onclick="alert('Você precisa concluir as etapas anteriores antes de acessar esta etapa.');"<?php endif; ?>>
+                                   <?php if ($isLocked): ?>onclick="window.mostrarAvisoEtapaBloqueada && window.mostrarAvisoEtapaBloqueada();"<?php endif; ?>>
                                     <span class="nav-step-status">
                                         <?php if ($isDone): ?>
                                             <i class="fa fa-check-circle text-green"></i>
@@ -371,184 +542,13 @@
     </section>
 </div>
 
-<!-- SCRIPTS DE INTEGRAÇÃO DO PLAYER, ATIVIDADES E AVALIAÇÃO -->
+<!-- DADOS PARA INICIALIZAÇÃO DA SALA DE AULA (Processados pelo script oficial treinamentos.js) -->
 <script>
-    var etapaId = <?php echo (int)$etapa->id; ?>;
-    var treinamentoId = <?php echo (int)$treinamento->id; ?>;
-    var videoObrigatorio = <?php echo $etapa->video_obrigatorio == 1 ? 'true' : 'false'; ?>;
-    var videoJaConcluido = <?php echo (!empty($progresso_etapa) && $progresso_etapa->video_concluido == 1) ? 'true' : 'false'; ?>;
-
-    // 1. YouTube Player API Integration
-    var ytPlayer;
-    function onYouTubeIframeAPIReady() {
-        var el = document.getElementById('youtubePlayer');
-        if (el) {
-            var ytId = el.getAttribute('data-youtube-id');
-            ytPlayer = new YT.Player('youtubePlayer', {
-                videoId: ytId,
-                playerVars: {
-                    'rel': 0,
-                    'modestbranding': 1,
-                    'enablejsapi': 1
-                },
-                events: {
-                    'onStateChange': onPlayerStateChange
-                }
-            });
-        }
-    }
-
-    // Carregar YouTube IFrame API dinamicamente se necessário
-    if (document.getElementById('youtubePlayer')) {
-        var tag = document.createElement('script');
-        tag.src = "https://www.youtube.com/iframe_api";
-        var firstScriptTag = document.getElementsByTagName('script')[0];
-        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-    }
-
-    var progressInterval;
-    function onPlayerStateChange(event) {
-        if (event.data == YT.PlayerState.PLAYING) {
-            progressInterval = setInterval(function() {
-                if (ytPlayer && ytPlayer.getCurrentTime) {
-                    var cur = Math.floor(ytPlayer.getCurrentTime());
-                    var dur = Math.floor(ytPlayer.getDuration());
-                    if (cur > 0 && cur % 10 === 0) {
-                        salvarProgressoVideo(cur, false);
-                    }
-                }
-            }, 1000);
-        } else if (event.data == YT.PlayerState.ENDED) {
-            clearInterval(progressInterval);
-            var dur = ytPlayer && ytPlayer.getDuration ? Math.floor(ytPlayer.getDuration()) : 0;
-            salvarProgressoVideo(dur, true);
-        } else {
-            clearInterval(progressInterval);
-        }
-    }
-
-    // Função de envio do progresso do vídeo via AJAX
-    function salvarProgressoVideo(tempo, concluido) {
-        $.ajax({
-            url: '<?php echo site_url("treinamentos/salvar_progresso_video"); ?>',
-            type: 'POST',
-            dataType: 'json',
-            data: {
-                etapa_id: etapaId,
-                tempo_segundos: tempo,
-                concluido: concluido ? 1 : 0
-            },
-            success: function(resp) {
-                if (resp && resp.concluido) {
-                    videoJaConcluido = true;
-                    $('#videoProgressText').html('<span class="text-green"><i class="fa fa-check-circle"></i> Vídeo Concluído</span>');
-                }
-            }
-        });
-    }
-
-    // 2. Checklist de Atividades Práticas Orientativas
-    function toggleAtividade(ativId, element) {
-        var $el = $(element);
-        var $chk = $el.find('.task-checkbox');
-
-        $.ajax({
-            url: '<?php echo site_url("treinamentos/toggle_atividade"); ?>',
-            type: 'POST',
-            dataType: 'json',
-            data: { atividade_id: ativId },
-            success: function(resp) {
-                if (resp && resp.success) {
-                    if (resp.concluida) {
-                        $el.addClass('checked');
-                        $chk.prop('checked', true);
-                    } else {
-                        $el.removeClass('checked');
-                        $chk.prop('checked', false);
-                    }
-                }
-            }
-        });
-    }
-
-    // 3. Avaliação de Satisfação
-    function selecionarNota(val) {
-        $('#inputNota').val(val);
-        $('.star-btn').removeClass('selected');
-        $('.star-btn').each(function(i, btn) {
-            if ($(btn).find('span').text().trim() === getTextoNota(val)) {
-                $(btn).addClass('selected');
-            }
-        });
-    }
-
-    function getTextoNota(v) {
-        switch(v) {
-            case 1: return 'Muito ruim';
-            case 2: return 'Ruim';
-            case 3: return 'Regular';
-            case 4: return 'Bom';
-            case 5: return 'Excelente';
-        }
-        return '';
-    }
-
-    function enviarAvaliacao(e) {
-        e.preventDefault();
-        var nota = $('#inputNota').val();
-        var com = $('#inputComentario').val();
-        var $btn = $('#btnSalvarAvaliacao');
-
-        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Enviando...');
-
-        $.ajax({
-            url: '<?php echo site_url("treinamentos/avaliar"); ?>',
-            type: 'POST',
-            dataType: 'json',
-            data: {
-                treinamento_id: treinamentoId,
-                nota: nota,
-                comentario: com
-            },
-            success: function(resp) {
-                $btn.prop('disabled', false).html('<i class="fa fa-check"></i> Avaliação Salva');
-                if (resp && resp.success) {
-                    $('#msgFeedbackAvaliacao').text('Obrigado pelo seu feedback!').fadeIn();
-                    setTimeout(function() { $('#msgFeedbackAvaliacao').fadeOut(); }, 4000);
-                } else {
-                    alert(resp.message || 'Erro ao salvar avaliação.');
-                }
-            },
-            error: function() {
-                $btn.prop('disabled', false).html('<i class="fa fa-send"></i> Enviar Avaliação');
-                alert('Erro de conexão com o servidor.');
-            }
-        });
-    }
-
-    // 4. Concluir Etapa com Validação Rigorosa no Backend
-    function concluirEtapa(etpId) {
-        var $btn = $('#btnConcluirEtapa');
-        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Validando requisitos...');
-
-        $.ajax({
-            url: '<?php echo site_url("treinamentos/concluir_etapa"); ?>',
-            type: 'POST',
-            dataType: 'json',
-            data: { etapa_id: etpId },
-            success: function(resp) {
-                if (resp && resp.success) {
-                    // Avanço suave para a próxima etapa ou conclusão
-                    window.location.href = resp.proxima_url;
-                } else {
-                    $btn.prop('disabled', false).html('Concluir e Próxima Etapa <i class="fa fa-arrow-right"></i>');
-                    alert(resp.message || 'Existem requisitos obrigatórios pendentes nesta etapa.');
-                }
-            },
-            error: function() {
-                $btn.prop('disabled', false).html('Concluir e Próxima Etapa <i class="fa fa-arrow-right"></i>');
-                alert('Erro de comunicação ao validar a conclusão da etapa.');
-            }
-        });
-    }
+    window.etapaId = <?php echo (int)$etapa->id; ?>;
+    window.treinamentoId = <?php echo (int)$treinamento->id; ?>;
+    window.temVideo = <?php echo ($etapa->video_tipo !== 'nenhum' && !empty($etapa->video_url)) ? 'true' : 'false'; ?>;
+    window.videoDuracao = <?php echo (int)($etapa->video_duracao_segundos ?? 0); ?>;
+    window.videoObrigatorio = true;
+    window.videoJaConcluido = <?php echo (!empty($progresso_etapa) && $progresso_etapa->video_concluido == 1) ? 'true' : 'false'; ?>;
+    window.etapaJaAvaliada = <?php echo (!empty($minha_avaliacao)) ? 'true' : 'false'; ?>;
 </script>

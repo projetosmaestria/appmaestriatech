@@ -23,6 +23,7 @@ class Treinamentos_admin extends Admin_Controller {
         $this->lang->load('admin/treinamentos');
         $this->load->library('form_validation');
         $this->load->library('upload');
+        $this->load->helper('text');
 
         // Titulo e Breadcrumbs padrao
         $this->page_title->push(lang('menu_treinamentos_admin'));
@@ -572,6 +573,8 @@ class Treinamentos_admin extends Admin_Controller {
         }
         $this->data['usuarios_selecionados'] = $userIdsAtuais;
         $this->data['grupos_selecionados']   = $groupIdsAtuais;
+        $this->data['userIdsAtuais']         = $userIdsAtuais;
+        $this->data['groupIdsAtuais']        = $groupIdsAtuais;
 
         $this->template->admin_render('admin/treinamentos/admin/permissoes', $this->data);
     }

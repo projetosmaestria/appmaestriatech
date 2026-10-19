@@ -1,4 +1,19 @@
-<?php defined('BASEPATH') OR exit('No direct script access allowed'); ?>
+<?php 
+defined('BASEPATH') OR exit('No direct script access allowed'); 
+
+// Normalizacao polimorfica para evitar TypeError caso venha como stdClass ou nulo
+if (is_object($resumo_avaliacoes ?? null)) {
+    $resumo_avaliacoes = (array)$resumo_avaliacoes;
+}
+if (!isset($resumo_avaliacoes) || !is_array($resumo_avaliacoes)) {
+    $resumo_avaliacoes = [];
+}
+$resumo_avaliacoes['media_geral'] = $resumo_avaliacoes['media_geral'] ?? $resumo_avaliacoes['media'] ?? 0;
+$resumo_avaliacoes['total']       = $resumo_avaliacoes['total'] ?? $resumo_avaliacoes['total_avaliacoes'] ?? 0;
+if (!isset($resumo_avaliacoes['distribuicao']) || !is_array($resumo_avaliacoes['distribuicao'])) {
+    $resumo_avaliacoes['distribuicao'] = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
+}
+?>
 
 <div class="content-wrapper">
     <section class="content-header">
@@ -46,9 +61,12 @@
                     <span class="info-box-icon bg-yellow" style="border-radius: 10px 0 0 10px;"><i class="fa fa-star"></i></span>
                     <div class="info-box-content">
                         <span class="info-box-text">Nota Média de Satisfação</span>
-                        <span class="info-box-number" style="font-size: 26px;">
-                            <?php echo number_format($resumo_avaliacoes['media_geral'] ?? $resumo_avaliacoes['media'] ?? 0, 1); ?>
-                            <small style="font-size: 13px; font-weight: normal;">(<?php echo $resumo_avaliacoes['total'] ?? 0; ?> aval.)</small>
+                            <?php 
+                                $mediaAval = is_array($resumo_avaliacoes) ? ($resumo_avaliacoes['media_geral'] ?? $resumo_avaliacoes['media'] ?? 0) : ($resumo_avaliacoes->media_geral ?? $resumo_avaliacoes->media ?? 0);
+                                $totalAval = is_array($resumo_avaliacoes) ? ($resumo_avaliacoes['total'] ?? 0) : ($resumo_avaliacoes->total ?? 0);
+                            ?>
+                            <?php echo number_format($mediaAval, 1); ?>
+                            <small style="font-size: 13px; font-weight: normal;">(<?php echo $totalAval; ?> aval.)</small>
                         </span>
                     </div>
                 </div>
@@ -150,7 +168,13 @@
                                             <td>
                                                 <?php if (!empty($pa->ultima_etapa_titulo)): ?>
                                                     <span class="badge bg-purple" style="font-size: 11px;">
-                                                        Etapa <?php echo $pa->ultima_etapa_ordem; ?>: <?php echo htmlspecialchars(character_limiter($pa->ultima_etapa_titulo, 25)); ?>
+                                                        <?php 
+                                                            $etapaTitulo = $pa->ultima_etapa_titulo;
+                                                            $etapaTituloTrunc = function_exists('character_limiter') 
+                                                                ? character_limiter($etapaTitulo, 25) 
+                                                                : (mb_strlen($etapaTitulo) > 25 ? mb_substr($etapaTitulo, 0, 22) . '...' : $etapaTitulo);
+                                                        ?>
+                                                        Etapa <?php echo $pa->ultima_etapa_ordem; ?>: <?php echo htmlspecialchars($etapaTituloTrunc); ?>
                                                     </span>
                                                 <?php elseif ($pa->status === 'concluido'): ?>
                                                     <span class="badge bg-green">Todas as etapas concluídas</span>

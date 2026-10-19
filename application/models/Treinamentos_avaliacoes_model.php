@@ -11,9 +11,9 @@ class Treinamentos_avaliacoes_model extends CI_Model {
     }
 
     /**
-     * Salva ou atualiza a avaliacao de um treinamento por um usuario
+     * Salva a avaliacao de um treinamento ou etapa por um usuario (somente 1 vez por etapa/treinamento)
      */
-    public function salvar_avaliacao($treinamento_id, $user_id, $nota, $comentario = '')
+    public function salvar_avaliacao($treinamento_id, $user_id, $nota, $comentario = '', $etapa_id = null)
     {
         $nota = max(1, min(5, (int)$nota));
         $comentario = trim($comentario);
@@ -21,33 +21,40 @@ class Treinamentos_avaliacoes_model extends CI_Model {
 
         $this->db->where('treinamento_id', (int)$treinamento_id);
         $this->db->where('user_id', (int)$user_id);
+        if ($etapa_id) {
+            $this->db->where('etapa_id', (int)$etapa_id);
+        } else {
+            $this->db->where('etapa_id IS NULL', null, false);
+        }
         $existe = $this->db->get($this->table)->row();
 
+        // Regra de negócio: só pode avaliar uma única vez a etapa/treinamento
         if ($existe) {
-            $this->db->where('id', $existe->id);
-            return $this->db->update($this->table, array(
-                'nota' => $nota,
-                'comentario' => $comentario,
-                'updated_at' => $now
-            ));
-        } else {
-            return $this->db->insert($this->table, array(
-                'treinamento_id' => (int)$treinamento_id,
-                'user_id' => (int)$user_id,
-                'nota' => $nota,
-                'comentario' => $comentario,
-                'created_at' => $now
-            ));
+            return false;
         }
+
+        return $this->db->insert($this->table, array(
+            'treinamento_id' => (int)$treinamento_id,
+            'etapa_id'       => $etapa_id ? (int)$etapa_id : null,
+            'user_id'        => (int)$user_id,
+            'nota'           => $nota,
+            'comentario'     => $comentario,
+            'created_at'     => $now
+        ));
     }
 
     /**
-     * Retorna a avaliacao dada por um usuario para um treinamento
+     * Retorna a avaliacao dada por um usuario para uma etapa ou treinamento
      */
-    public function get_avaliacao_usuario($treinamento_id, $user_id)
+    public function get_avaliacao_usuario($treinamento_id, $user_id, $etapa_id = null)
     {
         $this->db->where('treinamento_id', (int)$treinamento_id);
         $this->db->where('user_id', (int)$user_id);
+        if ($etapa_id) {
+            $this->db->where('etapa_id', (int)$etapa_id);
+        } else {
+            $this->db->where('etapa_id IS NULL', null, false);
+        }
         return $this->db->get($this->table)->row();
     }
 

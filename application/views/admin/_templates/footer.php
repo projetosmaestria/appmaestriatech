@@ -40,9 +40,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
         <script src="<?php echo base_url($frameworks_dir . '/chart.js/Chart.js'); ?>"></script>
         <script src="<?php echo base_url($plugins_dir . '/bootstrap-treeview/bootstrap-treeview.js'); ?>"></script>
         <script src="<?php echo base_url($plugins_dir . '/jquery.serialize/serializejson.js'); ?>"></script>
-<?php if (in_array(strtolower($this->router->fetch_class()), array('treinamentos', 'treinamentos_admin'))): ?>
-        <script src="<?php echo base_url('assets/xkey/treinamentos.js?v=2.0'); ?>"></script>
-<?php endif; ?>
+
 <?php if ($mobile == TRUE): ?>
         <script src="<?php echo base_url($plugins_dir . '/fastclick/fastclick.min.js'); ?>"></script>
 <?php endif; ?>
@@ -131,6 +129,12 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
         <script src="<?php echo base_url($frameworks_dir . '/adminlte/js/adminlte.min.js'); ?>"></script>
         <script src="<?php echo base_url($frameworks_dir . '/domprojects/js/dp.min.js'); ?>"></script>
+
+<?php if (in_array(strtolower($this->router->fetch_class()), array('treinamentos', 'treinamentos_admin'))): ?>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <script src="<?php echo base_url('assets/xkey/treinamentos.js?v=' . (file_exists(FCPATH . 'assets/xkey/treinamentos.js') ? filemtime(FCPATH . 'assets/xkey/treinamentos.js') : time())); ?>"></script>
+<?php endif; ?>
         <?php if ($this->router->fetch_class() == 'chamados' && $this->router->fetch_method() == 'apontamentos'): ?>
                 <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.4.0/js/dataTables.buttons.min.js"></script>
                 <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.4.0/js/buttons.flash.min.js"></script>

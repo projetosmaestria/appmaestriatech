@@ -7,11 +7,47 @@
 (function($) {
     'use strict';
 
+    // Helper universal que garante SEMPRE o uso do SweetAlert2 (Swal.fire)
+    function mostrarAlerta(titulo, html, icone, callback) {
+        icone = icone || 'warning';
+
+        function executarSwal() {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: icone,
+                    title: titulo,
+                    html: html,
+                    confirmButtonColor: '#3c8dbc',
+                    confirmButtonText: 'Entendido'
+                }).then(function(res) {
+                    if (callback) callback(res);
+                });
+            }
+        }
+
+        if (typeof Swal !== 'undefined') {
+            executarSwal();
+        } else {
+            var script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
+            script.onload = executarSwal;
+            document.head.appendChild(script);
+        }
+    }
+    window.mostrarAlerta = mostrarAlerta;
+
+    // Redefine universalmente o window.alert nativo para converter qualquer alert em Swal.fire
+    window.alert = function(msg) {
+        mostrarAlerta('Atenção', typeof msg === 'string' ? msg.replace(/\n/g, '<br>') : msg, 'warning');
+    };
+
     // Inicialização quando o DOM estiver pronto
     $(function() {
         initCatalogoLiveSearch();
         initBannersPreview();
         initEtapasVideoAndOrder();
+        initPermissoesTreinamento();
+        initSalaDeAula();
     });
 
     /**
@@ -315,6 +351,395 @@
                 return true;
             });
         }
+    }
+
+    /**
+     * 4. GESTÃO DE PERMISSÕES DO TREINAMENTO (ACESSO LIVRE vs RESTRITO)
+     */
+    function initPermissoesTreinamento() {
+        var $selectTipo = $('#selectTipoAcesso');
+        var $bloco = $('#blocoAcessoRestrito');
+
+        if (!$selectTipo.length) {
+            return;
+        }
+
+        function alternar() {
+            var val = $selectTipo.val();
+            if (val === 'restrito') {
+                $bloco.stop(true, true).slideDown(150);
+            } else {
+                $bloco.stop(true, true).slideUp(150);
+            }
+        }
+
+        // Estado inicial
+        if ($selectTipo.val() === 'restrito') {
+            $bloco.show();
+        } else {
+            $bloco.hide();
+        }
+
+        // Evento de alteracao direto no select
+        $selectTipo.off('change.permissoes').on('change.permissoes', alternar);
+
+        // Delegacao global no document para garantir captura mesmo apos qualquer re-render
+        $(document).off('change.perm_global', '#selectTipoAcesso').on('change.perm_global', '#selectTipoAcesso', function() {
+            if ($(this).val() === 'restrito') {
+                $('#blocoAcessoRestrito').slideDown(150);
+            } else {
+                $('#blocoAcessoRestrito').slideUp(150);
+            }
+        });
+
+        // Filtro rapido de grupos por digitacao
+        $(document).off('input.filtroGrupos', '#filtroBuscaGrupos').on('input.filtroGrupos', '#filtroBuscaGrupos', function() {
+            var termo = ($(this).val() || '').toLowerCase().trim();
+            $('.item-checkbox-grupo').each(function() {
+                var txt = $(this).text().toLowerCase();
+                $(this).toggle(txt.indexOf(termo) !== -1);
+            });
+        });
+
+        // Filtro rapido de usuarios por digitacao
+        $(document).off('input.filtroUsuarios', '#filtroBuscaUsuarios').on('input.filtroUsuarios', '#filtroBuscaUsuarios', function() {
+            var termo = ($(this).val() || '').toLowerCase().trim();
+            $('.item-checkbox-usuario').each(function() {
+                var txt = $(this).text().toLowerCase();
+                $(this).toggle(txt.indexOf(termo) !== -1);
+            });
+        });
+
+        // Botao Marcar Todos Grupos
+        $(document).off('click.marcarG', '#btnMarcarTodosGrupos').on('click.marcarG', '#btnMarcarTodosGrupos', function(e) {
+            e.preventDefault();
+            $('.item-checkbox-grupo:visible .chk-grupo').prop('checked', true);
+        });
+
+        // Botao Desmarcar Grupos
+        $(document).off('click.desmarcarG', '#btnDesmarcarTodosGrupos').on('click.desmarcarG', '#btnDesmarcarTodosGrupos', function(e) {
+            e.preventDefault();
+            $('.item-checkbox-grupo:visible .chk-grupo').prop('checked', false);
+        });
+
+        // Botao Marcar Todos Usuarios
+        $(document).off('click.marcarU', '#btnMarcarTodosUsuarios').on('click.marcarU', '#btnMarcarTodosUsuarios', function(e) {
+            e.preventDefault();
+            $('.item-checkbox-usuario:visible .chk-usuario').prop('checked', true);
+        });
+
+        // Botao Desmarcar Usuarios
+        $(document).off('click.desmarcarU', '#btnDesmarcarTodosUsuarios').on('click.desmarcarU', '#btnDesmarcarTodosUsuarios', function(e) {
+            e.preventDefault();
+            $('.item-checkbox-usuario:visible .chk-usuario').prop('checked', false);
+        });
+    }
+
+    /**
+     * 5. SALA DE AULA - ETAPAS (PLAYER DE VÍDEO, ATIVIDADES E AVALIAÇÃO)
+     */
+    function initSalaDeAula() {
+        var $classroom = $('.classroom-container');
+        if (!$classroom.length) {
+            return;
+        }
+
+        var etapaId = parseInt($classroom.data('etapa-id'), 10) || window.etapaId || 0;
+        var treinamentoId = parseInt($classroom.data('treinamento-id'), 10) || window.treinamentoId || 0;
+        var temVideo = ($classroom.data('tem-video') == '1' || window.temVideo === true);
+        var duracaoEsperada = parseInt($classroom.data('video-duracao'), 10) || window.videoDuracao || 0;
+        var tempoInicioPagina = Date.now();
+
+        window.mostrarAvisoEtapaBloqueada = function() {
+            mostrarAlerta(
+                'Etapa Bloqueada',
+                '<p style="font-size: 14px; color: #475569;">Você precisa concluir as etapas anteriores antes de acessar este conteúdo.</p>',
+                'info'
+            );
+        };
+
+        function formatarSegundos(sec) {
+            if (!sec || sec <= 0) return 'alguns minutos';
+            var min = Math.floor(sec / 60);
+            var s = sec % 60;
+            return min > 0 ? (min + 'min ' + (s > 0 ? s + 's' : '')) : (s + 's');
+        }
+
+        function normalizarUrlMesmaOrigem(rawUrl, fallbackPath) {
+            if (rawUrl) {
+                try {
+                    var parsed = new URL(rawUrl, window.location.href);
+                    return window.location.origin + parsed.pathname + parsed.search;
+                } catch(e) {
+                    return rawUrl;
+                }
+            }
+            return fallbackPath;
+        }
+
+        var urlSalvarVideo = normalizarUrlMesmaOrigem($classroom.data('url-salvar-video'), '/treinamentos/salvar_progresso_video');
+        var urlToggleAtividade = normalizarUrlMesmaOrigem($classroom.data('url-toggle-atividade'), '/treinamentos/toggle_atividade');
+        var urlAvaliar = normalizarUrlMesmaOrigem($classroom.data('url-avaliar'), '/treinamentos/avaliar');
+        var urlConcluir = normalizarUrlMesmaOrigem($classroom.data('url-concluir-etapa'), '/treinamentos/concluir_etapa');
+
+        // Função de envio do progresso do vídeo
+        window.salvarProgressoVideo = function(tempo, concluido) {
+            var $btn = $('#btnMarcarVideoManual');
+            
+            $.ajax({
+                url: urlSalvarVideo,
+                type: 'POST',
+                dataType: 'json',
+                data: {
+                    etapa_id: etapaId,
+                    tempo_segundos: tempo || (duracaoEsperada || 300),
+                    concluido: concluido ? 1 : 0
+                },
+                success: function(resp) {
+                    if (resp && (resp.concluido || resp.success)) {
+                        $('#videoProgressText').html('<span class="text-green" style="font-weight: 600;"><i class="fa fa-check-circle"></i> Vídeo Concluído</span>');
+                        $btn.fadeOut(200);
+
+                        // Atualiza os estados no DOM
+                        $classroom.data('video-concluido', '1');
+                        window.videoJaConcluido = true;
+
+                        // Desbloqueia o formulário de avaliação se ainda não tiver sido avaliada
+                        $('#cardAvaliacaoBloqueada').slideUp(200);
+                        $('#cardAvaliacaoForm').slideDown(250);
+
+                        if (concluido) {
+                            mostrarAlerta(
+                                'Vídeo Concluído!',
+                                '<p style="font-size: 14px; color: #475569;">Progresso da etapa salvo com sucesso.</p>',
+                                'success'
+                            );
+                        }
+                    } else {
+                        $btn.prop('disabled', false).html('<i class="fa fa-check"></i> Marcar como assistido');
+                        if (concluido) {
+                            mostrarAlerta('Atenção', (resp && resp.message) ? resp.message : 'Não foi possível confirmar o vídeo.', 'warning');
+                        }
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Falha na comunicação AJAX de progresso do vídeo:', xhr.responseText || error);
+                    $btn.prop('disabled', false).html('<i class="fa fa-check"></i> Marcar como assistido');
+                    if (concluido) {
+                        mostrarAlerta('Erro de Comunicação', 'Não foi possível registrar o vídeo. Verifique se a sua sessão continua ativa.', 'error');
+                    }
+                }
+            });
+        };
+
+        // Função para marcar o vídeo como assistido manualmente com validação rígida de tempo
+        window.marcarVideoManual = function() {
+            var videoJaConcluido = ($classroom.data('video-concluido') == '1' || window.videoJaConcluido === true);
+            if (videoJaConcluido) {
+                return;
+            }
+
+            var tempoNaPagina = Math.floor((Date.now() - tempoInicioPagina) / 1000);
+            var tempoMinimoExigido = duracaoEsperada > 30 ? Math.floor(duracaoEsperada * 0.8) : 20;
+
+            // Se ainda não assistiu ao conteúdo suficiente
+            if (tempoNaPagina < tempoMinimoExigido) {
+                mostrarAlerta(
+                    'Vídeo em andamento!',
+                    '<div style="text-align: left; font-size: 14px; line-height: 1.6; color: #475569;">' +
+                    '<p>Para garantir seu aprendizado, você precisa <strong>assistir ao vídeo completo</strong> desta etapa antes de marcá-lo como concluído.</p>' +
+                    '<div style="margin-top: 10px; padding: 10px 14px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; font-size: 13px; color: #92400e;">' +
+                    '<i class="fa fa-clock-o"></i> Duração do vídeo: <strong>' + formatarSegundos(duracaoEsperada) + '</strong><br>' +
+                    '<i class="fa fa-hourglass-half"></i> Tempo acompanhado até o momento: <strong>' + formatarSegundos(tempoNaPagina) + '</strong>' +
+                    '</div></div>',
+                    'warning'
+                );
+                return false;
+            }
+
+            var $btn = $('#btnMarcarVideoManual');
+            $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Salvando...');
+            window.salvarProgressoVideo(duracaoEsperada || 300, true);
+        };
+
+        // Delegação de clique no botão manual de vídeo (garantido independentemente de inline onclick)
+        $(document).off('click.marcarVideo', '#btnMarcarVideoManual').on('click.marcarVideo', '#btnMarcarVideoManual', function(e) {
+            e.preventDefault();
+            window.marcarVideoManual();
+        });
+
+        // Monitoramento de término de reprodução no YouTube via postMessage nativo
+        window.addEventListener('message', function(event) {
+            try {
+                var data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                if (data && data.event === 'infoDelivery' && data.info) {
+                    // playerState === 0 é ENDED no YouTube
+                    if (data.info.playerState === 0) {
+                        window.salvarProgressoVideo(duracaoEsperada || 300, true);
+                    }
+                }
+            } catch(e) {}
+        });
+
+        // 2. HTML5 Video Player
+        var html5Vid = document.getElementById('html5Video');
+        if (html5Vid) {
+            html5Vid.addEventListener('timeupdate', function() {
+                var cur = Math.floor(html5Vid.currentTime);
+                if (cur > 0 && cur % 15 === 0) {
+                    window.salvarProgressoVideo(cur, false);
+                }
+            });
+            html5Vid.addEventListener('ended', function() {
+                window.salvarProgressoVideo(Math.floor(html5Vid.duration || duracaoEsperada), true);
+            });
+        }
+
+        // 3. Atividades Práticas Orientativas
+        window.toggleAtividade = function(ativId, element) {
+            var $el = $(element);
+            var $chk = $el.find('.task-checkbox');
+
+            $.ajax({
+                url: urlToggleAtividade,
+                type: 'POST',
+                dataType: 'json',
+                data: { atividade_id: ativId },
+                success: function(resp) {
+                    if (resp && resp.success) {
+                        if (resp.concluida) {
+                            $el.addClass('checked');
+                            $chk.prop('checked', true);
+                        } else {
+                            $el.removeClass('checked');
+                            $chk.prop('checked', false);
+                        }
+                    }
+                }
+            });
+        };
+
+        // 4. Avaliação de Satisfação
+        window.selecionarNota = function(val) {
+            $('#inputNota').val(val);
+            $('.star-btn').removeClass('selected');
+            $('.star-btn').each(function(i, btn) {
+                if ($(btn).find('span').text().trim() === getTextoNota(val)) {
+                    $(btn).addClass('selected');
+                }
+            });
+        };
+
+        function getTextoNota(v) {
+            switch(v) {
+                case 1: return 'Muito ruim';
+                case 2: return 'Ruim';
+                case 3: return 'Regular';
+                case 4: return 'Bom';
+                case 5: return 'Excelente';
+            }
+            return '';
+        }
+
+        window.enviarAvaliacao = function(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            var nota = $('#inputNota').val();
+            var com = $('#inputComentario').val();
+            var $btn = $('#btnSalvarAvaliacao');
+            var videoConcluido = ($classroom.data('video-concluido') == '1' || window.videoJaConcluido === true);
+
+            // Validação no frontend: só pode avaliar depois de assistir o vídeo!
+            if (temVideo && !videoConcluido) {
+                mostrarAlerta(
+                    'Vídeo Pendente!',
+                    '<p style="font-size: 14px; color: #475569;">Você precisa assistir ao vídeo desta etapa integralmente antes de enviar a sua avaliação.</p>',
+                    'warning'
+                );
+                return false;
+            }
+
+            $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Enviando...');
+
+            $.ajax({
+                url: urlAvaliar,
+                type: 'POST',
+                dataType: 'json',
+                data: {
+                    treinamento_id: treinamentoId,
+                    etapa_id: etapaId,
+                    nota: nota,
+                    comentario: com
+                },
+                success: function(resp) {
+                    if (resp && resp.success) {
+                        // Monta o card definitivo de avaliação (somente leitura)
+                        var estrelasHtml = '';
+                        for (var s = 1; s <= 5; s++) {
+                            estrelasHtml += '<i class="fa ' + (s <= nota ? 'fa-star' : 'fa-star-o') + '"></i> ';
+                        }
+                        $('#estrelasDinamicas').html(estrelasHtml);
+                        $('#textoNotaDinamica').text(getTextoNota(parseInt(nota, 10)) + ' (Nota ' + nota + ' de 5)');
+                        if (com && com.trim()) {
+                            $('#textoComentarioDinamico').text(com);
+                            $('#boxComentarioDinamico').show();
+                        }
+                        $('#cardAvaliacaoForm').slideUp(150, function() {
+                            $('#cardAvaliacaoSucessoDinamico').slideDown(200);
+                        });
+
+                        mostrarAlerta(
+                            'Avaliação Registrada!',
+                            '<p style="font-size: 14px; color: #475569;">Muito obrigado pela sua opinião sobre esta etapa.</p>',
+                            'success'
+                        );
+                    } else {
+                        $btn.prop('disabled', false).html('<i class="fa fa-send"></i> Enviar Avaliação');
+                        mostrarAlerta('Atenção', resp.message || 'Erro ao registrar avaliação.', 'warning');
+                    }
+                },
+                error: function() {
+                    $btn.prop('disabled', false).html('<i class="fa fa-send"></i> Enviar Avaliação');
+                    mostrarAlerta('Erro de Conexão', 'Erro de conexão com o servidor ao registrar avaliação.', 'error');
+                }
+            });
+        };
+
+        // 5. Concluir Etapa
+        window.concluirEtapa = function(etpId) {
+            var videoConcluido = ($classroom.data('video-concluido') == '1' || window.videoJaConcluido === true);
+
+            // Validação no frontend: só pode concluir e ir para a próxima se tiver assistido o vídeo todo
+            if (temVideo && !videoConcluido) {
+                mostrarAlerta(
+                    'Vídeo Obrigatório Pendente!',
+                    '<p style="font-size: 14px; color: #475569;">Você precisa assistir ao vídeo desta etapa integralmente antes de concluir e avançar para a próxima atividade.</p>',
+                    'warning'
+                );
+                return false;
+            }
+
+            var $btn = $('#btnConcluirEtapa');
+            $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Validando requisitos...');
+
+            $.ajax({
+                url: urlConcluir,
+                type: 'POST',
+                dataType: 'json',
+                data: { etapa_id: etpId || etapaId },
+                success: function(resp) {
+                    if (resp && resp.success) {
+                        window.location.href = resp.proxima_url;
+                    } else {
+                        $btn.prop('disabled', false).html('Concluir e Próxima Etapa <i class="fa fa-arrow-right"></i>');
+                        mostrarAlerta('Requisitos Pendentes', resp.message || 'Existem requisitos obrigatórios pendentes nesta etapa.', 'warning');
+                    }
+                },
+                error: function() {
+                    $btn.prop('disabled', false).html('Concluir e Próxima Etapa <i class="fa fa-arrow-right"></i>');
+                    mostrarAlerta('Erro de Comunicação', 'Erro de comunicação ao validar a conclusão da etapa.', 'error');
+                }
+            });
+        };
     }
 
 })(jQuery);
