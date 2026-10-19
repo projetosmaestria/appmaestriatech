@@ -53,7 +53,7 @@ if ( ! function_exists('get_recursos_ws'))
                         foreach ($recs as $val => $rec) {
                             $response .= '
                                 <li><label><input type="checkbox" name="recursos['.$cont.'][]" value="'. strtolower($val) .'" id="'. $cont .'-'. strtolower($val) .'" parent-id="'. $cont .'" class="jtree_child_checkbox"';
-                            if(@in_array($val, $selecionados[$cont]))
+                            if (isset($selecionados[$cont]) && is_array($selecionados[$cont]) && in_array($val, $selecionados[$cont]))
                                 $response .= ' checked';
                             $response .= '> '. $rec .'</label></li>';
                         }
@@ -290,11 +290,36 @@ if ( ! function_exists('get_pagination_config'))
 if ( ! function_exists('get_controladores'))
 {
     function get_controladores() {
-        foreach(glob(APPPATH . 'controllers/*' . EXT) as $controller)
+        $controllers = array();
+        $ext = defined('EXT') ? EXT : '.php';
+        foreach(glob(APPPATH . 'controllers/*' . $ext) as $controller)
         {
-            if(basename($controller, EXT) != "Auth" && basename($controller, EXT) != "Auth_original" && basename($controller, EXT) != "Crons") {
-                include_once APPPATH.'controllers/'.basename($controller);
-                $controllers[] = basename($controller, EXT);
+            $filename = basename($controller, $ext);
+
+            // Ignora arquivos que não são controladores ou arquivos legados/backups
+            if (
+                $filename == "Auth" ||
+                $filename == "Auth_original" ||
+                $filename == "Crons" ||
+                $filename == "index" ||
+                strpos($filename, '-') !== false ||
+                stripos($filename, 'old') !== false ||
+                stripos($filename, 'backup') !== false ||
+                stripos($filename, 'bkp') !== false ||
+                stripos($filename, 'novo') !== false ||
+                stripos($filename, 'temp') !== false ||
+                stripos($filename, 'teste') !== false
+            ) {
+                continue;
+            }
+
+            // Não inclui novamente se a classe já estiver carregada
+            if (! class_exists($filename, false)) {
+                @include_once $controller;
+            }
+
+            if (class_exists($filename, false)) {
+                $controllers[] = $filename;
             }
         }
         return $controllers;
@@ -304,7 +329,10 @@ if ( ! function_exists('get_controladores'))
 if ( ! function_exists('get_metodos'))
 {
     function get_metodos($controlador) {
-        $aMethods = get_class_methods($controlador);
+        $aMethods = @get_class_methods($controlador);
+        if (!is_array($aMethods)) {
+            return array();
+        }
         $aUserMethods = array();
         foreach($aMethods as $method) {
             if(
@@ -400,7 +428,7 @@ if ( ! function_exists('get_permissoes'))
                         foreach ($mets as $met) {
                             $response .= '
                                 <li><label><input type="checkbox" name="permissoes['.strtolower($cont).'][]" value="'. strtolower($met) .'" id="'. strtolower($met) .'" parent-id="'. strtolower($cont) .'" class="jtree_child_checkbox"';
-                            if(@in_array($met, $selecionados[strtolower($cont)]))
+                            if (isset($selecionados[strtolower($cont)]) && is_array($selecionados[strtolower($cont)]) && in_array($met, $selecionados[strtolower($cont)]))
                                 $response .= ' checked';
                             $response .= '> '. $met .'</label></li>';
                         }

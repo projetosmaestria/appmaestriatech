@@ -18,8 +18,8 @@ if (!isset($resumo_avaliacoes['distribuicao']) || !is_array($resumo_avaliacoes['
 <div class="content-wrapper">
     <section class="content-header">
         <h1>
-            <i class="fa fa-bar-chart text-primary"></i> Acompanhamento & Avaliações
-            <small>Relatórios Gerenciais e Acompanhamento</small>
+            <i class="fa fa-bar-chart text-primary"></i> Monitoramento
+            <small>Acompanhamento de Alunos e Avaliações</small>
         </h1>
         <?php echo $breadcrumb; ?>
     </section>

@@ -10,7 +10,7 @@ $lang['menu_treinamentos_create']            = 'Novo Treinamento';
 $lang['menu_treinamentos_edit']              = 'Editar Treinamento';
 $lang['menu_treinamentos_etapas']            = 'Etapas do Treinamento';
 $lang['menu_treinamentos_banners']           = 'Banners do Carrossel';
-$lang['menu_treinamentos_relatorios']        = 'Acompanhamento & Avaliações';
+$lang['menu_treinamentos_relatorios']        = 'Monitoramento';
 
 $lang['treinamento_titulo']                  = 'Título';
 $lang['treinamento_modulo']                  = 'Módulo';
