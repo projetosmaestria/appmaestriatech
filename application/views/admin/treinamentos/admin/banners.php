@@ -80,14 +80,14 @@
                                     </td>
                                     <td>
                                         <small class="text-muted" style="display: block; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                            <?php echo htmlspecialchars($b->descricao ?? $b->subtitulo ?? ''); ?>
+                                            <?php echo htmlspecialchars(!empty($b->descricao) ? $b->descricao : (!empty($b->subtitulo) ? $b->subtitulo : '')); ?>
                                         </small>
                                     </td>
                                     <td>
-                                        <span class="badge bg-gray"><?php echo htmlspecialchars($b->texto_botao ?? 'Acessar'); ?></span>
+                                        <span class="badge bg-gray"><?php echo htmlspecialchars(isset($b->texto_botao) ? $b->texto_botao : 'Acessar'); ?></span>
                                     </td>
                                     <td>
-                                        <code style="font-size: 11px;"><?php echo htmlspecialchars($b->url_botao ?? '-'); ?></code>
+                                        <code style="font-size: 11px;"><?php echo htmlspecialchars(isset($b->url_botao) ? $b->url_botao : '-'); ?></code>
                                     </td>
                                     <td class="text-center">
                                         <span class="badge bg-navy"><?php echo $b->ordem; ?></span>
@@ -117,7 +117,7 @@
                                                 </li>
                                                 <li class="divider" style="margin: 4px 0;"></li>
                                                 <li>
-                                                    <a href="<?php echo site_url('treinamentos_admin/banner_delete/' . $b->id); ?>" onclick="return confirm('Deseja realmente remover este banner?');" style="color: #dc2626; padding: 6px 16px;">
+                                                    <a href="javascript:void(0);" data-url="<?php echo site_url('treinamentos_admin/banner_delete/' . $b->id); ?>" data-titulo="Excluir Banner" data-texto="Deseja realmente remover este banner promocional?" class="btn-confirmar-exclusao" style="color: #dc2626; padding: 6px 16px;">
                                                         <i class="fa fa-trash text-danger" style="margin-right: 6px;"></i> Excluir Banner
                                                     </a>
                                                 </li>

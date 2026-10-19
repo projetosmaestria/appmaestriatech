@@ -237,11 +237,11 @@
                     </div>
                     <div class="box-body" style="font-size: 13px;">
                         <ul class="list-unstyled" style="line-height: 2;">
-                            <li><i class="fa fa-building-o text-muted"></i> <strong>Empresa:</strong> Maestria Tech</li>
-                            <li><i class="fa fa-cube text-muted"></i> <strong>Módulo:</strong> <?php echo htmlspecialchars($treinamento->modulo_nome ?? 'Geral'); ?></li>
-                            <li><i class="fa fa-clock-o text-muted"></i> <strong>Duração média:</strong> <?php echo $treinamento->carga_horaria_minutos; ?> minutos</li>
-                            <li><i class="fa fa-unlock-alt text-muted"></i> <strong>Acesso:</strong> <?php echo ucfirst($treinamento->tipo_acesso); ?></li>
-                            <li><i class="fa fa-calendar-check-o text-muted"></i> <strong>Data de Publicação:</strong> <?php echo date('d/m/Y', strtotime($treinamento->created_at)); ?></li>
+                            <li><i class="fa fa-building-o text-muted"></i> <strong> Empresa:</strong> Maestria Tech</li>
+                            <li><i class="fa fa-cube text-muted"></i> <strong> Módulo:</strong> <?php echo htmlspecialchars($treinamento->modulo_nome ?? 'Geral'); ?></li>
+                            <li><i class="fa fa-clock-o text-muted"></i> <strong> Duração média:</strong> <?php echo $treinamento->carga_horaria_minutos; ?> minutos</li>
+                            <li><i class="fa fa-unlock-alt text-muted"></i> <strong> Acesso:</strong> <?php echo ucfirst($treinamento->tipo_acesso); ?></li>
+                            <li><i class="fa fa-calendar-check-o text-muted"></i> <strong> Data de Publicação:</strong> <?php echo date('d/m/Y', strtotime($treinamento->created_at)); ?></li>
                         </ul>
                     </div>
                 </div>

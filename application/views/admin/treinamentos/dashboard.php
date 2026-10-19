@@ -242,7 +242,7 @@
                     <div class="course-card">
                         <div class="course-cover">
                             <img src="<?php echo base_url($dest->imagem_capa); ?>" alt="<?php echo htmlspecialchars($dest->titulo); ?>">
-                            <span class="course-badge-module"><?php echo htmlspecialchars($dest->modulo_nome ?? 'Sistema'); ?></span>
+                            <span class="course-badge-module"><?php echo htmlspecialchars(isset($dest->modulo_nome) ? $dest->modulo_nome : 'Sistema'); ?></span>
                             <span class="course-badge-destaque"><i class="fa fa-star"></i> Destaque</span>
                         </div>
                         <div class="course-body">
@@ -283,7 +283,7 @@
                 <div class="col-md-4 col-sm-6">
                     <div class="continue-card">
                         <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                            <span class="badge" style="background:#eef2f5; color:#555;"><?php echo htmlspecialchars($ea->modulo_nome ?? 'Geral'); ?></span>
+                            <span class="badge" style="background:#eef2f5; color:#555;"><?php echo htmlspecialchars(isset($ea->modulo_nome) ? $ea->modulo_nome : 'Geral'); ?></span>
                             <span class="pull-right" style="margin-left: auto; font-size: 13px; font-weight: 700; color: #3c8dbc;"><?php echo (float)$ea->percentual; ?>%</span>
                         </div>
                         <h4 style="font-size: 15px; font-weight: 700; margin: 0 0 6px 0; color: #222; height: 38px; overflow: hidden;">
@@ -346,19 +346,34 @@
                     
                     <!-- Campo de Pesquisa com Lupa Unificada (Filtro Instantâneo sem Reload) -->
                     <div class="search-box-unified">
-                        <input type="text" id="input_busca_catalogo" name="q" value="<?php echo htmlspecialchars($busca_atual ?? ''); ?>" placeholder="Pesquisar por título, objetivo, módulo..." autocomplete="off">
+                        <input type="text" id="input_busca_catalogo" name="q" value="<?php echo htmlspecialchars(isset($busca_atual) ? $busca_atual : ''); ?>" placeholder="Pesquisar por título, objetivo, módulo..." autocomplete="off">
                         <button type="button" id="btn_busca_catalogo" title="Pesquisar">
                             <i class="fa fa-search"></i>
                         </button>
                     </div>
 
-                    <!-- Filtro por Módulo -->
+                    <!-- Filtro por Produto -->
+                    <div style="display: inline-flex; align-items: center; gap: 6px;">
+                        <span style="font-weight: 600; color: #555; font-size: 13px;">Produto:</span>
+                        <select name="produto" id="filtro_produto_catalogo" class="form-control" style="width: 210px; border-radius: 6px; height: 36px; background-color: #fff; cursor: pointer; font-size: 14px;">
+                            <option value="">Selecione um Produto</option>
+                            <?php if (!empty($produtos)): ?>
+                                <?php foreach ($produtos as $p): ?>
+                                    <option value="<?php echo $p->id; ?>" <?php echo (!empty($produto_atual) && $produto_atual == $p->id) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($p->nome); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </select>
+                    </div>
+
+                    <!-- Filtro por Módulo (Condicionado ao Produto) -->
                     <div style="display: inline-flex; align-items: center; gap: 6px;">
                         <span style="font-weight: 600; color: #555; font-size: 13px;">Módulo:</span>
-                        <select name="modulo" id="filtro_modulo_catalogo" class="form-control" style="width: 260px; border-radius: 6px; height: 36px; background-color: #fff; cursor: pointer; font-size: 14px;">
-                            <option value="">Todos os Módulos</option>
-                            <?php foreach (($todos_modulos ?? $modulos) as $m): ?>
-                                <option value="<?php echo $m->id; ?>" <?php echo ($modulo_atual == $m->id) ? 'selected' : ''; ?>>
+                        <select name="modulo" id="filtro_modulo_catalogo" class="form-control" style="width: 240px; border-radius: 6px; height: 36px; background-color: #fff; cursor: pointer; font-size: 14px;" <?php echo empty($produto_atual) ? 'disabled' : ''; ?>>
+                            <option value=""><?php echo empty($produto_atual) ? 'Selecione um produto primeiro' : 'Todos os Módulos do Produto'; ?></option>
+                            <?php foreach ((isset($todos_modulos) ? $todos_modulos : $modulos) as $m): ?>
+                                <option value="<?php echo $m->id; ?>" data-produto-id="<?php echo isset($m->produto_id) ? $m->produto_id : (isset($m->id_produto) ? $m->id_produto : ''); ?>" <?php echo (!empty($modulo_atual) && $modulo_atual == $m->id) ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($m->nome); ?>
                                 </option>
                             <?php endforeach; ?>
@@ -401,14 +416,15 @@
                     <?php foreach ($catalogo as $cat): ?>
                     <div class="col-md-4 col-sm-6 course-item-col"
                          data-titulo="<?php echo htmlspecialchars(mb_strtolower($cat->titulo, 'UTF-8')); ?>"
-                         data-desc="<?php echo htmlspecialchars(mb_strtolower(($cat->descricao_curta ?? '') . ' ' . ($cat->objetivo ?? ''), 'UTF-8')); ?>"
+                         data-desc="<?php echo htmlspecialchars(mb_strtolower((isset($cat->descricao_curta) ? $cat->descricao_curta : '') . ' ' . (isset($cat->objetivo) ? $cat->objetivo : ''), 'UTF-8')); ?>"
+                         data-produto-id="<?php echo (int)(isset($cat->produto_id) ? $cat->produto_id : 0); ?>"
                          data-modulo-id="<?php echo (int)$cat->modulo_id; ?>"
-                         data-modulo-nome="<?php echo htmlspecialchars(mb_strtolower($cat->modulo_nome ?? '', 'UTF-8')); ?>"
-                         data-nivel="<?php echo htmlspecialchars(mb_strtolower($cat->nivel ?? 'basico', 'UTF-8')); ?>">
+                         data-modulo-nome="<?php echo htmlspecialchars(mb_strtolower(isset($cat->modulo_nome) ? $cat->modulo_nome : '', 'UTF-8')); ?>"
+                         data-nivel="<?php echo htmlspecialchars(mb_strtolower(isset($cat->nivel) ? $cat->nivel : 'basico', 'UTF-8')); ?>">
                         <div class="course-card">
                             <div class="course-cover">
                                 <img src="<?php echo base_url($cat->imagem_capa); ?>" alt="<?php echo htmlspecialchars($cat->titulo); ?>">
-                                <span class="course-badge-module"><?php echo htmlspecialchars($cat->modulo_nome ?? 'Sistema'); ?></span>
+                                <span class="course-badge-module"><?php echo htmlspecialchars(isset($cat->modulo_nome) ? $cat->modulo_nome : 'Sistema'); ?></span>
                                 <?php if ($cat->novidade == 1): ?>
                                     <span class="course-badge-novo"><i class="fa fa-sparkles"></i> Novo</span>
                                 <?php elseif ($cat->destaque == 1): ?>

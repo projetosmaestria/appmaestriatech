@@ -25,22 +25,54 @@
                 <div class="form-group">
                     <label class="col-sm-2 control-label">Título do Treinamento *</label>
                     <div class="col-sm-8">
-                        <input type="text" name="titulo" class="form-control" required value="<?php echo set_value('titulo', $treinamento->titulo ?? ''); ?>" placeholder="Ex: Como cadastrar e configurar formas de pagamento">
+                        <input type="text" name="titulo" class="form-control" required value="<?php echo set_value('titulo', isset($treinamento->titulo) ? $treinamento->titulo : ''); ?>" placeholder="Ex: Como cadastrar e configurar formas de pagamento">
                     </div>
                 </div>
 
-                <!-- Módulo do Sistema -->
+                <!-- Produto do Sistema (Empresa = 1) -->
+                <div class="form-group">
+                    <label class="col-sm-2 control-label">Produto *</label>
+                    <div class="col-sm-8">
+                        <?php 
+                            $prodAtualId = set_value('produto_id', isset($treinamento->produto_id) ? $treinamento->produto_id : '');
+                            if (empty($prodAtualId) && isset($treinamento->modulo_id)) {
+                                foreach ($modulos as $modTemp) {
+                                    if ($modTemp->id == $treinamento->modulo_id) {
+                                        $prodAtualId = isset($modTemp->produto_id) ? $modTemp->produto_id : (isset($modTemp->id_produto) ? $modTemp->id_produto : '');
+                                        break;
+                                    }
+                                }
+                            }
+                        ?>
+                        <select name="produto_id" id="select_produto_form" class="form-control" required style="width: 100%; font-size: 14px; background-color: #fff; cursor: pointer;">
+                            <option value="">Selecione o produto vinculado...</option>
+                            <?php if (!empty($produtos)): ?>
+                                <?php foreach ($produtos as $prod): ?>
+                                    <option value="<?php echo $prod->id; ?>" <?php echo ($prodAtualId == $prod->id) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($prod->nome); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Módulo do Sistema (Condicionado ao Produto) -->
                 <div class="form-group">
                     <label class="col-sm-2 control-label">Módulo do Sistema *</label>
                     <div class="col-sm-8">
-                        <select name="modulo_id" id="select_modulo_form" class="form-control" required style="width: 100%; font-size: 14px;">
-                            <option value="">Selecione um módulo cadastrado...</option>
+                        <select name="modulo_id" id="select_modulo_form" class="form-control" required style="width: 100%; font-size: 14px; background-color: #fff; cursor: pointer;" <?php echo empty($prodAtualId) ? 'disabled' : ''; ?>>
+                            <option value=""><?php echo empty($prodAtualId) ? 'Selecione um produto primeiro...' : 'Selecione um módulo cadastrado...'; ?></option>
                             <?php foreach ($modulos as $mod): ?>
-                                <option value="<?php echo $mod->id; ?>" <?php echo set_select('modulo_id', $mod->id, (isset($treinamento) && $treinamento->modulo_id == $mod->id)); ?>>
+                                <?php $modProdId = isset($mod->produto_id) ? $mod->produto_id : (isset($mod->id_produto) ? $mod->id_produto : ''); ?>
+                                <option value="<?php echo $mod->id; ?>" data-produto-id="<?php echo $modProdId; ?>" <?php echo set_select('modulo_id', $mod->id, (isset($treinamento) && $treinamento->modulo_id == $mod->id)); ?>>
                                     <?php echo htmlspecialchars($mod->nome); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                        <small class="text-muted" id="help_modulo_form" style="<?php echo empty($prodAtualId) ? '' : 'display: none;'; ?>">
+                            <i class="fa fa-info-circle"></i> Escolha o produto acima para carregar os módulos disponíveis.
+                        </small>
                     </div>
                 </div>
 
@@ -48,7 +80,7 @@
                 <div class="form-group">
                     <label class="col-sm-2 control-label">Descrição Resumida</label>
                     <div class="col-sm-8">
-                        <textarea name="descricao_curta" rows="2" class="form-control" placeholder="Breve resumo exibido nos cards do catálogo..."><?php echo set_value('descricao_curta', $treinamento->descricao_curta ?? ''); ?></textarea>
+                        <textarea name="descricao_curta" rows="2" class="form-control" placeholder="Breve resumo exibido nos cards do catálogo..."><?php echo set_value('descricao_curta', isset($treinamento->descricao_curta) ? $treinamento->descricao_curta : ''); ?></textarea>
                     </div>
                 </div>
 
@@ -56,7 +88,7 @@
                 <div class="form-group">
                     <label class="col-sm-2 control-label">Objetivo do Treinamento</label>
                     <div class="col-sm-8">
-                        <textarea name="objetivo" rows="3" class="form-control" placeholder="O que o colaborador aprenderá ao concluir este treinamento..."><?php echo set_value('objetivo', $treinamento->objetivo ?? ''); ?></textarea>
+                        <textarea name="objetivo" rows="3" class="form-control" placeholder="O que o colaborador aprenderá ao concluir este treinamento..."><?php echo set_value('objetivo', isset($treinamento->objetivo) ? $treinamento->objetivo : ''); ?></textarea>
                     </div>
                 </div>
 
@@ -64,7 +96,7 @@
                 <div class="form-group">
                     <label class="col-sm-2 control-label">Descrição Completa</label>
                     <div class="col-sm-8">
-                        <textarea name="descricao_completa" rows="4" class="form-control" placeholder="Orientações complementares e detalhes do treinamento..."><?php echo set_value('descricao_completa', $treinamento->descricao_completa ?? ''); ?></textarea>
+                        <textarea name="descricao_completa" rows="4" class="form-control" placeholder="Orientações complementares e detalhes do treinamento..."><?php echo set_value('descricao_completa', isset($treinamento->descricao_completa) ? $treinamento->descricao_completa : ''); ?></textarea>
                     </div>
                 </div>
 
@@ -72,7 +104,7 @@
                 <div class="form-group">
                     <label class="col-sm-2 control-label">Carga Horária (min)</label>
                     <div class="col-sm-3">
-                        <input type="number" name="carga_horaria_minutos" class="form-control" value="<?php echo set_value('carga_horaria_minutos', $treinamento->carga_horaria_minutos ?? 30); ?>" min="0">
+                        <input type="number" name="carga_horaria_minutos" class="form-control" value="<?php echo set_value('carga_horaria_minutos', isset($treinamento->carga_horaria_minutos) ? $treinamento->carga_horaria_minutos : 30); ?>" min="0">
                     </div>
 
                     <label class="col-sm-2 control-label">Nível de Dificuldade</label>
@@ -111,7 +143,7 @@
 
                     <label class="col-sm-2 control-label">Ordem de Exibição</label>
                     <div class="col-sm-3">
-                        <input type="number" name="ordem" class="form-control" value="<?php echo set_value('ordem', $treinamento->ordem ?? 1); ?>" min="0">
+                        <input type="number" name="ordem" class="form-control" value="<?php echo set_value('ordem', isset($treinamento->ordem) ? $treinamento->ordem : 1); ?>" min="0">
                     </div>
                 </div>
 

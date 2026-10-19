@@ -1,4 +1,4 @@
-<?php
+ <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Treinamentos extends Admin_Controller {
@@ -26,7 +26,7 @@ class Treinamentos extends Admin_Controller {
     }
 
     /**
-     * Dashboard principal estilo Academy (https://academy.avantejuntos.com.br/)
+     * Dashboard principal
      */
     public function index()
     {
@@ -42,9 +42,17 @@ class Treinamentos extends Admin_Controller {
         // 2. Seção "Continue de onde parou"
         $this->data['em_andamento'] = $this->treinamentos_progresso_model->get_treinamentos_em_andamento($userId, 6);
 
-        // 3. Seção "Explore os Módulos"
+        // 3. Seção "Explore os Módulos" e Produtos do Catálogo (Empresa = 1)
+        $this->data['produtos'] = $this->db->where('status', 'S')->where('empresa_id', 1)->order_by('nome', 'ASC')->get('produtos')->result();
         $this->data['modulos'] = $this->treinamentos_model->get_modulos_com_treinamentos($empresaId, $userId);
-        $this->data['todos_modulos'] = $this->db->where('status', 'S')->order_by('nome', 'ASC')->get('modulos')->result();
+        $this->data['todos_modulos'] = $this->db->select('m.*, m.id_produto as produto_id')
+            ->from('modulos m')
+            ->join('produtos p', 'p.id = m.id_produto', 'inner')
+            ->where('m.status', 'S')
+            ->where('p.empresa_id', 1)
+            ->where('p.status', 'S')
+            ->order_by('m.nome', 'ASC')
+            ->get()->result();
 
         // 4. Seção "Treinamentos em Destaque"
         $this->data['destaques'] = $this->treinamentos_model->get_treinamentos(array(
@@ -64,6 +72,7 @@ class Treinamentos extends Admin_Controller {
 
         // 6. Catálogo com busca e filtros
         $busca = $this->input->get('q', TRUE);
+        $filtroProduto = $this->input->get('produto', TRUE);
         $filtroModulo = $this->input->get('modulo', TRUE);
         $filtroNivel = $this->input->get('nivel', TRUE);
 
@@ -72,6 +81,7 @@ class Treinamentos extends Admin_Controller {
             'ativo'      => 1
         );
         if (!empty($busca)) $paramsCatalogo['busca'] = $busca;
+        if (!empty($filtroProduto)) $paramsCatalogo['produto_id'] = $filtroProduto;
         if (!empty($filtroModulo)) $paramsCatalogo['modulo_id'] = $filtroModulo;
         if (!empty($filtroNivel)) $paramsCatalogo['nivel'] = $filtroNivel;
 
@@ -83,6 +93,7 @@ class Treinamentos extends Admin_Controller {
         }
         $this->data['catalogo'] = $catalogo;
         $this->data['busca_atual'] = $busca;
+        $this->data['produto_atual'] = $filtroProduto;
         $this->data['modulo_atual'] = $filtroModulo;
         $this->data['nivel_atual'] = $filtroNivel;
 

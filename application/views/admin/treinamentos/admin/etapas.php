@@ -18,7 +18,7 @@
                     <?php echo htmlspecialchars($treinamento->titulo); ?>
                 </h4>
                 <p style="margin: 0; color: #718096; font-size: 13px;">
-                    Módulo: <strong><?php echo htmlspecialchars($treinamento->modulo_nome ?? 'Sistema'); ?></strong> &bull;
+                    Módulo: <strong><?php echo htmlspecialchars(isset($treinamento->modulo_nome) ? $treinamento->modulo_nome : 'Sistema'); ?></strong> &bull;
                     Carga Horária: <strong><?php echo $treinamento->carga_horaria_minutos; ?> min</strong> &bull;
                     Total: <strong><?php echo count($etapas); ?> etapa(s)</strong>
                 </p>
@@ -120,14 +120,14 @@
                                     </td>
                                     <td>
                                         <span class="badge bg-gray">
-                                            <i class="fa fa-paperclip"></i> <?php echo $ep->total_arquivos ?? 0; ?> arquivo(s)
+                                            <i class="fa fa-paperclip"></i> <?php echo isset($ep->total_arquivos) ? $ep->total_arquivos : 0; ?> arquivo(s)
                                         </span>
                                     </td>
                                     <td>
                                         <span class="badge bg-gray">
-                                            <i class="fa fa-check-square-o"></i> <?php echo $ep->total_atividades ?? 0; ?> tarefa(s)
+                                            <i class="fa fa-check-square-o"></i> <?php echo isset($ep->total_atividades) ? $ep->total_atividades : 0; ?> tarefa(s)
                                         </span>
-                                        <?php if (($ep->total_atividades_obrigatorias ?? 0) > 0): ?>
+                                        <?php if (!empty($ep->total_atividades_obrigatorias) && $ep->total_atividades_obrigatorias > 0): ?>
                                             <span class="label label-danger"><?php echo $ep->total_atividades_obrigatorias; ?> obrigatória(s)</span>
                                         <?php endif; ?>
                                     </td>
@@ -157,7 +157,7 @@
                                                 </li>
                                                 <li class="divider"></li>
                                                 <li>
-                                                    <a href="<?php echo site_url('treinamentos_admin/etapa_delete/' . $ep->id); ?>" onclick="return confirm('Deseja realmente excluir esta etapa?');" style="color: #d9534f;">
+                                                    <a href="javascript:void(0);" data-url="<?php echo site_url('treinamentos_admin/etapa_delete/' . $ep->id); ?>" data-titulo="Excluir Etapa" data-texto="Deseja realmente excluir a etapa '<?php echo htmlspecialchars($ep->titulo); ?>'?" class="btn-confirmar-exclusao" style="color: #d9534f;">
                                                         <i class="fa fa-trash"></i> Excluir Etapa
                                                     </a>
                                                 </li>

@@ -96,13 +96,24 @@ class Treinamentos_admin extends Admin_Controller {
         $this->data['breadcrumb'] = $this->breadcrumbs->show();
 
         $this->form_validation->set_rules('titulo', 'Título', 'trim|required|max_length[255]');
+        $this->form_validation->set_rules('produto_id', 'Produto', 'required|is_natural_no_zero');
         $this->form_validation->set_rules('modulo_id', 'Módulo', 'required|is_natural_no_zero');
         $this->form_validation->set_rules('carga_horaria_minutos', 'Carga Horária', 'is_natural');
 
         if ($this->form_validation->run() == TRUE) {
+            $produtoId = (int)$this->input->post('produto_id');
+            $moduloId  = (int)$this->input->post('modulo_id');
+            if (empty($produtoId) && !empty($moduloId)) {
+                $modRow = $this->db->select('id_produto')->where('id', $moduloId)->get('modulos')->row();
+                if ($modRow) {
+                    $produtoId = (int)$modRow->id_produto;
+                }
+            }
+
             $data = array(
                 'empresa_id'            => $empresaId,
-                'modulo_id'             => (int)$this->input->post('modulo_id'),
+                'produto_id'            => $produtoId,
+                'modulo_id'             => $moduloId,
                 'titulo'                => $this->input->post('titulo', TRUE),
                 'slug'                  => url_title(convert_accented_characters($this->input->post('titulo')), 'dash', TRUE),
                 'descricao_curta'       => $this->input->post('descricao_curta', TRUE),
@@ -145,7 +156,20 @@ class Treinamentos_admin extends Admin_Controller {
             }
         }
 
-        $this->data['modulos'] = $this->db->where('status', 'S')->order_by('nome', 'ASC')->get('modulos')->result();
+        $this->data['produtos'] = $this->db->where('empresa_id', 1)
+            ->where('status', 'S')
+            ->order_by('nome', 'ASC')
+            ->get('produtos')->result();
+
+        $this->data['modulos'] = $this->db->select('m.*, m.id_produto as produto_id, p.nome as produto_nome')
+            ->from('modulos m')
+            ->join('produtos p', 'p.id = m.id_produto', 'inner')
+            ->where('p.empresa_id', 1)
+            ->where('p.status', 'S')
+            ->where('m.status', 'S')
+            ->order_by('m.nome', 'ASC')
+            ->get()->result();
+
         $this->template->admin_render('admin/treinamentos/admin/form', $this->data);
     }
 
@@ -167,11 +191,22 @@ class Treinamentos_admin extends Admin_Controller {
         $this->data['treinamento'] = $treinamento;
 
         $this->form_validation->set_rules('titulo', 'Título', 'trim|required|max_length[255]');
+        $this->form_validation->set_rules('produto_id', 'Produto', 'required|is_natural_no_zero');
         $this->form_validation->set_rules('modulo_id', 'Módulo', 'required|is_natural_no_zero');
 
         if ($this->form_validation->run() == TRUE) {
+            $produtoId = (int)$this->input->post('produto_id');
+            $moduloId  = (int)$this->input->post('modulo_id');
+            if (empty($produtoId) && !empty($moduloId)) {
+                $modRow = $this->db->select('id_produto')->where('id', $moduloId)->get('modulos')->row();
+                if ($modRow) {
+                    $produtoId = (int)$modRow->id_produto;
+                }
+            }
+
             $data = array(
-                'modulo_id'             => (int)$this->input->post('modulo_id'),
+                'produto_id'            => $produtoId,
+                'modulo_id'             => $moduloId,
                 'titulo'                => $this->input->post('titulo', TRUE),
                 'slug'                  => url_title(convert_accented_characters($this->input->post('titulo')), 'dash', TRUE),
                 'descricao_curta'       => $this->input->post('descricao_curta', TRUE),
@@ -209,7 +244,20 @@ class Treinamentos_admin extends Admin_Controller {
             }
         }
 
-        $this->data['modulos'] = $this->db->where('status', 'S')->order_by('nome', 'ASC')->get('modulos')->result();
+        $this->data['produtos'] = $this->db->where('empresa_id', 1)
+            ->where('status', 'S')
+            ->order_by('nome', 'ASC')
+            ->get('produtos')->result();
+
+        $this->data['modulos'] = $this->db->select('m.*, m.id_produto as produto_id, p.nome as produto_nome')
+            ->from('modulos m')
+            ->join('produtos p', 'p.id = m.id_produto', 'inner')
+            ->where('p.empresa_id', 1)
+            ->where('p.status', 'S')
+            ->where('m.status', 'S')
+            ->order_by('m.nome', 'ASC')
+            ->get()->result();
+
         $this->template->admin_render('admin/treinamentos/admin/form', $this->data);
     }
 
@@ -326,6 +374,54 @@ class Treinamentos_admin extends Admin_Controller {
 
             $etapaId = $this->treinamentos_etapas_model->create($data);
             if ($etapaId) {
+                // 1. Processar anexo opcional de material de apoio na criação
+                if (!empty($_FILES['arquivo_apoio']['name'])) {
+                    $tituloArq = $this->input->post('titulo_arquivo_apoio', TRUE);
+                    if (empty($tituloArq)) {
+                        $tituloArq = $_FILES['arquivo_apoio']['name'];
+                    }
+                    $uploadPath = './upload/treinamentos/materiais/';
+                    if (!is_dir($uploadPath)) {
+                        @mkdir($uploadPath, 0777, true);
+                    }
+                    $config['upload_path']   = $uploadPath;
+                    $config['allowed_types'] = 'pdf|doc|docx|xls|xlsx|ppt|pptx|txt|zip|rar|jpg|jpeg|png';
+                    $config['max_size']      = 20480;
+                    $config['encrypt_name']  = TRUE;
+
+                    $this->upload->initialize($config);
+                    if ($this->upload->do_upload('arquivo_apoio')) {
+                        $dataUpload = $this->upload->data();
+                        $dataArq = array(
+                            'treinamento_id' => (int)$treinamento_id,
+                            'etapa_id'       => (int)$etapaId,
+                            'titulo'         => $tituloArq,
+                            'nome_original'  => $dataUpload['client_name'],
+                            'nome_arquivo'   => $dataUpload['file_name'],
+                            'extensao'       => strtolower(str_replace('.', '', $dataUpload['file_ext'])),
+                            'tamanho_bytes'  => (int)$dataUpload['file_size'] * 1024,
+                            'caminho'        => 'upload/treinamentos/materiais/' . $dataUpload['file_name']
+                        );
+                        $this->treinamentos_etapas_model->add_arquivo($dataArq);
+                    }
+                }
+
+                // 2. Processar atividade prática orientativa opcional na criação
+                $ativTitulo = $this->input->post('atividade_titulo', TRUE);
+                if (!empty($ativTitulo)) {
+                    $ativDesc = $this->input->post('atividade_descricao', TRUE);
+                    $dataAtiv = array(
+                        'treinamento_id' => (int)$treinamento_id,
+                        'etapa_id'       => (int)$etapaId,
+                        'titulo'         => $ativTitulo,
+                        'descricao'      => $ativDesc,
+                        'instrucoes'     => $ativDesc,
+                        'obrigatoria'    => 0,
+                        'ordem'          => 1
+                    );
+                    $this->treinamentos_etapas_model->add_atividade($dataAtiv);
+                }
+
                 $this->session->set_flashdata('message', show_alert_success('Etapa cadastrada com sucesso!'));
                 redirect('treinamentos_admin/etapas/' . $treinamento_id);
             } else {
@@ -335,11 +431,27 @@ class Treinamentos_admin extends Admin_Controller {
             }
         }
 
-        $this->data['etapas_existentes'] = $this->db->select('id, ordem, titulo')
+        // Buscar etapas existentes para pré-carregar próxima ordem e alertar ordens em uso
+        $etapasExistentes = $this->db->select('id, ordem, titulo')
             ->where('treinamento_id', (int)$treinamento_id)
             ->where('ativo', 1)
             ->order_by('ordem', 'ASC')
             ->get('treinamento_etapas')->result_array();
+
+        $maxOrdem = 0;
+        $ordensUtilizadas = array();
+        foreach ($etapasExistentes as $ee) {
+            $ordNum = (int)$ee['ordem'];
+            $ordensUtilizadas[] = $ordNum;
+            if ($ordNum > $maxOrdem) {
+                $maxOrdem = $ordNum;
+            }
+        }
+        $proximaOrdem = $maxOrdem + 1;
+
+        $this->data['proxima_ordem']     = $proximaOrdem;
+        $this->data['ordens_utilizadas'] = $ordensUtilizadas;
+        $this->data['etapas_existentes'] = $etapasExistentes;
 
         $this->template->admin_render('admin/treinamentos/admin/etapa_form', $this->data);
     }
@@ -461,7 +573,7 @@ class Treinamentos_admin extends Admin_Controller {
 
         $titulo = $this->input->post('titulo', TRUE);
         if (empty($titulo)) {
-            $titulo = $_FILES['arquivo']['name'] ?? 'Material de Apoio';
+            $titulo = isset($_FILES['arquivo']['name']) ? $_FILES['arquivo']['name'] : 'Material de Apoio';
         }
 
         $uploadPath = './upload/treinamentos/materiais/';
@@ -819,5 +931,59 @@ class Treinamentos_admin extends Admin_Controller {
         $this->data['filtro_nota']        = $notaAval;
 
         $this->template->admin_render('admin/treinamentos/admin/relatorios', $this->data);
+    }
+
+    /**
+     * Endpoint AJAX para obter duracao automatica de video (YouTube / Vimeo / Direto)
+     */
+    public function obter_duracao_video()
+    {
+        $url  = $this->input->post('url', TRUE);
+        $tipo = $this->input->post('tipo', TRUE);
+
+        if (empty($url)) {
+            echo json_encode(array('success' => false, 'message' => 'URL vazia'));
+            return;
+        }
+
+        $duracao = 0;
+
+        // 1. YouTube
+        if (preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/ ]{11})/i', $url, $m)) {
+            $videoId = $m[1];
+            $ctx = stream_context_create(array('http' => array('timeout' => 5, 'header' => "User-Agent: Mozilla/5.0\r\n")));
+            $html = @file_get_contents("https://www.youtube.com/watch?v=" . $videoId, false, $ctx);
+            if ($html && preg_match('/itemprop="duration" content="PT([^"]+)"/i', $html, $matches)) {
+                $iso = $matches[1];
+                if (preg_match('/(\d+)H/', $iso, $h))   $duracao += (int)$h[1] * 3600;
+                if (preg_match('/(\d+)M/', $iso, $min)) $duracao += (int)$min[1] * 60;
+                if (preg_match('/(\d+)S/', $iso, $s))   $duracao += (int)$s[1];
+            }
+        }
+        // 2. Vimeo
+        elseif (preg_match('/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|)(\d+)/i', $url, $m)) {
+            $ctx = stream_context_create(array('http' => array('timeout' => 5)));
+            $json = @file_get_contents('https://vimeo.com/api/oembed.json?url=' . urlencode($url), false, $ctx);
+            if ($json) {
+                $data = json_decode($json, true);
+                if (isset($data['duration'])) {
+                    $duracao = (int)$data['duration'];
+                }
+            }
+        }
+
+        if ($duracao > 0) {
+            $minutos = floor($duracao / 60);
+            $segs = $duracao % 60;
+            $formatado = sprintf('%02d:%02d', $minutos, $segs);
+            echo json_encode(array(
+                'success'   => true,
+                'duracao'   => $duracao,
+                'formatado' => $formatado,
+                'minutos'   => $minutos
+            ));
+        } else {
+            echo json_encode(array('success' => false, 'message' => 'Não foi possível detectar a duração automaticamente'));
+        }
     }
 }

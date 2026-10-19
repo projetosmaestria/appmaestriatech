@@ -1,7 +1,7 @@
 /**
  * MaestriaTech - Módulo de Treinamentos (Academy)
  * Scripts e Comportamentos em JavaScript Puro
- * Versão: 2.0 - Sem Select2, com Busca e Filtros em Tempo Real (Zero Reload)
+ * Versão: 2.1 - Filtro Produto x Módulo, Detecção de Vídeo, SweetAlert2 e Abas Opcionais
  */
 
 (function($) {
@@ -44,26 +44,34 @@
     // Inicialização quando o DOM estiver pronto
     $(function() {
         initCatalogoLiveSearch();
+        initFormTreinamento();
         initBannersPreview();
         initEtapasVideoAndOrder();
+        initConfirmacoesExclusao();
         initPermissoesTreinamento();
         initSalaDeAula();
+
+        // Auto-dismiss suave para alertas de sucesso após 6 segundos
+        setTimeout(function() {
+            $('.alert-success.alert-dismissible').fadeOut(400);
+        }, 6000);
     });
 
     /**
      * 1. FILTRO EM TEMPO REAL DO CATÁLOGO DE TREINAMENTOS
-     * Filtra instantaneamente conforme o usuário digita no campo de busca ou altera os selects,
-     * sem recarregar a página e sem rolar a tela pro topo.
+     * Filtra instantaneamente conforme o usuário digita ou altera Produto, Módulo e Nível.
+     * Só permite selecionar Módulo se um Produto estiver selecionado.
      */
     function initCatalogoLiveSearch() {
-        var $inputBusca = $('#input_busca_catalogo');
-        var $selectModulo = $('#filtro_modulo_catalogo');
-        var $selectNivel = $('#filtro_nivel_catalogo');
-        var $btnBusca = $('#btn_busca_catalogo');
-        var $btnLimpar = $('#btn_limpar_filtros_catalogo');
-        var $form = $('#form_catalogo_filtros');
-        var $courses = $('.course-item-col');
-        var $emptyMsg = $('#catalogo_sem_resultados');
+        var $inputBusca     = $('#input_busca_catalogo');
+        var $selectProduto  = $('#filtro_produto_catalogo');
+        var $selectModulo   = $('#filtro_modulo_catalogo');
+        var $selectNivel    = $('#filtro_nivel_catalogo');
+        var $btnBusca       = $('#btn_busca_catalogo');
+        var $btnLimpar      = $('#btn_limpar_filtros_catalogo');
+        var $form           = $('#form_catalogo_filtros');
+        var $courses        = $('.course-item-col');
+        var $emptyMsg       = $('#catalogo_sem_resultados');
 
         if (!$courses.length && !$('#catalogo_container').length) {
             return;
@@ -78,9 +86,51 @@
                 .trim();
         }
 
-        // Função principal que filtra os cards no DOM
+        // Sincroniza as opções do select de módulos conforme o produto escolhido
+        function sincronizarModulosCatalogo(resetarValor) {
+            var prodId = ($selectProduto.val() || '').toString().trim();
+
+            if (!prodId) {
+                $selectModulo.prop('disabled', true);
+                $selectModulo.find('option:first').text('Selecione um produto primeiro');
+                if (resetarValor) {
+                    $selectModulo.val('');
+                }
+                $selectModulo.find('option').not(':first').hide();
+            } else {
+                $selectModulo.prop('disabled', false);
+                $selectModulo.find('option:first').text('Todos os Módulos do Produto');
+
+                var encontrouAtual = false;
+                var valorAtual = $selectModulo.val();
+
+                $selectModulo.find('option').each(function() {
+                    var $opt = $(this);
+                    var optVal = $opt.val();
+                    var optProdId = ($opt.data('produto-id') || '').toString().trim();
+
+                    if (!optVal) {
+                        $opt.show();
+                    } else if (optProdId === prodId) {
+                        $opt.show();
+                        if (optVal === valorAtual) {
+                            encontrouAtual = true;
+                        }
+                    } else {
+                        $opt.hide();
+                    }
+                });
+
+                if (resetarValor && !encontrouAtual) {
+                    $selectModulo.val('');
+                }
+            }
+        }
+
+        // Função principal que filtra os cards do catálogo no DOM
         function aplicarFiltrosCatalogo() {
             var termo = normalizarTexto($inputBusca.val());
+            var produtoId = ($selectProduto.val() || '').toString().trim();
             var moduloId = ($selectModulo.val() || '').toString().trim();
             var nivel = ($selectNivel.val() || '').toString().toLowerCase().trim();
             var totalVisiveis = 0;
@@ -89,6 +139,7 @@
                 var $card = $(this);
                 var cardTitulo = normalizarTexto($card.data('titulo'));
                 var cardDesc = normalizarTexto($card.data('desc'));
+                var cardProdId = ($card.data('produto-id') || '').toString().trim();
                 var cardModId = ($card.data('modulo-id') || '').toString().trim();
                 var cardModNome = normalizarTexto($card.data('modulo-nome'));
                 var cardNivel = ($card.data('nivel') || '').toString().toLowerCase().trim();
@@ -103,20 +154,26 @@
                     );
                 }
 
-                // 2. Checagem do módulo
+                // 2. Checagem do produto
+                var bateProduto = true;
+                if (produtoId !== '') {
+                    bateProduto = (cardProdId === produtoId);
+                }
+
+                // 3. Checagem do módulo
                 var bateModulo = true;
                 if (moduloId !== '') {
                     bateModulo = (cardModId === moduloId);
                 }
 
-                // 3. Checagem do nível
+                // 4. Checagem do nível
                 var bateNivel = true;
                 if (nivel !== '') {
                     bateNivel = (cardNivel === nivel);
                 }
 
                 // Exibir ou ocultar o card
-                if (bateTexto && bateModulo && bateNivel) {
+                if (bateTexto && bateProduto && bateModulo && bateNivel) {
                     $card.show();
                     totalVisiveis++;
                 } else {
@@ -135,12 +192,18 @@
             }
         }
 
+        // Evento ao alterar Produto: filtra módulos disponíveis e refiltra cards
+        $selectProduto.on('change', function() {
+            sincronizarModulosCatalogo(true);
+            aplicarFiltrosCatalogo();
+        });
+
         // Evento em tempo real ao digitar (conforme o usuário digita)
         $inputBusca.on('input keyup paste', function() {
             aplicarFiltrosCatalogo();
         });
 
-        // Evento ao alterar os selects de Módulo e Nível
+        // Evento ao alterar Módulo e Nível
         $selectModulo.on('change', function() {
             aplicarFiltrosCatalogo();
         });
@@ -149,13 +212,13 @@
             aplicarFiltrosCatalogo();
         });
 
-        // Botão de busca (apenas refiltra sem submeter form)
+        // Botão de busca
         $btnBusca.on('click', function(e) {
             e.preventDefault();
             aplicarFiltrosCatalogo();
         });
 
-        // Previne submit do form (para não recarregar a página e não subir ao topo)
+        // Previne submit do form
         $form.on('submit', function(e) {
             e.preventDefault();
             aplicarFiltrosCatalogo();
@@ -166,19 +229,84 @@
         $btnLimpar.on('click', function(e) {
             e.preventDefault();
             $inputBusca.val('');
-            $selectModulo.val('');
+            $selectProduto.val('');
+            sincronizarModulosCatalogo(true);
             $selectNivel.val('');
             aplicarFiltrosCatalogo();
         });
 
-        // Executar uma vez no carregamento para sincronizar estados se houver termo inicial
-        if ($inputBusca.val() || $selectModulo.val() || $selectNivel.val()) {
+        // Executar uma vez no carregamento para sincronizar estados
+        sincronizarModulosCatalogo(false);
+        if ($inputBusca.val() || $selectProduto.val() || $selectModulo.val() || $selectNivel.val()) {
             aplicarFiltrosCatalogo();
         }
     }
 
     /**
-     * 2. BANNERS - Prévia em Modal Grande e Upload de Imagem
+     * 2. CADASTRO / EDIÇÃO DE TREINAMENTO - CASCATA PRODUTO -> MÓDULO
+     * No formulário, traz apenas os módulos vinculados ao produto selecionado.
+     */
+    function initFormTreinamento() {
+        var $selectProduto = $('#select_produto_form');
+        var $selectModulo  = $('#select_modulo_form');
+        var $helpModulo    = $('#help_modulo_form');
+
+        if (!$selectProduto.length || !$selectModulo.length) {
+            return;
+        }
+
+        function sincronizarModulosForm(resetarValor) {
+            var prodId = ($selectProduto.val() || '').toString().trim();
+
+            if (!prodId) {
+                $selectModulo.prop('disabled', true);
+                if (resetarValor) {
+                    $selectModulo.val('');
+                }
+                $selectModulo.find('option:first').text('Selecione um produto primeiro...');
+                $selectModulo.find('option').not(':first').hide().prop('disabled', true);
+                if ($helpModulo.length) $helpModulo.show();
+            } else {
+                $selectModulo.prop('disabled', false);
+                $selectModulo.find('option:first').text('Selecione um módulo cadastrado...');
+                if ($helpModulo.length) $helpModulo.hide();
+
+                var encontrouAtual = false;
+                var valorAtual = $selectModulo.val();
+
+                $selectModulo.find('option').each(function() {
+                    var $opt = $(this);
+                    var optVal = $opt.val();
+                    var optProdId = ($opt.data('produto-id') || '').toString().trim();
+
+                    if (!optVal) {
+                        $opt.show().prop('disabled', false);
+                    } else if (optProdId === prodId) {
+                        $opt.show().prop('disabled', false);
+                        if (optVal === valorAtual) {
+                            encontrouAtual = true;
+                        }
+                    } else {
+                        $opt.hide().prop('disabled', true);
+                    }
+                });
+
+                if (resetarValor && !encontrouAtual) {
+                    $selectModulo.val('');
+                }
+            }
+        }
+
+        $selectProduto.on('change', function() {
+            sincronizarModulosForm(true);
+        });
+
+        // Inicializar estado na abertura da tela
+        sincronizarModulosForm(false);
+    }
+
+    /**
+     * 3. BANNERS - Prévia em Modal Grande e Upload de Imagem
      */
     function initBannersPreview() {
         $(document).on('click', '.btn-ver-modal, .banner-thumb-hover', function(e) {
@@ -220,10 +348,85 @@
     }
 
     /**
-     * 3. ETAPAS - Preview de Vídeo e Validação de Ordem com SweetAlert2
+     * 4. ETAPAS - Preview de Vídeo, Detecção Automática de Duração e Validação de Ordem
      */
     function initEtapasVideoAndOrder() {
         var $inputVideoUrl = $('#input_video_url');
+        var $inputDuracao  = $('#input_video_duracao');
+        var $btnDetectar   = $('#btn_detectar_duracao');
+        var $badgeDuracao  = $('#duracao_formatada_badge');
+        var $hintDuracao   = $('#duracao_hint_text');
+
+        function formatarTempoSegundos(totalSegundos) {
+            if (!totalSegundos || totalSegundos <= 0) return '00:00';
+            var minutos = Math.floor(totalSegundos / 60);
+            var segs = totalSegundos % 60;
+            var strMin = (minutos < 10 ? '0' : '') + minutos;
+            var strSeg = (segs < 10 ? '0' : '') + segs;
+            return strMin + ':' + strSeg;
+        }
+
+        // Função de detecção de duração automática
+        function detectarDuracaoAutomatica(url) {
+            if (!url || typeof url !== 'string' || url.trim().length < 5) {
+                return;
+            }
+            url = url.trim();
+
+            var urlEndpoint = ($btnDetectar.data('url-detectar') || '/treinamentos_admin/obter_duracao_video');
+
+            $btnDetectar.prop('disabled', true).html('<i class="fa fa-spinner fa-spin text-primary"></i> Detectando...');
+            $hintDuracao.text('Detectando duração do vídeo...');
+
+            // Se for arquivo de vídeo direto (mp4, webm, etc.), tenta carregar metadados no browser
+            if (url.match(/\.(mp4|webm|ogg|mov|m4v)(?:\?.*)?$/i)) {
+                var tempVid = document.createElement('video');
+                tempVid.preload = 'metadata';
+                tempVid.src = url;
+                tempVid.onloadedmetadata = function() {
+                    var sec = Math.round(tempVid.duration);
+                    if (sec > 0) {
+                        $inputDuracao.val(sec);
+                        $badgeDuracao.text(formatarTempoSegundos(sec) + ' min').show();
+                        $hintDuracao.html('<strong class="text-success"><i class="fa fa-check"></i> Duração detectada via arquivo:</strong> ' + sec + ' segundos (' + formatarTempoSegundos(sec) + ' min).');
+                        $btnDetectar.prop('disabled', false).html('<i class="fa fa-magic text-primary"></i> Detectar');
+                    } else {
+                        consultarBackendDuracao(url);
+                    }
+                };
+                tempVid.onerror = function() {
+                    consultarBackendDuracao(url);
+                };
+                return;
+            }
+
+            consultarBackendDuracao(url);
+
+            function consultarBackendDuracao(link) {
+                $.ajax({
+                    url: urlEndpoint,
+                    type: 'POST',
+                    dataType: 'json',
+                    data: { url: link },
+                    success: function(resp) {
+                        $btnDetectar.prop('disabled', false).html('<i class="fa fa-magic text-primary"></i> Detectar');
+                        if (resp && resp.success && resp.duracao > 0) {
+                            $inputDuracao.val(resp.duracao);
+                            var formatado = resp.formatado || formatarTempoSegundos(resp.duracao);
+                            $badgeDuracao.text(formatado + ' min').show();
+                            $hintDuracao.html('<strong class="text-success"><i class="fa fa-check"></i> Duração detectada automaticamente:</strong> ' + resp.duracao + ' segundos (' + formatado + ' min).');
+                        } else {
+                            $hintDuracao.html('<span class="text-muted"><i class="fa fa-info-circle"></i> ' + ((resp && resp.message) ? resp.message : 'Duração não identificada automaticamente. Informe os segundos manualmente se desejar.') + '</span>');
+                        }
+                    },
+                    error: function() {
+                        $btnDetectar.prop('disabled', false).html('<i class="fa fa-magic text-primary"></i> Detectar');
+                        $hintDuracao.html('<span class="text-muted"><i class="fa fa-info-circle"></i> Não foi possível consultar a duração do vídeo. Informe os segundos manualmente.</span>');
+                    }
+                });
+            }
+        }
+
         if ($inputVideoUrl.length) {
             function detectarVideo(url) {
                 if (!url || typeof url !== 'string') return null;
@@ -278,10 +481,40 @@
                 }
             }
 
+            // Preview dinâmico do vídeo
             $inputVideoUrl.on('input change paste keyup', atualizarPreviewVideo);
             atualizarPreviewVideo();
+
+            // Disparo automático da detecção de duração ao sair do campo ou colar link
+            $inputVideoUrl.on('blur change', function() {
+                var url = $(this).val();
+                if (url && url.trim().length > 5) {
+                    detectarDuracaoAutomatica(url);
+                }
+            });
+
+            // Botão manual de detecção de duração
+            $btnDetectar.on('click', function(e) {
+                e.preventDefault();
+                var url = $inputVideoUrl.val();
+                if (url && url.trim().length > 5) {
+                    detectarDuracaoAutomatica(url);
+                } else {
+                    mostrarAlerta('Atenção', 'Insira primeiro o link do vídeo para que o sistema possa detectar a duração.', 'info');
+                }
+            });
+
+            // Inicialização da badge de duração se já houver valor preenchido
+            if ($inputDuracao.length) {
+                var durInicial = parseInt($inputDuracao.val(), 10);
+                if (!isNaN(durInicial) && durInicial > 0) {
+                    $badgeDuracao.text(formatarTempoSegundos(durInicial) + ' min').show();
+                    $hintDuracao.html('<span class="text-success"><i class="fa fa-clock-o"></i> Duração configurada: <strong>' + durInicial + ' segundos (' + formatarTempoSegundos(durInicial) + ' min)</strong>.</span>');
+                }
+            }
         }
 
+        // Validação inteligente de ordem da etapa com reorganização e Swal.fire
         var $formEtapa = $('#form_etapa');
         if ($formEtapa.length && typeof window.etapasExistentesData !== 'undefined') {
             var formConfirmado = false;
@@ -354,7 +587,47 @@
     }
 
     /**
-     * 4. GESTÃO DE PERMISSÕES DO TREINAMENTO (ACESSO LIVRE vs RESTRITO)
+     * 5. CONFIRMAÇÕES DE EXCLUSÃO COM SWEETALERT2 (Swal.fire)
+     * Substitui qualquer alert nativo de exclusão de treinamento, etapa, banner ou anexo.
+     */
+    function initConfirmacoesExclusao() {
+        $(document).off('click.confirmarExclusao', '.btn-confirmar-exclusao')
+                   .on('click.confirmarExclusao', '.btn-confirmar-exclusao', function(e) {
+            e.preventDefault();
+            var $btn = $(this);
+            var url = $btn.data('url') || $btn.attr('href');
+            var titulo = $btn.data('titulo') || 'Confirmar Exclusão';
+            var texto = $btn.data('texto') || 'Esta ação não poderá ser desfeita. Deseja realmente prosseguir com a exclusão?';
+
+            if (!url || url === '#' || url === 'javascript:void(0);') {
+                return;
+            }
+
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: titulo,
+                    html: '<div style="font-size: 14.5px; color: #475569; line-height: 1.5; text-align: center;">' + texto + '</div>',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#64748b',
+                    confirmButtonText: '<i class="fa fa-trash"></i> Sim, Excluir',
+                    cancelButtonText: '<i class="fa fa-times"></i> Cancelar'
+                }).then(function(result) {
+                    if (result && result.isConfirmed) {
+                        window.location.href = url;
+                    }
+                });
+            } else {
+                if (confirm(texto)) {
+                    window.location.href = url;
+                }
+            }
+        });
+    }
+
+    /**
+     * 6. GESTÃO DE PERMISSÕES DO TREINAMENTO (ACESSO LIVRE vs RESTRITO)
      */
     function initPermissoesTreinamento() {
         var $selectTipo = $('#selectTipoAcesso');
@@ -380,10 +653,8 @@
             $bloco.hide();
         }
 
-        // Evento de alteracao direto no select
         $selectTipo.off('change.permissoes').on('change.permissoes', alternar);
 
-        // Delegacao global no document para garantir captura mesmo apos qualquer re-render
         $(document).off('change.perm_global', '#selectTipoAcesso').on('change.perm_global', '#selectTipoAcesso', function() {
             if ($(this).val() === 'restrito') {
                 $('#blocoAcessoRestrito').slideDown(150);
@@ -392,7 +663,6 @@
             }
         });
 
-        // Filtro rapido de grupos por digitacao
         $(document).off('input.filtroGrupos', '#filtroBuscaGrupos').on('input.filtroGrupos', '#filtroBuscaGrupos', function() {
             var termo = ($(this).val() || '').toLowerCase().trim();
             $('.item-checkbox-grupo').each(function() {
@@ -401,7 +671,6 @@
             });
         });
 
-        // Filtro rapido de usuarios por digitacao
         $(document).off('input.filtroUsuarios', '#filtroBuscaUsuarios').on('input.filtroUsuarios', '#filtroBuscaUsuarios', function() {
             var termo = ($(this).val() || '').toLowerCase().trim();
             $('.item-checkbox-usuario').each(function() {
@@ -410,25 +679,21 @@
             });
         });
 
-        // Botao Marcar Todos Grupos
         $(document).off('click.marcarG', '#btnMarcarTodosGrupos').on('click.marcarG', '#btnMarcarTodosGrupos', function(e) {
             e.preventDefault();
             $('.item-checkbox-grupo:visible .chk-grupo').prop('checked', true);
         });
 
-        // Botao Desmarcar Grupos
         $(document).off('click.desmarcarG', '#btnDesmarcarTodosGrupos').on('click.desmarcarG', '#btnDesmarcarTodosGrupos', function(e) {
             e.preventDefault();
             $('.item-checkbox-grupo:visible .chk-grupo').prop('checked', false);
         });
 
-        // Botao Marcar Todos Usuarios
         $(document).off('click.marcarU', '#btnMarcarTodosUsuarios').on('click.marcarU', '#btnMarcarTodosUsuarios', function(e) {
             e.preventDefault();
             $('.item-checkbox-usuario:visible .chk-usuario').prop('checked', true);
         });
 
-        // Botao Desmarcar Usuarios
         $(document).off('click.desmarcarU', '#btnDesmarcarTodosUsuarios').on('click.desmarcarU', '#btnDesmarcarTodosUsuarios', function(e) {
             e.preventDefault();
             $('.item-checkbox-usuario:visible .chk-usuario').prop('checked', false);
@@ -436,7 +701,7 @@
     }
 
     /**
-     * 5. SALA DE AULA - ETAPAS (PLAYER DE VÍDEO, ATIVIDADES E AVALIAÇÃO)
+     * 7. SALA DE AULA - ETAPAS (PLAYER DE VÍDEO, ATIVIDADES E AVALIAÇÃO)
      */
     function initSalaDeAula() {
         var $classroom = $('.classroom-container');
@@ -562,7 +827,7 @@
             window.salvarProgressoVideo(duracaoEsperada || 300, true);
         };
 
-        // Delegação de clique no botão manual de vídeo (garantido independentemente de inline onclick)
+        // Delegação de clique no botão manual de vídeo
         $(document).off('click.marcarVideo', '#btnMarcarVideoManual').on('click.marcarVideo', '#btnMarcarVideoManual', function(e) {
             e.preventDefault();
             window.marcarVideoManual();
@@ -573,7 +838,6 @@
             try {
                 var data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
                 if (data && data.event === 'infoDelivery' && data.info) {
-                    // playerState === 0 é ENDED no YouTube
                     if (data.info.playerState === 0) {
                         window.salvarProgressoVideo(duracaoEsperada || 300, true);
                     }
@@ -581,7 +845,7 @@
             } catch(e) {}
         });
 
-        // 2. HTML5 Video Player
+        // HTML5 Video Player
         var html5Vid = document.getElementById('html5Video');
         if (html5Vid) {
             html5Vid.addEventListener('timeupdate', function() {
@@ -595,7 +859,7 @@
             });
         }
 
-        // 3. Atividades Práticas Orientativas
+        // Atividades Práticas Orientativas
         window.toggleAtividade = function(ativId, element) {
             var $el = $(element);
             var $chk = $el.find('.task-checkbox');
@@ -619,7 +883,7 @@
             });
         };
 
-        // 4. Avaliação de Satisfação
+        // Avaliação de Satisfação
         window.selecionarNota = function(val) {
             $('#inputNota').val(val);
             $('.star-btn').removeClass('selected');
@@ -648,7 +912,6 @@
             var $btn = $('#btnSalvarAvaliacao');
             var videoConcluido = ($classroom.data('video-concluido') == '1' || window.videoJaConcluido === true);
 
-            // Validação no frontend: só pode avaliar depois de assistir o vídeo!
             if (temVideo && !videoConcluido) {
                 mostrarAlerta(
                     'Vídeo Pendente!',
@@ -672,7 +935,6 @@
                 },
                 success: function(resp) {
                     if (resp && resp.success) {
-                        // Monta o card definitivo de avaliação (somente leitura)
                         var estrelasHtml = '';
                         for (var s = 1; s <= 5; s++) {
                             estrelasHtml += '<i class="fa ' + (s <= nota ? 'fa-star' : 'fa-star-o') + '"></i> ';
@@ -704,11 +966,10 @@
             });
         };
 
-        // 5. Concluir Etapa
+        // Concluir Etapa
         window.concluirEtapa = function(etpId) {
             var videoConcluido = ($classroom.data('video-concluido') == '1' || window.videoJaConcluido === true);
 
-            // Validação no frontend: só pode concluir e ir para a próxima se tiver assistido o vídeo todo
             if (temVideo && !videoConcluido) {
                 mostrarAlerta(
                     'Vídeo Obrigatório Pendente!',

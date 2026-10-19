@@ -92,7 +92,7 @@
                                     </td>
                                     <td>
                                         <span class="label label-default" style="font-size: 11px;">
-                                            <?php echo htmlspecialchars($t->modulo_nome ?? 'Geral'); ?>
+                                            <?php echo htmlspecialchars(isset($t->modulo_nome) ? $t->modulo_nome : 'Geral'); ?>
                                         </span>
                                     </td>
                                     <td>
@@ -100,8 +100,8 @@
                                             <?php echo $t->total_etapas; ?> etapa(s)
                                         </a>
                                     </td>
-                                    <td><span class="label label-primary"><?php echo $t->total_em_andamento ?? 0; ?></span></td>
-                                    <td><span class="label label-success"><?php echo $t->total_concluidos ?? 0; ?></span></td>
+                                    <td><span class="label label-primary"><?php echo isset($t->total_em_andamento) ? $t->total_em_andamento : 0; ?></span></td>
+                                    <td><span class="label label-success"><?php echo isset($t->total_concluidos) ? $t->total_concluidos : 0; ?></span></td>
                                     <td>
                                         <i class="fa fa-star text-yellow"></i> <strong><?php echo number_format($t->media_avaliacao, 1); ?></strong>
                                         <small class="text-muted">(<?php echo $t->total_avaliacoes; ?>)</small>
@@ -142,7 +142,7 @@
                                                 </li>
                                                 <li class="divider"></li>
                                                 <li>
-                                                    <a href="<?php echo site_url('treinamentos_admin/delete/' . $t->id); ?>" onclick="return confirm('Deseja realmente excluir/desativar este treinamento?');" style="color: #d9534f;">
+                                                    <a href="javascript:void(0);" data-url="<?php echo site_url('treinamentos_admin/delete/' . $t->id); ?>" data-titulo="Excluir Treinamento" data-texto="Deseja realmente excluir/desativar o treinamento '<?php echo htmlspecialchars($t->titulo); ?>'?" class="btn-confirmar-exclusao" style="color: #d9534f;">
                                                         <i class="fa fa-trash"></i> Excluir Treinamento
                                                     </a>
                                                 </li>
