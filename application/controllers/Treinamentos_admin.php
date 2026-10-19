@@ -297,12 +297,26 @@ class Treinamentos_admin extends Admin_Controller {
                     ->update('treinamento_etapas');
             }
 
+            $videoTipo = $this->input->post('video_tipo');
+            if ($videoTipo === 'arquivo') {
+                $videoTipo = 'link_direto';
+            }
+            if (!in_array($videoTipo, array('youtube', 'vimeo', 'upload', 'link_direto', 'nenhum'))) {
+                $videoTipo = 'nenhum';
+            }
+
+            $conteudo = $this->input->post('conteudo_detalhado');
+            if ($conteudo === null || $conteudo === false) {
+                $conteudo = $this->input->post('conteudo_html');
+            }
+
             $data = array(
                 'treinamento_id'         => (int)$treinamento_id,
                 'titulo'                 => $this->input->post('titulo', TRUE),
                 'descricao_curta'        => $this->input->post('descricao_curta', TRUE),
-                'conteudo_detalhado'     => $this->input->post('conteudo_detalhado'),
-                'video_tipo'             => $this->input->post('video_tipo'),
+                'conteudo_detalhado'     => $conteudo,
+                'conteudo_html'          => $conteudo,
+                'video_tipo'             => $videoTipo,
                 'video_url'              => $this->input->post('video_url', TRUE),
                 'video_duracao_segundos' => (int)$this->input->post('video_duracao_segundos'),
                 'video_obrigatorio'      => $this->input->post('video_obrigatorio') ? 1 : 0,
@@ -315,7 +329,9 @@ class Treinamentos_admin extends Admin_Controller {
                 $this->session->set_flashdata('message', show_alert_success('Etapa cadastrada com sucesso!'));
                 redirect('treinamentos_admin/etapas/' . $treinamento_id);
             } else {
-                $this->data['message'] = show_alert_error('Erro ao cadastrar etapa.');
+                $dbError = $this->db->error();
+                $errorMsg = !empty($dbError['message']) ? ': ' . $dbError['message'] : '.';
+                $this->data['message'] = show_alert_error('Erro ao cadastrar etapa' . $errorMsg);
             }
         }
 
@@ -369,11 +385,25 @@ class Treinamentos_admin extends Admin_Controller {
                 }
             }
 
+            $videoTipo = $this->input->post('video_tipo');
+            if ($videoTipo === 'arquivo') {
+                $videoTipo = 'link_direto';
+            }
+            if (!in_array($videoTipo, array('youtube', 'vimeo', 'upload', 'link_direto', 'nenhum'))) {
+                $videoTipo = 'nenhum';
+            }
+
+            $conteudo = $this->input->post('conteudo_detalhado');
+            if ($conteudo === null || $conteudo === false) {
+                $conteudo = $this->input->post('conteudo_html');
+            }
+
             $data = array(
                 'titulo'                 => $this->input->post('titulo', TRUE),
                 'descricao_curta'        => $this->input->post('descricao_curta', TRUE),
-                'conteudo_detalhado'     => $this->input->post('conteudo_detalhado'),
-                'video_tipo'             => $this->input->post('video_tipo'),
+                'conteudo_detalhado'     => $conteudo,
+                'conteudo_html'          => $conteudo,
+                'video_tipo'             => $videoTipo,
                 'video_url'              => $this->input->post('video_url', TRUE),
                 'video_duracao_segundos' => (int)$this->input->post('video_duracao_segundos'),
                 'video_obrigatorio'      => $this->input->post('video_obrigatorio') ? 1 : 0,
@@ -385,7 +415,9 @@ class Treinamentos_admin extends Admin_Controller {
                 $this->session->set_flashdata('message', show_alert_success('Etapa atualizada com sucesso!'));
                 redirect('treinamentos_admin/etapas/' . $treinamento->id);
             } else {
-                $this->data['message'] = show_alert_error('Erro ao atualizar etapa.');
+                $dbError = $this->db->error();
+                $errorMsg = !empty($dbError['message']) ? ': ' . $dbError['message'] : '.';
+                $this->data['message'] = show_alert_error('Erro ao atualizar etapa' . $errorMsg);
             }
         }
 
@@ -744,12 +776,24 @@ class Treinamentos_admin extends Admin_Controller {
         $this->data['resumo_avaliacoes']  = $this->treinamentos_avaliacoes_model->get_resumo_geral();
 
         // 1. Tabela de Progresso dos Alunos
-        $this->db->select('tp.*, t.titulo as treinamento_titulo, m.nome as modulo_nome, u.first_name, u.last_name, u.email, te.titulo as ultima_etapa_titulo, te.ordem as ultima_etapa_ordem');
+        $temEtapaAtual = $this->db->field_exists('etapa_atual_id', 'treinamento_progresso');
+        $temUltimaEtapa = $this->db->field_exists('ultima_etapa_id', 'treinamento_progresso');
+        if ($temEtapaAtual && $temUltimaEtapa) {
+            $joinOn = 'te.id = COALESCE(tp.ultima_etapa_id, tp.etapa_atual_id)';
+        } elseif ($temEtapaAtual) {
+            $joinOn = 'te.id = tp.etapa_atual_id';
+        } else {
+            $joinOn = 'te.id = tp.ultima_etapa_id';
+        }
+
+        $this->db->select('tp.*, t.titulo as treinamento_titulo, m.nome as modulo_nome, u.first_name, u.last_name, u.email, te.titulo as ultima_etapa_titulo, te.ordem as ultima_etapa_ordem,
+            (SELECT COUNT(te_sub.id) FROM treinamento_etapas te_sub WHERE te_sub.treinamento_id = tp.treinamento_id AND te_sub.ativo = 1) as total_etapas_calc,
+            (SELECT COUNT(tep_sub.id) FROM treinamento_etapa_progresso tep_sub WHERE tep_sub.treinamento_id = tp.treinamento_id AND tep_sub.user_id = tp.user_id AND tep_sub.status = "concluido") as etapas_concluidas_calc');
         $this->db->from('treinamento_progresso tp');
         $this->db->join('treinamentos t', 't.id = tp.treinamento_id', 'inner');
         $this->db->join('modulos m', 'm.id = t.modulo_id', 'left');
         $this->db->join('users u', 'u.id = tp.user_id', 'left');
-        $this->db->join('treinamento_etapas te', 'te.id = tp.ultima_etapa_id', 'left');
+        $this->db->join('treinamento_etapas te', $joinOn, 'left');
 
         if (!empty($moduloId))      $this->db->where('t.modulo_id', (int)$moduloId);
         if (!empty($treinamentoId)) $this->db->where('tp.treinamento_id', (int)$treinamentoId);

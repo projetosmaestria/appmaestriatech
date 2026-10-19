@@ -27,7 +27,7 @@ class Treinamentos_progresso_model extends CI_Model {
             $prog = $this->db->get('treinamento_progresso')->row();
         }
 
-        return $prog;
+        return $this->normalizar_progresso($prog);
     }
 
     /**
@@ -45,32 +45,41 @@ class Treinamentos_progresso_model extends CI_Model {
 
         $now = date('Y-m-d H:i:s');
         if (!$existe) {
-            $this->db->insert('treinamento_progresso', array(
-                'treinamento_id' => (int)$treinamento_id,
-                'user_id' => (int)$user_id,
+            $insertData = array(
+                'treinamento_id'    => (int)$treinamento_id,
+                'user_id'           => (int)$user_id,
                 'etapas_concluidas' => 0,
-                'total_etapas' => $totalEtapas,
-                'percentual' => 0.00,
-                'status' => 'em_andamento',
-                'ultima_etapa_id' => $etapa_id ? (int)$etapa_id : null,
-                'ultima_acao' => $acao ? $acao : 'Iniciou o treinamento',
-                'data_inicio' => $now,
-                'ultima_atividade' => $now,
-                'created_at' => $now
-            ));
+                'total_etapas'      => $totalEtapas,
+                'percentual'        => 0.00,
+                'status'            => 'em_andamento',
+                'ultima_etapa_id'   => $etapa_id ? (int)$etapa_id : null,
+                'etapa_atual_id'    => $etapa_id ? (int)$etapa_id : null,
+                'ultima_acao'       => $acao ? $acao : 'Iniciou o treinamento',
+                'detalhes_log'      => $acao ? $acao : 'Iniciou o treinamento',
+                'data_inicio'       => $now,
+                'ultima_atividade'  => $now,
+                'created_at'        => $now
+            );
+            $fields = $this->db->list_fields('treinamento_progresso');
+            $cleanData = !empty($fields) ? array_intersect_key($insertData, array_flip($fields)) : $insertData;
+            $this->db->insert('treinamento_progresso', $cleanData);
         } else {
             $updateData = array(
-                'total_etapas' => $totalEtapas,
+                'total_etapas'     => $totalEtapas,
                 'ultima_atividade' => $now
             );
             if ($etapa_id) {
                 $updateData['ultima_etapa_id'] = (int)$etapa_id;
+                $updateData['etapa_atual_id']  = (int)$etapa_id;
             }
             if ($acao) {
-                $updateData['ultima_acao'] = $acao;
+                $updateData['ultima_acao']  = $acao;
+                $updateData['detalhes_log'] = $acao;
             }
+            $fields = $this->db->list_fields('treinamento_progresso');
+            $cleanData = !empty($fields) ? array_intersect_key($updateData, array_flip($fields)) : $updateData;
             $this->db->where('id', $existe->id);
-            $this->db->update('treinamento_progresso', $updateData);
+            $this->db->update('treinamento_progresso', $cleanData);
         }
     }
 
@@ -107,7 +116,9 @@ class Treinamentos_progresso_model extends CI_Model {
      */
     public function get_treinamentos_em_andamento($user_id, $limit = 6)
     {
-        $this->db->select('tp.*, t.titulo, t.imagem_capa, t.carga_horaria_minutos, t.nivel, m.nome as modulo_nome');
+        $this->db->select('tp.*, t.titulo, t.imagem_capa, t.carga_horaria_minutos, t.nivel, m.nome as modulo_nome,
+            (SELECT COUNT(te_sub.id) FROM treinamento_etapas te_sub WHERE te_sub.treinamento_id = tp.treinamento_id AND te_sub.ativo = 1) as total_etapas_calc,
+            (SELECT COUNT(tep_sub.id) FROM treinamento_etapa_progresso tep_sub WHERE tep_sub.treinamento_id = tp.treinamento_id AND tep_sub.user_id = tp.user_id AND tep_sub.status = "concluido") as etapas_concluidas_calc');
         $this->db->from('treinamento_progresso tp');
         $this->db->join('treinamentos t', 't.id = tp.treinamento_id', 'inner');
         $this->db->join('modulos m', 'm.id = t.modulo_id', 'left');
@@ -121,6 +132,7 @@ class Treinamentos_progresso_model extends CI_Model {
 
         // Para cada um, buscar qual a etapa atual a continuar
         foreach ($result as &$item) {
+            $this->normalizar_progresso($item);
             $item->proxima_etapa = $this->get_etapa_a_continuar($item->treinamento_id, $user_id);
         }
 
@@ -152,7 +164,50 @@ class Treinamentos_progresso_model extends CI_Model {
     {
         $this->db->where('etapa_id', (int)$etapa_id);
         $this->db->where('user_id', (int)$user_id);
-        return $this->db->get('treinamento_etapa_progresso')->row();
+        $row = $this->db->get('treinamento_etapa_progresso')->row();
+        return $this->normalizar_progresso_etapa($row);
+    }
+
+    /**
+     * Normaliza atributos do progresso geral para compatibilidade entre esquemas
+     */
+    public function normalizar_progresso($prog)
+    {
+        if (!$prog) return $prog;
+        if (!isset($prog->ultima_etapa_id) && isset($prog->etapa_atual_id)) {
+            $prog->ultima_etapa_id = $prog->etapa_atual_id;
+        } elseif (!isset($prog->etapa_atual_id) && isset($prog->ultima_etapa_id)) {
+            $prog->etapa_atual_id = $prog->ultima_etapa_id;
+        }
+
+        if (!isset($prog->ultima_acao) && isset($prog->detalhes_log)) {
+            $prog->ultima_acao = $prog->detalhes_log;
+        } elseif (!isset($prog->detalhes_log) && isset($prog->ultima_acao)) {
+            $prog->detalhes_log = $prog->ultima_acao;
+        }
+
+        if (isset($prog->etapas_concluidas_calc) && (!isset($prog->etapas_concluidas) || $prog->etapas_concluidas === null)) {
+            $prog->etapas_concluidas = (int)$prog->etapas_concluidas_calc;
+        }
+        if (isset($prog->total_etapas_calc) && (!isset($prog->total_etapas) || $prog->total_etapas === null)) {
+            $prog->total_etapas = (int)$prog->total_etapas_calc;
+        }
+
+        return $prog;
+    }
+
+    /**
+     * Normaliza atributos do progresso de etapa
+     */
+    public function normalizar_progresso_etapa($prog)
+    {
+        if (!$prog) return $prog;
+        if (!isset($prog->video_tempo_assistido) && isset($prog->video_segundos_assistidos)) {
+            $prog->video_tempo_assistido = (int)$prog->video_segundos_assistidos;
+        } elseif (!isset($prog->video_segundos_assistidos) && isset($prog->video_tempo_assistido)) {
+            $prog->video_segundos_assistidos = (int)$prog->video_tempo_assistido;
+        }
+        return $prog;
     }
 
     /**
@@ -171,25 +226,32 @@ class Treinamentos_progresso_model extends CI_Model {
 
         if (!$prog) {
             $data = array(
-                'treinamento_id' => $etapa->treinamento_id,
-                'etapa_id' => (int)$etapa_id,
-                'user_id' => (int)$user_id,
-                'video_tempo_assistido' => (int)$tempo_segundos,
-                'video_concluido' => $concluido ? 1 : 0,
-                'status' => 'em_andamento',
-                'created_at' => $now
+                'treinamento_id'            => $etapa->treinamento_id,
+                'etapa_id'                  => (int)$etapa_id,
+                'user_id'                   => (int)$user_id,
+                'video_tempo_assistido'     => (int)$tempo_segundos,
+                'video_segundos_assistidos' => (int)$tempo_segundos,
+                'video_concluido'           => $concluido ? 1 : 0,
+                'status'                    => 'em_andamento',
+                'created_at'                => $now
             );
-            $this->db->insert('treinamento_etapa_progresso', $data);
+            $fields = $this->db->list_fields('treinamento_etapa_progresso');
+            $cleanData = !empty($fields) ? array_intersect_key($data, array_flip($fields)) : $data;
+            $this->db->insert('treinamento_etapa_progresso', $cleanData);
         } else {
+            $currentTempo = isset($prog->video_tempo_assistido) ? (int)$prog->video_tempo_assistido : (isset($prog->video_segundos_assistidos) ? (int)$prog->video_segundos_assistidos : 0);
             $data = array(
-                'video_tempo_assistido' => max((int)$prog->video_tempo_assistido, (int)$tempo_segundos),
-                'updated_at' => $now
+                'video_tempo_assistido'     => max($currentTempo, (int)$tempo_segundos),
+                'video_segundos_assistidos' => max($currentTempo, (int)$tempo_segundos),
+                'updated_at'                => $now
             );
-            if ($concluido || $prog->video_concluido == 1) {
+            if ($concluido || (isset($prog->video_concluido) && $prog->video_concluido == 1)) {
                 $data['video_concluido'] = 1;
             }
+            $fields = $this->db->list_fields('treinamento_etapa_progresso');
+            $cleanData = !empty($fields) ? array_intersect_key($data, array_flip($fields)) : $data;
             $this->db->where('id', $prog->id);
-            $this->db->update('treinamento_etapa_progresso', $data);
+            $this->db->update('treinamento_etapa_progresso', $cleanData);
         }
 
         return true;
@@ -368,23 +430,32 @@ class Treinamentos_progresso_model extends CI_Model {
 
         $prog = $this->get_progresso_etapa($etapa_id, $user_id);
         if (!$prog) {
-            $this->db->insert('treinamento_etapa_progresso', array(
-                'treinamento_id' => $etapa->treinamento_id,
-                'etapa_id' => (int)$etapa_id,
-                'user_id' => (int)$user_id,
-                'video_concluido' => 1,
-                'atividades_concluidas' => 1,
-                'status' => 'concluido',
-                'data_conclusao' => $now,
-                'created_at' => $now
-            ));
+            $dataInsert = array(
+                'treinamento_id'            => $etapa->treinamento_id,
+                'etapa_id'                  => (int)$etapa_id,
+                'user_id'                   => (int)$user_id,
+                'video_tempo_assistido'     => 0,
+                'video_segundos_assistidos' => 0,
+                'video_concluido'           => 1,
+                'atividades_concluidas'     => 1,
+                'status'                    => 'concluido',
+                'data_conclusao'            => $now,
+                'created_at'                => $now
+            );
+            $fields = $this->db->list_fields('treinamento_etapa_progresso');
+            $cleanData = !empty($fields) ? array_intersect_key($dataInsert, array_flip($fields)) : $dataInsert;
+            $this->db->insert('treinamento_etapa_progresso', $cleanData);
         } else {
+            $dataUpdate = array(
+                'video_concluido' => 1,
+                'status'          => 'concluido',
+                'data_conclusao'  => $now,
+                'updated_at'      => $now
+            );
+            $fields = $this->db->list_fields('treinamento_etapa_progresso');
+            $cleanData = !empty($fields) ? array_intersect_key($dataUpdate, array_flip($fields)) : $dataUpdate;
             $this->db->where('id', $prog->id);
-            $this->db->update('treinamento_etapa_progresso', array(
-                'status' => 'concluido',
-                'data_conclusao' => $now,
-                'updated_at' => $now
-            ));
+            $this->db->update('treinamento_etapa_progresso', $cleanData);
         }
 
         // Recalcular progresso geral
@@ -427,26 +498,29 @@ class Treinamentos_progresso_model extends CI_Model {
 
         $dadosProg = array(
             'etapas_concluidas' => $etapasConcluidas,
-            'total_etapas' => $totalEtapas,
-            'percentual' => $percentual,
-            'status' => $status,
-            'ultima_atividade' => $now,
-            'updated_at' => $now
+            'total_etapas'      => $totalEtapas,
+            'percentual'        => $percentual,
+            'status'            => $status,
+            'ultima_atividade'  => $now,
+            'updated_at'        => $now
         );
 
         if ($status === 'concluido' && (!$existe || empty($existe->data_conclusao))) {
             $dadosProg['data_conclusao'] = $now;
         }
 
+        $fields = $this->db->list_fields('treinamento_progresso');
         if (!$existe) {
             $dadosProg['treinamento_id'] = (int)$treinamento_id;
-            $dadosProg['user_id'] = (int)$user_id;
-            $dadosProg['data_inicio'] = $now;
-            $dadosProg['created_at'] = $now;
-            $this->db->insert('treinamento_progresso', $dadosProg);
+            $dadosProg['user_id']        = (int)$user_id;
+            $dadosProg['data_inicio']   = $now;
+            $dadosProg['created_at']    = $now;
+            $cleanData = !empty($fields) ? array_intersect_key($dadosProg, array_flip($fields)) : $dadosProg;
+            $this->db->insert('treinamento_progresso', $cleanData);
         } else {
+            $cleanData = !empty($fields) ? array_intersect_key($dadosProg, array_flip($fields)) : $dadosProg;
             $this->db->where('id', $existe->id);
-            $this->db->update('treinamento_progresso', $dadosProg);
+            $this->db->update('treinamento_progresso', $cleanData);
         }
 
         return $percentual;

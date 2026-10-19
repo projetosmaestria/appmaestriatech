@@ -183,14 +183,19 @@ if (!isset($resumo_avaliacoes['distribuicao']) || !is_array($resumo_avaliacoes['
                                                 <?php endif; ?>
                                             </td>
                                             <td>
+                                                <?php
+                                                    $acaoTexto = !empty($pa->ultima_acao) ? $pa->ultima_acao : (!empty($pa->detalhes_log) ? $pa->detalhes_log : 'Acessando treinamento');
+                                                    $concluidas = isset($pa->etapas_concluidas) ? (int)$pa->etapas_concluidas : (isset($pa->etapas_concluidas_calc) ? (int)$pa->etapas_concluidas_calc : 0);
+                                                    $totalEt = isset($pa->total_etapas) ? (int)$pa->total_etapas : (isset($pa->total_etapas_calc) ? (int)$pa->total_etapas_calc : 0);
+                                                ?>
                                                 <small style="color: #2b6cb0; font-weight: 600;">
-                                                    <i class="fa fa-eye"></i> <?php echo htmlspecialchars($pa->ultima_acao ?? 'Acessando treinamento'); ?>
+                                                    <i class="fa fa-eye"></i> <?php echo htmlspecialchars($acaoTexto); ?>
                                                 </small>
                                             </td>
                                             <td>
                                                 <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;">
                                                     <span><?php echo (float)$pa->percentual; ?>%</span>
-                                                    <span>(<?php echo $pa->etapas_concluidas; ?>/<?php echo $pa->total_etapas; ?>)</span>
+                                                    <span>(<?php echo $concluidas; ?>/<?php echo $totalEt; ?>)</span>
                                                 </div>
                                                 <div class="progress" style="height: 6px; margin: 0; background: #eee;">
                                                     <div class="progress-bar <?php echo $pa->status === 'concluido' ? 'progress-bar-success' : 'progress-bar-primary'; ?>" style="width: <?php echo (float)$pa->percentual; ?>%;"></div>

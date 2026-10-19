@@ -26,7 +26,11 @@ class Treinamentos_etapas_model extends CI_Model {
         }
         $this->db->order_by('te.ordem ASC, te.id ASC');
 
-        return $this->db->get()->result();
+        $result = $this->db->get()->result();
+        foreach ($result as &$row) {
+            $this->normalizar_etapa($row);
+        }
+        return $result;
     }
 
     /**
@@ -39,7 +43,8 @@ class Treinamentos_etapas_model extends CI_Model {
         $this->db->join('treinamentos t', 't.id = te.treinamento_id', 'inner');
         $this->db->where('te.id', (int)$etapa_id);
 
-        return $this->db->get()->row();
+        $row = $this->db->get()->row();
+        return $this->normalizar_etapa($row);
     }
 
     /**
@@ -53,7 +58,8 @@ class Treinamentos_etapas_model extends CI_Model {
         $this->db->order_by('ordem ASC, id ASC');
         $this->db->limit(1);
 
-        return $this->db->get()->row();
+        $row = $this->db->get()->row();
+        return $this->normalizar_etapa($row);
     }
 
     /**
@@ -68,7 +74,8 @@ class Treinamentos_etapas_model extends CI_Model {
         $this->db->order_by('ordem ASC, id ASC');
         $this->db->limit(1);
 
-        return $this->db->get()->row();
+        $row = $this->db->get()->row();
+        return $this->normalizar_etapa($row);
     }
 
     /**
@@ -83,7 +90,22 @@ class Treinamentos_etapas_model extends CI_Model {
         $this->db->order_by('ordem DESC, id DESC');
         $this->db->limit(1);
 
-        return $this->db->get()->row();
+        $row = $this->db->get()->row();
+        return $this->normalizar_etapa($row);
+    }
+
+    /**
+     * Normaliza as propriedades de conteúdo para compatibilidade
+     */
+    private function normalizar_etapa($row)
+    {
+        if (!$row) return $row;
+        if (isset($row->conteudo_html) && (!isset($row->conteudo_detalhado) || $row->conteudo_detalhado === null || $row->conteudo_detalhado === '')) {
+            $row->conteudo_detalhado = $row->conteudo_html;
+        } elseif (isset($row->conteudo_detalhado) && (!isset($row->conteudo_html) || $row->conteudo_html === null || $row->conteudo_html === '')) {
+            $row->conteudo_html = $row->conteudo_detalhado;
+        }
+        return $row;
     }
 
     /**
@@ -99,7 +121,18 @@ class Treinamentos_etapas_model extends CI_Model {
             $data['ordem'] = ($max && $max->ordem) ? ((int)$max->ordem + 1) : 1;
         }
 
-        if ($this->db->insert($this->table, $data)) {
+        // Garante compatibilidade entre conteudo_detalhado e conteudo_html
+        if (isset($data['conteudo_detalhado']) && !isset($data['conteudo_html'])) {
+            $data['conteudo_html'] = $data['conteudo_detalhado'];
+        } elseif (isset($data['conteudo_html']) && !isset($data['conteudo_detalhado'])) {
+            $data['conteudo_detalhado'] = $data['conteudo_html'];
+        }
+
+        // Filtra para enviar ao banco somente colunas que realmente existem na tabela física
+        $fields = $this->db->list_fields($this->table);
+        $cleanData = !empty($fields) ? array_intersect_key($data, array_flip($fields)) : $data;
+
+        if ($this->db->insert($this->table, $cleanData)) {
             return $this->db->insert_id();
         }
         return false;
@@ -111,8 +144,20 @@ class Treinamentos_etapas_model extends CI_Model {
     public function update($id, $data)
     {
         $data['updated_at'] = date('Y-m-d H:i:s');
+
+        // Garante compatibilidade entre conteudo_detalhado e conteudo_html
+        if (isset($data['conteudo_detalhado']) && !isset($data['conteudo_html'])) {
+            $data['conteudo_html'] = $data['conteudo_detalhado'];
+        } elseif (isset($data['conteudo_html']) && !isset($data['conteudo_detalhado'])) {
+            $data['conteudo_detalhado'] = $data['conteudo_html'];
+        }
+
+        // Filtra para enviar ao banco somente colunas que realmente existem na tabela física
+        $fields = $this->db->list_fields($this->table);
+        $cleanData = !empty($fields) ? array_intersect_key($data, array_flip($fields)) : $data;
+
         $this->db->where('id', (int)$id);
-        return $this->db->update($this->table, $data);
+        return $this->db->update($this->table, $cleanData);
     }
 
     /**
