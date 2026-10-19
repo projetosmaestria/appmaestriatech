@@ -234,26 +234,36 @@ defined('BASEPATH') or exit('No direct script access allowed');
         border-left: 2px solid rgba(156, 215, 212, 0.3);
     }
 
+    .treeview-menu li a,
     .treeview-menu>li>a {
-        padding: 10px 15px 10px 35px !important;
+        padding: 8px 15px 8px 35px !important;
         color: #1E1D3F !important;
         border-radius: 6px !important;
         margin: 1px 0 !important;
         transition: all 0.3s ease;
-        font-size: 14px;
+        font-size: 12px !important;
     }
 
+    .treeview-menu li a:hover,
     .treeview-menu>li>a:hover {
         background: rgba(156, 215, 212, 0.1) !important;
         color: #1E1D3F !important;
         padding-left: 40px !important;
     }
 
+    .treeview-menu li.active>a,
     .treeview-menu>li.active>a {
         color: #1E1D3F !important;
         background: rgba(156, 215, 212, 0.2) !important;
         font-weight: 600;
         border-right: 3px solid #9CD7D4;
+    }
+
+    .treeview-menu li a i,
+    .treeview-menu li a .fa,
+    .treeview-menu li a .fas,
+    .treeview-menu li a .far {
+        font-size: 11px !important;
     }
 
     .pull-right-container {

@@ -1,9 +1,11 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
+#[\AllowDynamicProperties]
 class Template {
 
     protected $CI;
+    public $template = array();
 
     public function __construct()
     {	

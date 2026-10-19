@@ -79,8 +79,9 @@ class Menus extends Admin_Controller {
 			if($_POST)
            		$this->data['message'] = (validation_errors() ? show_alert_error(validation_errors()) : ($this->menus_model->errors() ? show_alert_error($this->menus_model->errors()) : show_alert_error($this->session->flashdata('message'))));
             
+            $todos_menus = $this->menus_model->get(array('select'=>'m.*', 'order_by'=>'m.tipo asc, m.order asc'))->result_array();
             $menuFinal = [];
-			construirMenu($this->menus_model->get(array('select'=>'m.*', 'order_by'=>'m.tipo asc, m.order asc'))->result_array(), $menuFinal, null);
+			construirMenu($todos_menus, $menuFinal, null);
 
             $html_menu = '<ul id="menu_pai">';
 			foreach($menuFinal as $menu){
@@ -89,6 +90,22 @@ class Menus extends Admin_Controller {
 			$html_menu .= '</ul>';
 
             $this->data['menu'] = $html_menu;
+            $this->data['menus_tree'] = $menuFinal;
+            $this->data['todos_menus'] = $todos_menus;
+            $this->data['pais_options'] = get_menus_hierarquia_options($todos_menus, null);
+            $this->data['pai_id_selecionado'] = ($this->input->post('pai_id') !== null) ? $this->input->post('pai_id') : '';
+
+            $nome_pai_selecionado = 'Nenhum (Menu Raiz / 1º Nível)';
+            if (!empty($this->data['pai_id_selecionado'])) {
+                foreach ($todos_menus as $m) {
+                    if ((int)$m['id'] === (int)$this->data['pai_id_selecionado']) {
+                        $nome_pai_selecionado = $m['nome'];
+                        break;
+                    }
+                }
+            }
+            $this->data['nome_pai_selecionado'] = $nome_pai_selecionado;
+            $this->data['menu_atual_id'] = null;
 
             $this->data['controladores'] = get_controladores();
 
@@ -147,10 +164,12 @@ class Menus extends Admin_Controller {
 			foreach ($this->menus_model->get_empresas()->result() as $emp) {
 				$empresas_options[$emp->id] = $emp->nome;
 			}
+			$this->data['empresas_options'] = $empresas_options;
+			$this->data['menus_empresas'] = (is_array($this->input->post('empresas')) ? $this->input->post('empresas') : array());
 			$this->data['empresas'] = array(
 				'name'  => 'empresas[]',
 				'id'    => 'empresas',
-	            'class' => 'form-control',
+	            'class' => 'form-control multipleSelect',
 	            'options' => $empresas_options,
 				'selected' => $this->input->post('empresas'),
 			);
@@ -254,8 +273,9 @@ class Menus extends Admin_Controller {
 
         $this->data['menu_model'] = $menu_model;
 
+        $todos_menus = $this->menus_model->get(array('select'=>'m.*', 'order_by'=>'m.tipo asc, m.order asc'))->result_array();
         $menuFinal = [];
-		construirMenu($this->menus_model->get()->result_array(), $menuFinal, null);
+		construirMenu($todos_menus, $menuFinal, null);
 
         $html_menu = '<ul id="menu_pai">';
 		foreach($menuFinal as $menu){
@@ -264,6 +284,22 @@ class Menus extends Admin_Controller {
 		$html_menu .= '</ul>';
 
         $this->data['menu'] = $html_menu;
+        $this->data['menus_tree'] = $menuFinal;
+        $this->data['todos_menus'] = $todos_menus;
+        $this->data['pais_options'] = get_menus_hierarquia_options($todos_menus, $menu_model->id);
+        $this->data['pai_id_selecionado'] = ($this->input->post('pai_id') !== null ? $this->input->post('pai_id') : $menu_model->pai_id);
+
+        $nome_pai_selecionado = 'Nenhum (Menu Raiz / 1º Nível)';
+        if (!empty($this->data['pai_id_selecionado'])) {
+            foreach ($todos_menus as $m) {
+                if ((int)$m['id'] === (int)$this->data['pai_id_selecionado']) {
+                    $nome_pai_selecionado = $m['nome'];
+                    break;
+                }
+            }
+        }
+        $this->data['nome_pai_selecionado'] = $nome_pai_selecionado;
+        $this->data['menu_atual_id'] = $menu_model->id;
 
         $this->data['controladores'] = get_controladores();
         $this->data['pai_id'] = $menu_model->pai_id;
@@ -319,10 +355,12 @@ class Menus extends Admin_Controller {
 		foreach ($this->menus_model->get_empresas()->result() as $emp) {
 			$empresas_options[$emp->id] = $emp->nome;
 		}
+		$this->data['empresas_options'] = $empresas_options;
+		$this->data['menus_empresas'] = ($this->input->post('empresas') ? $this->input->post('empresas') : $menus_empresas);
 		$this->data['empresas'] = array(
 			'name'  => 'empresas[]',
 			'id'    => 'empresas',
-            'class' => 'form-control',
+            'class' => 'form-control multipleSelect',
             'options' => $empresas_options,
 			'selected' => ($this->input->post('empresas') ? $this->input->post('empresas') : $menus_empresas),
 		);

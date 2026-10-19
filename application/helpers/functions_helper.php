@@ -456,11 +456,20 @@ if ( ! function_exists('get_all_permissoes'))
 
 if ( ! function_exists('construirMenu'))
 {
-    function construirMenu(array $menus, array &$menuFinal, $menuSuperiorId, $nivel = 0)
+    function construirMenu(array $menus, array &$menuFinal, $menuSuperiorId, $nivel = 0, array &$visited = array())
     {
+        if ($nivel > 6) {
+            return;
+        }
+
         foreach ($menus as $menu) {
-            if ($menu['pai_id'] == $menuSuperiorId) {
-                $menuFinal[] = $menu;
+            $mPai = (!empty($menu['pai_id'])) ? (int)$menu['pai_id'] : null;
+            $supId = (!empty($menuSuperiorId)) ? (int)$menuSuperiorId : null;
+            if ($mPai === $supId) {
+                if (!in_array((int)$menu['id'], $visited)) {
+                    $visited[] = (int)$menu['id'];
+                    $menuFinal[] = $menu;
+                }
             }
         }
 
@@ -470,11 +479,267 @@ if ( ! function_exists('construirMenu'))
             $menuFinal[$i]['sub_menus'] = [];
             $menuFinal[$i]['nivel'] = $nivel;
      
-            construirMenu($menus, $menuFinal[$i]['sub_menus'], $menuFinal[$i]['id'], $nivel);
+            construirMenu($menus, $menuFinal[$i]['sub_menus'], $menuFinal[$i]['id'], $nivel, $visited);
         }
     }
-    
 }
+
+if (! function_exists('get_menus_hierarquia_options')) {
+    function get_menus_hierarquia_options($menus, $menu_atual_id = null)
+    {
+        $options = array('' => '-- Nenhum (Menu Principal / 1º Nível) --');
+
+        // Mapeia IDs proibidos se estiver editando (o próprio menu e todos os seus filhos)
+        $proibidos = array();
+        if (!empty($menu_atual_id)) {
+            $proibidos[] = (int)$menu_atual_id;
+            $adicionados = true;
+            while ($adicionados) {
+                $adicionados = false;
+                foreach ($menus as $m) {
+                    if (!empty($m['pai_id']) && in_array((int)$m['pai_id'], $proibidos)) {
+                        if (!in_array((int)$m['id'], $proibidos)) {
+                            $proibidos[] = (int)$m['id'];
+                            $adicionados = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        $adicionarOpcoes = function($pai_id, $prefixo, $nivel) use (&$adicionarOpcoes, &$options, $menus, $proibidos) {
+            if ($nivel > 5) return;
+            foreach ($menus as $m) {
+                $mPai = (!empty($m['pai_id'])) ? (int)$m['pai_id'] : null;
+                if ($mPai === $pai_id) {
+                    $mId = (int)$m['id'];
+                    if (in_array($mId, $proibidos)) {
+                        continue;
+                    }
+                    $icone = ($nivel === 0) ? '📁 ' : '└── 📄 ';
+                    $tipoStr = ($m['tipo'] == 1) ? ' [Admin]' : '';
+                    $options[$mId] = $prefixo . $icone . $m['nome'] . $tipoStr;
+                    $adicionarOpcoes($mId, $prefixo . '&nbsp;&nbsp;&nbsp;&nbsp;', $nivel + 1);
+                }
+            }
+        };
+
+        $adicionarOpcoes(null, '', 0);
+
+        return $options;
+    }
+}
+
+if (! function_exists('menu_tree_contains_id')) {
+    function menu_tree_contains_id($node, $searchId)
+    {
+        if (empty($searchId)) {
+            return false;
+        }
+        if ((int)$node['id'] === (int)$searchId) {
+            return true;
+        }
+        if (!empty($node['sub_menus']) && is_array($node['sub_menus'])) {
+            foreach ($node['sub_menus'] as $sub) {
+                if (menu_tree_contains_id($sub, $searchId)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+}
+
+if (! function_exists('get_menu_prohibited_ids')) {
+    function get_menu_prohibited_ids($todos_menus, $current_id = null)
+    {
+        $proibidos = array();
+        if (!empty($current_id)) {
+            $proibidos[] = (int)$current_id;
+            $adicionados = true;
+            while ($adicionados) {
+                $adicionados = false;
+                foreach ($todos_menus as $m) {
+                    if (!empty($m['pai_id']) && in_array((int)$m['pai_id'], $proibidos)) {
+                        if (!in_array((int)$m['id'], $proibidos)) {
+                            $proibidos[] = (int)$m['id'];
+                            $adicionados = true;
+                        }
+                    }
+                }
+            }
+        }
+        return $proibidos;
+    }
+}
+
+if (! function_exists('render_menu_tree_collapsible')) {
+    function render_menu_tree_collapsible(array $menus_tree, $selected_pai_id = null, $current_menu_id = null, $proibidos = array(), $nivel = 0)
+    {
+        if (empty($menus_tree)) {
+            return '<div class="text-muted" style="padding: 10px;"><i class="fa fa-info-circle"></i> Nenhum menu cadastrado ainda.</div>';
+        }
+
+        $html = '<ul class="tree-menu-branch ' . ($nivel === 0 ? 'tree-menu-root' : '') . '" ' . ($nivel > 0 ? 'style="display:none;"' : '') . '>';
+
+        foreach ($menus_tree as $menu) {
+            $menuId = (int)$menu['id'];
+            $hasChildren = (!empty($menu['sub_menus']) && count($menu['sub_menus']) > 0);
+            $isSelected = (!empty($selected_pai_id) && (int)$selected_pai_id === $menuId);
+            $isCurrent = (!empty($current_menu_id) && (int)$current_menu_id === $menuId);
+            $isProhibited = in_array($menuId, $proibidos);
+            $containsSelected = $hasChildren && menu_tree_contains_id($menu, $selected_pai_id);
+
+            $nodeClasses = array('tree-menu-node');
+            if ($containsSelected) {
+                $nodeClasses[] = 'is-open';
+            }
+            if ($isProhibited) {
+                $nodeClasses[] = 'is-prohibited';
+            }
+            if ($isSelected) {
+                $nodeClasses[] = 'is-selected';
+            }
+
+            $html .= '<li class="' . implode(' ', $nodeClasses) . '" data-id="' . $menuId . '" data-nome="' . htmlspecialchars($menu['nome'], ENT_QUOTES, 'UTF-8') . '">';
+
+            $rowClass = 'tree-node-row';
+            if ($isSelected) {
+                $rowClass .= ' selected';
+            }
+            if ($isProhibited) {
+                $rowClass .= ' disabled';
+            }
+
+            $html .= '<div class="' . $rowClass . '">';
+
+            if ($hasChildren) {
+                $toggleIcon = $containsSelected ? 'fa-chevron-down' : 'fa-chevron-right';
+                $html .= '<span class="tree-toggle" title="Expandir/Recolher submenus"><i class="fa ' . $toggleIcon . '"></i></span>';
+                $folderIcon = $containsSelected ? 'fa-folder-open' : 'fa-folder';
+                $html .= '<i class="fa ' . $folderIcon . ' tree-icon text-yellow"></i>';
+            } else {
+                $html .= '<span class="tree-spacer"></span>';
+                $html .= '<i class="fa fa-file-text-o tree-icon text-muted"></i>';
+            }
+
+            $html .= '<span class="tree-node-label" ' . ($isProhibited ? '' : 'title="Clique para selecionar este menu como Pai"') . '>';
+            $html .= '<span class="tree-node-title">' . htmlspecialchars($menu['nome'], ENT_QUOTES, 'UTF-8') . '</span>';
+
+            if (isset($menu['tipo'])) {
+                if ($menu['tipo'] == 1) {
+                    $html .= ' <span class="label label-warning" style="font-size: 10px; margin-left: 6px;">Admin</span>';
+                } else {
+                    $html .= ' <span class="label label-default" style="font-size: 10px; margin-left: 6px; color: #555;">Navegação</span>';
+                }
+            }
+
+            if ($isCurrent) {
+                $html .= ' <span class="label label-danger" style="font-size: 10px; margin-left: 6px;"><i class="fa fa-ban"></i> Menu Atual</span>';
+            } elseif ($isProhibited) {
+                $html .= ' <span class="label label-default" style="font-size: 10px; margin-left: 6px; color: #888;">Submenu deste</span>';
+            }
+
+            $html .= '<i class="fa fa-check tree-check-mark pull-right text-success" ' . ($isSelected ? '' : 'style="display:none;"') . '></i>';
+            $html .= '</span>';
+
+            $html .= '</div>';
+
+            if ($hasChildren) {
+                $subStyle = $containsSelected ? 'style="display:block;"' : 'style="display:none;"';
+                $html .= '<ul class="tree-menu-branch" ' . $subStyle . '>';
+                $html .= render_menu_tree_collapsible_subitems($menu['sub_menus'], $selected_pai_id, $current_menu_id, $proibidos, $nivel + 1);
+                $html .= '</ul>';
+            }
+
+            $html .= '</li>';
+        }
+
+        $html .= '</ul>';
+        return $html;
+    }
+}
+
+if (! function_exists('render_menu_tree_collapsible_subitems')) {
+    function render_menu_tree_collapsible_subitems(array $sub_menus, $selected_pai_id, $current_menu_id, $proibidos, $nivel)
+    {
+        $html = '';
+        foreach ($sub_menus as $menu) {
+            $menuId = (int)$menu['id'];
+            $hasChildren = (!empty($menu['sub_menus']) && count($menu['sub_menus']) > 0);
+            $isSelected = (!empty($selected_pai_id) && (int)$selected_pai_id === $menuId);
+            $isCurrent = (!empty($current_menu_id) && (int)$current_menu_id === $menuId);
+            $isProhibited = in_array($menuId, $proibidos);
+            $containsSelected = $hasChildren && menu_tree_contains_id($menu, $selected_pai_id);
+
+            $nodeClasses = array('tree-menu-node');
+            if ($containsSelected) {
+                $nodeClasses[] = 'is-open';
+            }
+            if ($isProhibited) {
+                $nodeClasses[] = 'is-prohibited';
+            }
+            if ($isSelected) {
+                $nodeClasses[] = 'is-selected';
+            }
+
+            $html .= '<li class="' . implode(' ', $nodeClasses) . '" data-id="' . $menuId . '" data-nome="' . htmlspecialchars($menu['nome'], ENT_QUOTES, 'UTF-8') . '">';
+
+            $rowClass = 'tree-node-row';
+            if ($isSelected) {
+                $rowClass .= ' selected';
+            }
+            if ($isProhibited) {
+                $rowClass .= ' disabled';
+            }
+
+            $html .= '<div class="' . $rowClass . '">';
+
+            if ($hasChildren) {
+                $toggleIcon = $containsSelected ? 'fa-chevron-down' : 'fa-chevron-right';
+                $html .= '<span class="tree-toggle" title="Expandir/Recolher submenus"><i class="fa ' . $toggleIcon . '"></i></span>';
+                $folderIcon = $containsSelected ? 'fa-folder-open' : 'fa-folder';
+                $html .= '<i class="fa ' . $folderIcon . ' tree-icon text-yellow"></i>';
+            } else {
+                $html .= '<span class="tree-spacer"></span>';
+                $html .= '<i class="fa fa-file-text-o tree-icon text-muted"></i>';
+            }
+
+            $html .= '<span class="tree-node-label" ' . ($isProhibited ? '' : 'title="Clique para selecionar este menu como Pai"') . '>';
+            $html .= '<span class="tree-node-title">' . htmlspecialchars($menu['nome'], ENT_QUOTES, 'UTF-8') . '</span>';
+
+            if (isset($menu['tipo'])) {
+                if ($menu['tipo'] == 1) {
+                    $html .= ' <span class="label label-warning" style="font-size: 10px; margin-left: 6px;">Admin</span>';
+                } else {
+                    $html .= ' <span class="label label-default" style="font-size: 10px; margin-left: 6px; color: #555;">Navegação</span>';
+                }
+            }
+
+            if ($isCurrent) {
+                $html .= ' <span class="label label-danger" style="font-size: 10px; margin-left: 6px;"><i class="fa fa-ban"></i> Menu Atual</span>';
+            } elseif ($isProhibited) {
+                $html .= ' <span class="label label-default" style="font-size: 10px; margin-left: 6px; color: #888;">Submenu deste</span>';
+            }
+
+            $html .= '<i class="fa fa-check tree-check-mark pull-right text-success" ' . ($isSelected ? '' : 'style="display:none;"') . '></i>';
+            $html .= '</span>';
+
+            $html .= '</div>';
+
+            if ($hasChildren) {
+                $subStyle = $containsSelected ? 'style="display:block;"' : 'style="display:none;"';
+                $html .= '<ul class="tree-menu-branch" ' . $subStyle . '>';
+                $html .= render_menu_tree_collapsible_subitems($menu['sub_menus'], $selected_pai_id, $current_menu_id, $proibidos, $nivel + 1);
+                $html .= '</ul>';
+            }
+
+            $html .= '</li>';
+        }
+        return $html;
+    }
+}
+
 
 if ( ! function_exists('getHtml'))
 {
@@ -888,6 +1153,119 @@ if ( ! function_exists('getImgSizes'))
         return $arr_size;
     }
 }
+
+
+if ( ! function_exists('get_modulos'))
+{
+    function get_modulos($id = null)
+    {
+        $m = array(
+            "8" => "Venda e Faturamento",
+            "10" => "Compra e Estoque",
+            "9" => "Financeiro",
+            "11" => "Contábil e Escrita",
+            "12" => "PPCP",
+            "7" => "Pedagógico",
+            "13" => "CRM e BI",
+            "14" => "Gerenciamento de Projeto",
+            "16" => "Imobiliária",
+            "20" => "Editora",
+            "25" => "Parâmetro e Configuração",
+        );
+
+        if($id != null) {
+            return $m[$id]; 
+        }
+        return $m;
+    }   
+}
+
+
+if ( ! function_exists('AddPlayTime'))
+{
+    function AddPlayTime($times) {
+        $minutes = 0;
+        foreach ($times as $time) {
+            // Ignora tempos vazios ou sem o separador para evitar erro no cálculo
+            if (empty($time) || strpos($time, ':') === false) {
+                continue;
+            }
+            list($hour, $minute) = explode(':', $time);
+            $minutes += (int)$hour * 60;
+            $minutes += (int)$minute;
+        }
+
+        $hours = floor($minutes / 60);
+        $minutes -= $hours * 60;
+
+        return sprintf('%02d:%02d', $hours, $minutes);
+    }
+}
+
+
+if ( ! function_exists('quantoTempoPassou'))
+{
+    function quantoTempoPassou($dataMenor, $dataMaior) {
+        $date_time = new DateTime( $dataMaior );
+        $diff = $date_time->diff( new DateTime( $dataMenor ) );
+
+        $time_to_show = "";
+
+        if($diff->format('%y') > 0)
+            $time_to_show = $diff->format('%y ano(s)');
+        elseif($diff->format('%m') > 0)
+            $time_to_show = $diff->format('%m mês(es)');
+        elseif($diff->format('%d') > 0)
+            $time_to_show = $diff->format('%d dia(s)');
+        elseif($diff->format('%H') > 0)
+            $time_to_show = $diff->format('%H hora(s)');
+        elseif($diff->format('%i') > 0)
+            $time_to_show = $diff->format('%i minuto(s)');
+        elseif($diff->format('%s') > 0)
+            $time_to_show = $diff->format('%s segundo(s)');
+    }
+}
+
+if ( ! function_exists('get_mes_extenso'))
+{
+    function get_mes_extenso($mes) {
+        switch ($mes){
+            case 1: $mes = "Janeiro"; break;
+            case 2: $mes = "Fevereiro"; break;
+            case 3: $mes = "Março"; break;
+            case 4: $mes = "Abril"; break;
+            case 5: $mes = "Maio"; break;
+            case 6: $mes = "Junho"; break;
+            case 7: $mes = "Julho"; break;
+            case 8: $mes = "Agosto"; break;
+            case 9: $mes = "Setembro"; break;
+            case 10: $mes = "Outubro"; break;
+            case 11: $mes = "Novembro"; break;
+            case 12: $mes = "Dezembro"; break;
+        }
+        return $mes;
+    }
+}
+
+if ( ! function_exists('removerAcentos') )
+{
+    function removerAcentos($string)
+    {
+        $caracteres_sem_acento = array(
+            'Š'=>'S', 'š'=>'s', 'Ð'=>'Dj','Â'=>'Z', 'Â'=>'z', 'À'=>'A', 'Á'=>'A', 'Â'=>'A', 'Ã'=>'A', 'Ä'=>'A',
+            'Å'=>'A', 'Æ'=>'A', 'Ç'=>'C', 'È'=>'E', 'É'=>'E', 'Ê'=>'E', 'Ë'=>'E', 'Ì'=>'I', 'Í'=>'I', 'Î'=>'I',
+            'Ï'=>'I', 'Ñ'=>'N', 'Å'=>'N', 'Ò'=>'O', 'Ó'=>'O', 'Ô'=>'O', 'Õ'=>'O', 'Ö'=>'O', 'Ø'=>'O', 'Ù'=>'U', 'Ú'=>'U',
+            'Û'=>'U', 'Ü'=>'U', 'Ý'=>'Y', 'Þ'=>'B', 'ß'=>'Ss','à'=>'a', 'á'=>'a', 'â'=>'a', 'ã'=>'a', 'ä'=>'a',
+            'å'=>'a', 'æ'=>'a', 'ç'=>'c', 'è'=>'e', 'é'=>'e', 'ê'=>'e', 'ë'=>'e', 'ì'=>'i', 'í'=>'i', 'î'=>'i',
+            'ï'=>'i', 'ð'=>'o', 'ñ'=>'n', 'Å'=>'n', 'ò'=>'o', 'ó'=>'o', 'ô'=>'o', 'õ'=>'o', 'ö'=>'o', 'ø'=>'o', 'ù'=>'u',
+            'ú'=>'u', 'û'=>'u', 'ü'=>'u', 'ý'=>'y', 'ý'=>'y', 'þ'=>'b', 'ÿ'=>'y', 'ƒ'=>'f',
+            'Ä'=>'a', 'î'=>'i', 'â'=>'a', 'ã'=>'a', 'È'=>'s', 'È'=>'t', 'Ä'=>'A', 'Î'=>'I', 'Â'=>'A', 'È'=>'S', 'È'=>'T', 'ç'=>'c',
+        );
+
+        return strtr($string, $caracteres_sem_acento);
+    }
+}
+
 
 
 if ( ! function_exists('get_modulos'))

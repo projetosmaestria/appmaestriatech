@@ -84,3 +84,7 @@ $route['treinamentos_admin/banner_edit/(:num)'] = 'treinamentos_admin/banner_edi
 $route['treinamentos_admin/banner_delete/(:num)']= 'treinamentos_admin/banner_delete/$1';
 $route['treinamentos_admin/relatorios']         = 'treinamentos_admin/relatorios';
 
+/* Alias para Menus no singular */
+$route['menu']                                  = 'menus';
+$route['menu/(:any)']                           = 'menus/$1';
+

@@ -145,5 +145,8 @@ defined('BASEPATH') OR exit('No direct script access allowed');
                 <script type="text/javascript" src="https://cdn.rawgit.com/bpampuch/pdfmake/0.1.27/build/pdfmake.min.js"></script>
                 <script type="text/javascript" src="https://cdn.rawgit.com/bpampuch/pdfmake/0.1.27/build/vfs_fonts.js"></script>
         <?php endif; ?>
+    <?php if (strtolower($this->router->fetch_class()) == 'menus'): ?>
+        <script src="<?php echo base_url('assets/xkey/menus.js?v=' . (file_exists(FCPATH . 'assets/xkey/menus.js') ? filemtime(FCPATH . 'assets/xkey/menus.js') : time())); ?>"></script>
+    <?php endif; ?>
     </body>
 </html>
