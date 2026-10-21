@@ -79,7 +79,7 @@ class Kanban_model extends CI_Model {
         return $query;
     }
 
-    public function get_coluna_by_status($quadro = null, $status)
+    public function get_coluna_by_status($quadro = null, $status = null)
     {
         if($status == 10)
             $status = 1;
@@ -98,32 +98,28 @@ class Kanban_model extends CI_Model {
         return $query;
     }
     
-    public function get_atribuicao($quadro = null)
+    public function get_atribuicao($quadro = null, $unidade = [])
     {
-        /*if($quadro == null)
-            return false;
+        $where_unidade = "";
+        if (!empty($unidade)) {
+            $unidades_clean = array_map('intval', (array)$unidade);
+            $where_unidade = " AND c.unidade_id IN (" . implode(",", $unidades_clean) . ") ";
+        }
 
-        $query = $this->db->select('u.id, u.email')
-            ->join('users u', 'u.id = a.alocado')
-            ->where('a.quadro', $quadro)
-            ->get("kanban_quadro_atribuicao a");
-
-        return $query;
-
-        $query = $this->db->select('c.responsavel_id, u.email')
-            ->join('chamado c', 't.tarefa = c.id')
-            ->join('users u', 'c.responsavel_id = u.id')
-            ->where('t.quadro', $quadro)
-            ->group_by('c.responsavel_id')
-            ->order_by('u.email', 'asc')
-            ->get("kanban_tarefa t");*/
+        $where_quadro = "";
+        if (!empty($quadro)) {
+            $quadro_id = (int)$quadro;
+            $where_quadro = " t.quadro = '".$quadro_id."' ";
+        } else {
+            $where_quadro = " 1 = 1 ";
+        }
 
         $query = $this->db->query("
             (SELECT c.responsavel_id AS responsavel_id, u.email 
             FROM kanban_tarefa t 
             JOIN chamado c ON t.tarefa = c.id 
             JOIN users u ON c.responsavel_id = u.id 
-            WHERE t.quadro = '1' 
+            WHERE " . $where_quadro . $where_unidade . " 
             GROUP BY c.responsavel_id 
             ORDER BY u.email ASC)
             UNION 
@@ -131,7 +127,7 @@ class Kanban_model extends CI_Model {
             FROM kanban_tarefa t 
             JOIN chamado c ON t.tarefa = c.id 
             JOIN users u ON c.desenvolvedor_id = u.id 
-            WHERE t.quadro = '".$quadro."' 
+            WHERE " . $where_quadro . $where_unidade . " 
             GROUP BY c.desenvolvedor_id 
             ORDER BY u.email ASC);
         ");
@@ -154,7 +150,7 @@ class Kanban_model extends CI_Model {
             return $this->db->count_all_results("kanban_tarefa");
         }
 
-        $query = $this->db->select('t.*, c.titulo, col.status, c.descricao, c.created, c.data_prazo, CONCAT(u.first_name, " ", u.last_name) as resp, CONCAT(d.first_name, " ", d.last_name) as dono, c.responsavel_id, u.email, c.desenvolvedor_id, CONCAT(dev.first_name, " ", dev.last_name) as dev, p.descricao as prioridade, un.unidade')
+        $query = $this->db->select('t.*, c.titulo, col.status, c.descricao, c.created, c.data_prazo, CONCAT(u.first_name, " ", u.last_name) as resp, CONCAT(d.first_name, " ", d.last_name) as dono, c.responsavel_id, u.email, c.desenvolvedor_id, CONCAT(dev.first_name, " ", dev.last_name) as dev, p.descricao as prioridade, un.unidade, c.unidade_id')
             ->join('chamado c', 't.tarefa = c.id')
             ->join('users u', 'c.responsavel_id = u.id')
             ->join('users d', 'c.dono_id = d.id')
@@ -168,11 +164,12 @@ class Kanban_model extends CI_Model {
             $query->where('t.coluna', $coluna);
 
         if($user != null) {
-            $query->where('(c.responsavel_id = '.$user.' OR c.desenvolvedor_id = '.$user.')');
+            $query->where('(c.responsavel_id = '.(int)$user.' OR c.desenvolvedor_id = '.(int)$user.')');
         }
 
-        if($unidade) {
-            $query->where('c.unidade_id IN ('.implode(",", $unidade).')');
+        if(!empty($unidade)) {
+            $unidades_clean = array_map('intval', (array)$unidade);
+            $query->where_in('c.unidade_id', $unidades_clean);
         }
 
         $query->order_by('t.coluna', 'asc');
@@ -210,7 +207,7 @@ class Kanban_model extends CI_Model {
         }
 
         //$query = $this->db->select('t.quadro, t.tarefa, t.coluna, t.ordem, t.user')
-        $query = $this->db->select('t.*, c.titulo, col.status, c.descricao, c.created, c.data_prazo, CONCAT(u.first_name, " ", u.last_name) as resp, CONCAT(d.first_name, " ", d.last_name) as dono, c.responsavel_id, u.email, c.desenvolvedor_id, CONCAT(dev.first_name, " ", dev.last_name) as dev, p.descricao as prioridade, un.unidade')
+        $query = $this->db->select('t.*, c.titulo, col.status, c.descricao, c.created, c.data_prazo, CONCAT(u.first_name, " ", u.last_name) as resp, CONCAT(d.first_name, " ", d.last_name) as dono, c.responsavel_id, u.email, c.desenvolvedor_id, CONCAT(dev.first_name, " ", dev.last_name) as dev, p.descricao as prioridade, un.unidade, c.unidade_id')
             ->join('chamado c', 't.tarefa = c.id')
             ->join('users u', 'c.responsavel_id = u.id')
             ->join('users d', 'c.dono_id = d.id')
@@ -221,11 +218,14 @@ class Kanban_model extends CI_Model {
             ->where('t.quadro', $quadro)
             ->where('t.coluna', $coluna);
 
-        if($user != null) 
-            $query->where('t.user', $user);
+        if($user != null) {
+            $query->where('t.user', (int)$user);
+            $query->where('(c.responsavel_id = '.(int)$user.' OR c.desenvolvedor_id = '.(int)$user.')');
+        }
 
-        if($unidade) {
-            $query->where('c.unidade_id IN ('.implode(",", $unidade).')');
+        if(!empty($unidade)) {
+            $unidades_clean = array_map('intval', (array)$unidade);
+            $query->where_in('c.unidade_id', $unidades_clean);
         }
 
         $query->order_by('t.user', 'asc');
@@ -568,7 +568,7 @@ class Kanban_model extends CI_Model {
         return $array_aux;
     }
 
-    public function getMetricasChart1($data_inicio, $data_fim, $usuario = null) {
+    public function getMetricasChart1($data_inicio, $data_fim, $usuario = null, $unidade = []) {
         $sql = "
             SELECT c.id, n.descricao as nivel, DATE_FORMAT(d.data_envio,'%d/%m/%Y') as data_envio FROM chamado c 
             JOIN chamado_dialogo d ON c.id = d.chamado_id
@@ -578,7 +578,12 @@ class Kanban_model extends CI_Model {
         ";
 
         if($usuario != null) {
-            $sql .= " AND (c.desenvolvedor_id = ".$usuario." OR c.responsavel_id = ".$usuario.")";
+            $sql .= " AND (c.desenvolvedor_id = ".(int)$usuario." OR c.responsavel_id = ".(int)$usuario.")";
+        }
+
+        if(!empty($unidade)) {
+            $unidades_clean = array_map('intval', (array)$unidade);
+            $sql .= " AND c.unidade_id IN (" . implode(",", $unidades_clean) . ")";
         }
 
         $sql .= " ORDER BY d.data_envio ASC";

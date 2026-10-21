@@ -36,8 +36,27 @@ class Kanban extends Admin_Controller {
 
             $this->data['message'] = $this->session->flashdata('message');
 
+            $unidades_permitidas_ids = $this->get_unidades_permitidas_ids();
+
             $quadros = $this->kanban_model->get_quadros()->result();
             $quadros_return = array();
+
+            if (empty($quadros)) {
+                $this->data['quadros'] = array();
+                $this->data['quadros_sel'] = 0;
+                $this->data['colunas_sel'] = array();
+                $this->data['unidades_permitidas_ids'] = $unidades_permitidas_ids;
+                $this->data['pagetitle'] = "<h1>".lang('menu_kanban')."</h1>";
+                $this->data['can_metricas'] = $this->ion_auth->has_permissao("kanban", "metricas");
+                $this->template->admin_render('admin/kanban/index', $this->data);
+                return;
+            }
+
+            $unidades_permitidas = $this->chamados_model->get_unidades_permitidas($this->session->userdata('user_id'), $this->session->userdata('empresa_id'));
+            $unids_array = array(''=>'Todos');
+            foreach ($unidades_permitidas->result() as $key => $value) {
+                $unids_array[$value->unidade_id] = $value->unidade;
+            }
 
             $colunas_array_sel = array();
             foreach ($quadros as $quadro) {
@@ -53,28 +72,32 @@ class Kanban extends Admin_Controller {
                 if(isset($_GET['btn_filtrar'])) {
                     if($_GET['btn_filtrar'] == $quadro->id) {
                         if(isset($_GET['filtro_usuarios'][$_GET['btn_filtrar']])) {
-                            if(count(@$_GET['filtro_usuarios'][$_GET['btn_filtrar']]) > 0) {
-                                // foreach ($_GET['filtro_usuarios'][$_GET['btn_filtrar']] as $user) {
-                                //     if($user != "") {
-                                //         //$filtro_usuarios_array[$quadro->id][] = $user;
-                                //     }
-                                // }
+                            if($_GET['filtro_usuarios'][$_GET['btn_filtrar']] !== "") {
                                 $filtro_usuarios_array[$quadro->id] = $_GET['filtro_usuarios'][$_GET['btn_filtrar']];
                             }
                         }
                         if(isset($_GET['filtro_unidades'][$_GET['btn_filtrar']])) {
                             if(count(@$_GET['filtro_unidades'][$_GET['btn_filtrar']]) > 0) {
                                 foreach ($_GET['filtro_unidades'][$_GET['btn_filtrar']] as $unid) {
-                                    if($unid != "") {
-                                        $filtro_unidades_array[$quadro->id][] = $unid;
+                                    if($unid !== "") {
+                                        $filtro_unidades_array[$quadro->id][] = (int)$unid;
                                     }
                                 }
-                                //$filtro_unidades_array[$quadro->id] = $_GET['filtro_unidades'][$_GET['btn_filtrar']];
                             }
                         }
                     }
                 } else {
                     $filtro_usuarios_array[$quadro->id] = $this->session->userdata('user_id');
+                }
+
+                // Define as unidades permitidas para a consulta
+                if (!empty($filtro_unidades_array[$quadro->id])) {
+                    $unidades_busca = array_values(array_intersect($filtro_unidades_array[$quadro->id], $unidades_permitidas_ids));
+                    if (empty($unidades_busca)) {
+                        $unidades_busca = array(0);
+                    }
+                } else {
+                    $unidades_busca = $unidades_permitidas_ids;
                 }
 
                 foreach ($colunas as $key => $value) {
@@ -90,7 +113,7 @@ class Kanban extends Admin_Controller {
                     }
 
                     if(@$filtro_usuarios_array[$quadro->id]) {
-                        $tarefas_geral = $this->kanban_model->get_tarefas($quadro->id, $value['id'], @$filtro_usuarios_array[$quadro->id], @$filtro_unidades_array[$quadro->id])->result_array();
+                        $tarefas_geral = $this->kanban_model->get_tarefas($quadro->id, $value['id'], @$filtro_usuarios_array[$quadro->id], $unidades_busca)->result_array();
 
                         foreach ($tarefas_geral as $k => $v) {
                             unset($tarefas_geral[$k]['id']);
@@ -107,43 +130,37 @@ class Kanban extends Admin_Controller {
                             unset($tarefas_geral[$k]['email']);
                             unset($tarefas_geral[$k]['prioridade']);
                             unset($tarefas_geral[$k]['unidade']);
+                            unset($tarefas_geral[$k]['unidade_id']);
                             $tarefas_geral[$k]['user'] = $filtro_usuarios_array[$quadro->id];
                         }
-                        $tarefas_user = $this->kanban_model->get_tarefas_user($quadro->id, $value['id'], @$filtro_usuarios_array[$quadro->id], @$filtro_unidades_array[$quadro->id])->result_array();
+                        $tarefas_user = $this->kanban_model->get_tarefas_user($quadro->id, $value['id'], @$filtro_usuarios_array[$quadro->id], $unidades_busca)->result_array();
 
-                        if(count($tarefas_user) == 0) {
+                        if(count($tarefas_user) == 0 && count($tarefas_geral) > 0) {
                             $i = 0;
                             foreach ($tarefas_geral as $k1 => $v1) {
                                 $tarefas_geral[$k1]['ordem'] = $i;
                                 $i++;
                             }
                             $this->kanban_model->insert_tarefa_user($tarefas_geral);
+                            $tarefas_user = $this->kanban_model->get_tarefas_user($quadro->id, $value['id'], @$filtro_usuarios_array[$quadro->id], $unidades_busca)->result_array();
                         }
 
-                        $value['tarefas'] = $this->kanban_model->get_tarefas_user($quadro->id, $value['id'], @$filtro_usuarios_array[$quadro->id], @$filtro_unidades_array[$quadro->id])->result_array();
-
-                        // echo "<Pre>".print_r($tarefas_geral,true)."</pre>";
-                        // echo "<Pre>".print_r($tarefas_user,true)."</pre>";
-                        // exit;
+                        $value['tarefas'] = $tarefas_user;
                     } else {
-                        $value['tarefas'] = $this->kanban_model->get_tarefas($quadro->id, $value['id'], null, @$filtro_unidades_array[$quadro->id])->result_array();
-                    }
-
-
-                    foreach ($this->kanban_model->get_atribuicao($quadro->id)->result() as $atrib) {
-                        $atribuicao_array[$atrib->responsavel_id] = $atrib->email;
+                        $value['tarefas'] = $this->kanban_model->get_tarefas($quadro->id, $value['id'], null, $unidades_busca)->result_array();
                     }
 
                     $quadros_return[$quadro->id]->colunas[$key] = $value;
-
                 }
 
+                foreach ($this->kanban_model->get_atribuicao($quadro->id, $unidades_busca)->result() as $atrib) {
+                    $atribuicao_array[$atrib->responsavel_id] = $atrib->email;
+                }
 
                 $this->data['filtros']['filtro_usuarios'][$quadro->id] = array(
                     'name'  => 'filtro_usuarios['.$quadro->id.']',
                     'id'    => 'filtro_usuarios-'.$quadro->id,
                     'class' => 'multipleSelect',
-                    //'multiple' => 'multiple',
                     'options' => $atribuicao_array,
                     'selected' => @$filtro_usuarios_array[$quadro->id]
                 );
@@ -157,25 +174,6 @@ class Kanban extends Admin_Controller {
                     'selected' => @$colunas_array_sel[$quadro->id]
                 );
 
-                /*$atribuicao = $this->kanban_model->get_atribuicao($quadro->id);
-                $atribuicao_array = array(''=>'Todos');
-                foreach ($atribuicao->result() as $key => $value) {
-                    $atribuicao_array[$value->id] = $value->email;
-                }
-                $this->data['filtros']['filtro_usuarios'][$quadro->id] = array(
-                    'name'  => 'filtro_usuarios[]',
-                    'id'    => 'filtro_usuarios',
-                    'class' => 'multipleSelect',
-                    'multiple' => 'multiple',
-                    'options' => $atribuicao_array,
-                    'selected' => ''
-                );*/
-
-                $unidades_permitidas = $this->chamados_model->get_unidades_permitidas($this->session->userdata('user_id'), $this->session->userdata('empresa_id'));
-                $unids_array = array(''=>'Todos');
-                foreach ($unidades_permitidas->result() as $key => $value) {
-                    $unids_array[$value->unidade_id] = $value->unidade;
-                }
                 $this->data['filtros']['filtro_unidades'][$quadro->id] = array(
                     'name'  => 'filtro_unidades['.$quadro->id.'][]',
                     'id'    => 'filtro_unidades-'.$quadro->id,
@@ -187,17 +185,17 @@ class Kanban extends Admin_Controller {
 
             }
 
-            // exit("<pre>".print_r($colunas_array_sel,true)."</pre>");
-
             $this->data['quadros'] = $quadros_return;
-            $this->data['quadros_sel'] = (isset($_GET["btn_filtrar"])) ? $_GET["btn_filtrar"] : '1';
+            $quadros_keys = array_keys($quadros_return);
+            $default_quadro = !empty($quadros_keys) ? (string)$quadros_keys[0] : '1';
+            $this->data['quadros_sel'] = (isset($_GET["btn_filtrar"]) && isset($quadros_return[$_GET["btn_filtrar"]])) ? $_GET["btn_filtrar"] : $default_quadro;
             $this->data['colunas_sel'] = $colunas_array_sel;
+            $this->data['unidades_permitidas_ids'] = $unidades_permitidas_ids;
 
-            $this->data['pagetitle'] = "<h1>".lang('menu_kanban')." <small>".$quadros_return[$this->data['quadros_sel']]->nome."</small></h1>";
+            $quadro_nome = isset($quadros_return[$this->data['quadros_sel']]) ? $quadros_return[$this->data['quadros_sel']]->nome : '';
+            $this->data['pagetitle'] = "<h1>".lang('menu_kanban')." <small>".$quadro_nome."</small></h1>";
             
             $this->data['can_metricas'] = $this->ion_auth->has_permissao("kanban", "metricas");
-
-            //exit("<pre>".print_r($colunas_array_sel,true)."</pre>");
             
             /* Load Template */
             $this->template->admin_render('admin/kanban/index', $this->data);
@@ -214,6 +212,13 @@ class Kanban extends Admin_Controller {
 
         $tarefa = $this->kanban_model->get_tarefa($_POST['id']);
         if($tarefa->num_rows() > 0) {
+
+            // Validação de acesso à unidade da tarefa
+            if (!$this->tem_acesso_unidade($tarefa->row()->unidade_id)) {
+                $retorno['erro'] = true;
+                $retorno['data'] = "Acesso não autorizado para chamados desta unidade!";
+                exit(json_encode($retorno));
+            }
 
             foreach ($tarefa->result() as $k => $t) {
 
@@ -292,9 +297,20 @@ class Kanban extends Admin_Controller {
             exit(false);
         }
 
+        $tarefa = $this->kanban_model->get_tarefa($_POST['tarefa']);
+        if(!$tarefa || $tarefa->num_rows() == 0) {
+            exit(false);
+        }
+
+        // Validação de acesso à unidade da tarefa
+        if (!$this->tem_acesso_unidade($tarefa->row()->unidade_id)) {
+            $retorno['erro'] = true;
+            $retorno['data'] = "Acesso não autorizado para chamados desta unidade!";
+            exit(json_encode($retorno));
+        }
+
         $quadro = $this->kanban_model->get_quadros($_POST['quadro']);
         $coluna = $this->kanban_model->get_coluna($_POST['coluna']);
-        $tarefa = $this->kanban_model->get_tarefa($_POST['tarefa']);
 
         $this->kanban_model->reodenarTarefas($quadro, $coluna, $tarefa, $_POST);
 
@@ -318,6 +334,8 @@ class Kanban extends Admin_Controller {
             $this->data['message'] = $this->session->flashdata('message');
 
             $this->data['pagetitle'] = "<h1>".lang('menu_kanban')." <small>Métricas</small></h1>";
+
+            $unidades_permitidas_ids = $this->get_unidades_permitidas_ids();
 
             $data_inicio = date("Y-m-d H:i:s", strtotime("-7 days"));
             $data_fim = date("Y-m-d H:i:s");
@@ -343,7 +361,7 @@ class Kanban extends Admin_Controller {
                 redirect('kanban/metricas', 'refresh');
             }
 
-            $res = $this->kanban_model->getMetricasChart1($data_inicio, $data_fim, @$_GET['filtro_usuarios']);
+            $res = $this->kanban_model->getMetricasChart1($data_inicio, $data_fim, @$_GET['filtro_usuarios'], $unidades_permitidas_ids);
             
             // echo "<Pre>".print_r($diferenca_datas->days,true)."</pre>";
             // exit;
@@ -390,7 +408,7 @@ class Kanban extends Admin_Controller {
             $this->data['filtros'] = $filtro;
 
             $atribuicao_array = [''=>'Selecione um usuário'];
-            foreach ($this->kanban_model->get_atribuicao()->result() as $atrib) {
+            foreach ($this->kanban_model->get_atribuicao(null, $unidades_permitidas_ids)->result() as $atrib) {
                 $atribuicao_array[$atrib->responsavel_id] = $atrib->email;
             }
 
@@ -406,5 +424,37 @@ class Kanban extends Admin_Controller {
             /* Load Template */
             $this->template->admin_render('admin/kanban/metricas', $this->data);
         }
+    }
+
+    /**
+     * Retorna os IDs das unidades permitidas para o usuário logado
+     *
+     * @return array
+     */
+    private function get_unidades_permitidas_ids()
+    {
+        $unidades_permitidas = $this->chamados_model->get_unidades_permitidas(
+            $this->session->userdata('user_id'),
+            $this->session->userdata('empresa_id')
+        )->result();
+
+        $unidade_in_where = array(0);
+        foreach ($unidades_permitidas as $unid) {
+            $unidade_in_where[] = (int) $unid->unidade_id;
+        }
+
+        return $unidade_in_where;
+    }
+
+    /**
+     * Verifica se o usuário logado tem permissão de acesso à unidade informada
+     *
+     * @param int $unidade_id
+     * @return bool
+     */
+    private function tem_acesso_unidade($unidade_id)
+    {
+        $unidades_permitidas = $this->get_unidades_permitidas_ids();
+        return in_array((int) $unidade_id, $unidades_permitidas);
     }
 }

@@ -135,15 +135,18 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
           // Forçar a ordenação visual das colunas com base no mapeamento `$status_colors_map`
           $ordem_colunas = array_keys($status_colors_map);
-          usort($quadros[$quadros_sel]->colunas, function($a, $b) use ($ordem_colunas) {
-              $pos_a = array_search(isset($a['status']) ? (int)$a['status'] : 0, $ordem_colunas);
-              $pos_b = array_search(isset($b['status']) ? (int)$b['status'] : 0, $ordem_colunas);
-              $pos_a = $pos_a !== false ? $pos_a : 999;
-              $pos_b = $pos_b !== false ? $pos_b : 999;
-              return $pos_a - $pos_b;
-          });
+          if (!empty($quadros) && isset($quadros[$quadros_sel]) && !empty($quadros[$quadros_sel]->colunas)) {
+              usort($quadros[$quadros_sel]->colunas, function($a, $b) use ($ordem_colunas) {
+                  $pos_a = array_search(isset($a['status']) ? (int)$a['status'] : 0, $ordem_colunas);
+                  $pos_b = array_search(isset($b['status']) ? (int)$b['status'] : 0, $ordem_colunas);
+                  $pos_a = $pos_a !== false ? $pos_a : 999;
+                  $pos_b = $pos_b !== false ? $pos_b : 999;
+                  return $pos_a - $pos_b;
+              });
+          }
         ?>
 
+        <?php if (!empty($quadros) && isset($quadros[$quadros_sel]) && !empty($quadros[$quadros_sel]->colunas)) { ?>
         <?php foreach ($quadros[$quadros_sel]->colunas as $coluna) { ?>
 
           <?php 
@@ -183,8 +186,12 @@ defined('BASEPATH') OR exit('No direct script access allowed');
                 <section class="connectedSortable" data-coluna="<?php echo $coluna['id'] ?>">
 
                   <?php foreach ($coluna['tarefas'] as $tarefa) { ?>
-                  <?php //echo "<pre>".print_r($tarefa,true)."</pre>"; exit; ?>
                     <?php
+                      // Não exibir chamado se pertencer a unidade não permitida ao usuário
+                      if (isset($unidades_permitidas_ids) && !empty($unidades_permitidas_ids) && isset($tarefa['unidade_id']) && !in_array((int)$tarefa['unidade_id'], $unidades_permitidas_ids)) {
+                        continue;
+                      }
+
                       $color_border_top = "#3c8dbc";
                       $color_font_top = "#555";
                       $is_atrasado = false;
@@ -268,6 +275,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
             </div>
 
           <?php } ?>
+        <?php } ?>
         <?php } ?>
 
         <div class="overlay" style="display:none;"><i class="fa fa-refresh fa-spin"></i></div>
