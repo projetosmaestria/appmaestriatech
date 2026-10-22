@@ -55,3 +55,6 @@ Temporary Items
 
 # Arquivos temporários
 /tmp/
+sql/install_menus_treinamentos.sql
+sql/patch_colunas_treinamentos.sql
+application/logs/log-2026-10-19.php

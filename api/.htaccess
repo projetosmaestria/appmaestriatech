@@ -1,0 +1,14 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Preserva arquivos e diretórios físicos existentes (ex: mobile_auth.php)
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Rota amigável: /api/verificar_habilitacao -> index.php
+    RewriteRule ^verificar_habilitacao/?$ index.php [QSA,NC,L]
+
+    # Fallback para index.php
+    RewriteRule ^(.*)$ index.php [QSA,NC,L]
+</IfModule>
