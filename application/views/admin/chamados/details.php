@@ -392,13 +392,6 @@ defined('BASEPATH') or exit('No direct script access allowed');
                                                                 </h3>
                                                                 <div class="box-tools pull-right">
                                                                     <button type="button"
-                                                                        class="btn btn-sm btn-primary"
-                                                                        onclick="salvarEtapasChecklist(<?php echo $checklist->id ?>)"
-                                                                        style="margin-right: 5px;"
-                                                                        title="Salvar etapas deste checklist">
-                                                                        <i class="fa fa-save"></i> Salvar Etapas
-                                                                    </button>
-                                                                    <button type="button"
                                                                         class="btn btn-sm btn-success"
                                                                         onclick="abrirModalAdicionarEtapaExistente(<?php echo $checklist->id ?>, '<?php echo addslashes($checklist->nome) ?>')"
                                                                         style="margin-right: 5px;">
