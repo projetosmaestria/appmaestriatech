@@ -1246,11 +1246,8 @@ function salvarEtapa(etapaId) {
                 }
                 
                 atualizarInterfaceEtapa(etapaId, concluida, dataPrazoBD);
-                
-                if (response.message && response.message !== 'Nenhuma alteração detectada') {
-                    setTimeout(function() {
-                        window.location.reload();
-                    }, 1500);
+                if (responsavel) {
+                    $('#responsavel_etapa_' + etapaId).attr('data-responsavel', responsavel);
                 }
             } else {
                 if (typeof Swal !== 'undefined') {
@@ -1290,11 +1287,8 @@ function salvarEtapa(etapaId) {
                         });
                         
                         atualizarInterfaceEtapa(etapaId, concluida, dataPrazoBD);
-                        
-                        if (response.message && response.message !== 'Nenhuma alteração detectada') {
-                            setTimeout(function() {
-                                window.location.reload();
-                            }, 1500);
+                        if (responsavel) {
+                            $('#responsavel_etapa_' + etapaId).attr('data-responsavel', responsavel);
                         }
                         return;
                     } else {
@@ -1322,34 +1316,185 @@ function salvarEtapa(etapaId) {
             });
         }
     });
+}
+
+function atualizarInterfaceEtapa(etapaId, concluida, dataPrazoBD) {
+    var row = $('#etapa-row-' + etapaId);
+    var concluidaCheckbox = $('#etapa_concluida_' + etapaId);
     
-    function atualizarInterfaceEtapa(etapaId, concluida, dataPrazoBD) {
-        var row = $('#etapa-row-' + etapaId);
-        var concluidaCheckbox = $('#etapa_concluida_' + etapaId);
-        
-        row.removeClass('success danger');
-        var label = concluidaCheckbox.next('span');
-        
-        if (concluida == 1) {
-            row.addClass('success');
-            label.removeClass('label-default label-danger').addClass('label-success').text('Concluído');
-        } else {
-            if (dataPrazoBD) {
-                var hoje = new Date();
-                hoje.setHours(0, 0, 0, 0);
-                var prazoDate = new Date(dataPrazoBD + 'T00:00:00');
-                
-                if (prazoDate < hoje) {
-                    row.addClass('danger');
-                    label.removeClass('label-success label-default').addClass('label-danger').text('Atrasado');
-                } else {
-                    label.removeClass('label-success label-danger').addClass('label-default').text('Pendente');
-                }
+    row.removeClass('success danger');
+    var label = concluidaCheckbox.next('span');
+    
+    if (concluida == 1) {
+        row.addClass('success');
+        label.removeClass('label-default label-danger').addClass('label-success').text('Concluído');
+    } else {
+        if (dataPrazoBD) {
+            var hoje = new Date();
+            hoje.setHours(0, 0, 0, 0);
+            var prazoDate = new Date(dataPrazoBD + 'T00:00:00');
+            
+            if (prazoDate < hoje) {
+                row.addClass('danger');
+                label.removeClass('label-success label-default').addClass('label-danger').text('Atrasado');
             } else {
                 label.removeClass('label-success label-danger').addClass('label-default').text('Pendente');
             }
+        } else {
+            label.removeClass('label-success label-danger').addClass('label-default').text('Pendente');
         }
     }
+}
+
+function salvarTodasEtapas(checklistIdFiltro) {
+    if (!checklistIdFiltro) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire('Aviso', 'Selecione um checklist específico para salvar suas etapas.', 'warning');
+        } else {
+            mostrarToast('Selecione um checklist específico para salvar suas etapas.', 'warning');
+        }
+        return;
+    }
+    
+    var selector = '.box[data-checklist-id="' + checklistIdFiltro + '"] table tbody tr[id^="etapa-row-"]';
+    
+    var $linhas = $(selector);
+    if (!$linhas.length) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire('Aviso', 'Nenhuma etapa encontrada para salvar.', 'info');
+        } else {
+            mostrarToast('Nenhuma etapa encontrada para salvar.', 'info');
+        }
+        return;
+    }
+    
+    var etapas = [];
+    var erroValidacao = null;
+    
+    $linhas.each(function() {
+        var $tr = $(this);
+        var etapaId = $tr.attr('id').replace('etapa-row-', '');
+        if (!etapaId) return;
+        
+        var dataInicio = $('#data_inicio_etapa_' + etapaId).val();
+        var dataPrazo = $('#data_prazo_etapa_' + etapaId).val();
+        var responsavel = $('#responsavel_etapa_' + etapaId).val();
+        var concluida = $('#etapa_concluida_' + etapaId).is(':checked') ? 1 : 0;
+        var nomeEtapa = $tr.find('td:nth-child(2) strong').text().trim() || ('Etapa #' + etapaId);
+        
+        if (concluida == 1 && (!responsavel || responsavel === '')) {
+            erroValidacao = 'Para concluir a etapa "' + nomeEtapa + '", é necessário selecionar um responsável.';
+            $('#responsavel_etapa_' + etapaId).focus();
+            return false;
+        }
+        
+        if (dataInicio && !validarData(dataInicio)) {
+            erroValidacao = 'Data de início inválida na etapa "' + nomeEtapa + '".';
+            return false;
+        }
+        
+        if (dataPrazo && !validarData(dataPrazo)) {
+            erroValidacao = 'Data de prazo inválida na etapa "' + nomeEtapa + '".';
+            return false;
+        }
+        
+        etapas.push({
+            etapa_id: etapaId,
+            data_inicio: dataInicio ? converterDataParaBD(dataInicio) : null,
+            data_prazo: dataPrazo ? converterDataParaBD(dataPrazo) : null,
+            responsavel: responsavel || null,
+            concluida: concluida
+        });
+    });
+    
+    if (erroValidacao) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Atenção',
+                text: erroValidacao,
+                confirmButtonColor: '#3085d6'
+            });
+        } else {
+            alert(erroValidacao);
+        }
+        return;
+    }
+    
+    if (!etapas.length) return;
+    
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: 'Salvando etapas...',
+            text: 'Por favor, aguarde.',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+    }
+    
+    $.ajax({
+        url: base_url + 'chamados/atualizar_todas_etapas_checklist',
+        type: 'POST',
+        data: {
+            etapas: JSON.stringify(etapas)
+        },
+        dataType: 'json',
+        success: function(response) {
+            if (typeof Swal !== 'undefined') {
+                Swal.close();
+            }
+            
+            if (response.success) {
+                etapas.forEach(function(etp) {
+                    atualizarInterfaceEtapa(etp.etapa_id, etp.concluida, etp.data_prazo);
+                    if (etp.responsavel) {
+                        $('#responsavel_etapa_' + etp.etapa_id).attr('data-responsavel', etp.responsavel);
+                    }
+                });
+                
+                var msgSucesso = response.message || 'Etapas deste checklist salvas com sucesso!';
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Sucesso!',
+                        text: msgSucesso,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else {
+                    mostrarToast(msgSucesso, 'success');
+                }
+            } else {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Erro',
+                        text: response.message || 'Erro ao salvar etapas.'
+                    });
+                } else {
+                    mostrarToast(response.message || 'Erro ao salvar etapas.', 'error');
+                }
+            }
+        },
+        error: function(xhr, status, error) {
+            if (typeof Swal !== 'undefined') {
+                Swal.close();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erro de conexão',
+                    text: 'Erro ao salvar etapas. Verifique sua conexão e tente novamente.'
+                });
+            } else {
+                mostrarToast('Erro de conexão ao salvar etapas.', 'error');
+            }
+        }
+    });
+}
+
+function salvarEtapasChecklist(checklistId) {
+    salvarTodasEtapas(checklistId);
 }
 
 function inicializarChecklistModal() {
@@ -1743,18 +1888,98 @@ function inicializarFuncionalidadesEtapas() {
         });
     }
     
-    if ($.fn.datetimepicker) {
-        $('.datetimepicker-checklist-inline').datetimepicker({
-            format: 'DD/MM/YYYY',
-            locale: 'pt-br',
-            useCurrent: false,
-            ignoreReadonly: true
+    if (typeof $ !== 'undefined' && $.fn.datetimepicker) {
+        $('.datetimepicker-checklist-inline').each(function() {
+            var $this = $(this);
+            if (!$this.data('DateTimePicker')) {
+                $this.datetimepicker({
+                    format: 'DD/MM/YYYY',
+                    locale: 'pt-br',
+                    useCurrent: false,
+                    ignoreReadonly: true,
+                    widgetPositioning: {
+                        horizontal: 'left',
+                        vertical: 'bottom'
+                    },
+                    icons: {
+                        time: 'fa fa-clock-o',
+                        date: 'fa fa-calendar',
+                        up: 'fa fa-chevron-up',
+                        down: 'fa fa-chevron-down',
+                        previous: 'fa fa-chevron-left',
+                        next: 'fa fa-chevron-right',
+                        today: 'fa fa-crosshairs',
+                        clear: 'fa fa-trash',
+                        close: 'fa fa-times'
+                    }
+                });
+            }
+        });
+
+        // Garantir fechamento de instâncias concorrentes e verificar borda da tela ao exibir
+        $('.datetimepicker-checklist-inline').off('dp.show.dtpAlign').on('dp.show.dtpAlign', function() {
+            var $container = $(this);
+            var $widget = $container.find('.bootstrap-datetimepicker-widget');
+            if (!$widget.length) return;
+            
+            // Fecha outros calendários abertos para evitar sobreposições
+            $('.datetimepicker-checklist-inline').not($container).each(function() {
+                var otherDp = $(this).data('DateTimePicker');
+                if (otherDp) otherDp.hide();
+            });
+
+            var $addon = $container.find('.input-group-addon');
+            var addonOffsetLeft = $addon.length ? $addon.offset().left : $container.offset().left + 120;
+            var windowWidth = $(window).width();
+            
+            if (addonOffsetLeft + 260 > windowWidth - 15) {
+                $widget.addClass('widget-edge-right');
+            } else {
+                $widget.removeClass('widget-edge-right');
+            }
         });
         
-        $(document).on('click', '.datetimepicker-checklist-inline .input-group-addon', function() {
-            var input = $(this).siblings('input');
-            if (input.data('DateTimePicker')) {
-                input.data('DateTimePicker').show();
+        $(document).off('click.dtpAddon', '.datetimepicker-checklist-inline .input-group-addon')
+                   .on('click.dtpAddon', '.datetimepicker-checklist-inline .input-group-addon', function(e) {
+            var $container = $(this).closest('.datetimepicker-checklist-inline');
+            var dp = $container.data('DateTimePicker');
+            if (!dp && typeof $ !== 'undefined' && $.fn.datetimepicker) {
+                e.preventDefault();
+                e.stopPropagation();
+                $container.datetimepicker({
+                    format: 'DD/MM/YYYY',
+                    locale: 'pt-br',
+                    useCurrent: false,
+                    ignoreReadonly: true,
+                    widgetPositioning: {
+                        horizontal: 'left',
+                        vertical: 'bottom'
+                    },
+                    icons: {
+                        time: 'fa fa-clock-o',
+                        date: 'fa fa-calendar',
+                        up: 'fa fa-chevron-up',
+                        down: 'fa fa-chevron-down',
+                        previous: 'fa fa-chevron-left',
+                        next: 'fa fa-chevron-right',
+                        today: 'fa fa-crosshairs',
+                        clear: 'fa fa-trash',
+                        close: 'fa fa-times'
+                    }
+                });
+                dp = $container.data('DateTimePicker');
+                if (dp) {
+                    dp.show();
+                }
+            }
+        });
+
+        $(document).off('click.dtpInput focus.dtpInput', '.datetimepicker-checklist-inline input')
+                   .on('click.dtpInput focus.dtpInput', '.datetimepicker-checklist-inline input', function() {
+            var $container = $(this).closest('.datetimepicker-checklist-inline');
+            var dp = $container.data('DateTimePicker');
+            if (dp) {
+                dp.show();
             }
         });
     }
@@ -1859,6 +2084,8 @@ function inicializarFuncionalidadesEtapas() {
     });
     
     inicializarBotoesExclusao();
+    inicializarPosicionamentoDropdowns();
+    inicializarPersistenciaAbaChecklist();
 }
 
 function inicializarModalAdicionarEtapa() {
@@ -2335,6 +2562,110 @@ if (typeof jQuery !== 'undefined' && typeof $ !== 'undefined') {
             setTimeout(function() {
                 inicializarModalAdicionarEtapa();
             }, 100);
+        }
+
+        $('a[href="#checklist"]').off('shown.bs.tab.dtpChecklist').on('shown.bs.tab.dtpChecklist', function() {
+            if (typeof inicializarFuncionalidadesEtapas === 'function') {
+                inicializarFuncionalidadesEtapas();
+            }
+        });
+    });
+
+    $(window).on('load', function() {
+        if (typeof inicializarFuncionalidadesEtapas === 'function') {
+            inicializarFuncionalidadesEtapas();
+        }
+    });
+}
+
+function inicializarPosicionamentoDropdowns() {
+    function verificarEPosicionar($fst) {
+        if (!$fst || !$fst.length) return;
+        var $btn = $fst.find('.fstToggleBtn');
+        if (!$btn.length) return;
+        
+        var rect = $btn[0].getBoundingClientRect();
+        var windowHeight = window.innerHeight || $(window).height();
+        var spaceBelow = windowHeight - rect.bottom;
+        var spaceAbove = rect.top;
+        
+        var $tr = $fst.closest('tr');
+        var $tbody = $tr.closest('tbody');
+        var totalRows = $tbody.find('tr').length;
+        var rowIndex = $tbody.find('tr').index($tr);
+        
+        var abrirPraCima = false;
+        
+        // Identificar se a etapa está no topo ou no bottom da lista
+        if (totalRows > 1 && rowIndex >= Math.ceil(totalRows / 2)) {
+            // No bottom da lista: se tiver menos de 320px abaixo ou mais espaço acima do que abaixo, abre para cima
+            if (spaceBelow < 320 || spaceAbove > spaceBelow) {
+                abrirPraCima = true;
+            }
+        } else {
+            // No topo da lista (ou lista com apenas 1 item): abre para baixo,
+            // exceto se a janela do navegador estiver cortando drasticamente embaixo (< 200px)
+            if (spaceBelow < 200 && spaceAbove > spaceBelow) {
+                abrirPraCima = true;
+            }
+        }
+        
+        if (abrirPraCima) {
+            $fst.addClass('fstDropUp');
+        } else {
+            $fst.removeClass('fstDropUp');
+        }
+        
+        $('#checklist tr.fst-row-active').removeClass('fst-row-active');
+        $tr.addClass('fst-row-active');
+    }
+    
+    $(document).off('mousedown.fstPos click.fstPos', '#checklist .fstElement .fstToggleBtn')
+               .on('mousedown.fstPos click.fstPos', '#checklist .fstElement .fstToggleBtn', function(e) {
+        var $fst = $(this).closest('.fstElement');
+        if (e.type === 'click' && $fst.hasClass('fstActive')) {
+            return;
+        }
+        verificarEPosicionar($fst);
+    });
+    
+    $(document).off('focusin.fstPos', '#checklist .fstElement')
+               .on('focusin.fstPos', '#checklist .fstElement', function() {
+        verificarEPosicionar($(this));
+    });
+    
+    $(document).off('click.fstPosClose', '#checklist .fstResultItem')
+               .on('click.fstPosClose', '#checklist .fstResultItem', function() {
+        setTimeout(function() {
+            $('#checklist tr.fst-row-active').removeClass('fst-row-active');
+            $('#checklist .fstElement.fstDropUp').removeClass('fstDropUp');
+        }, 150);
+    });
+    
+    $(document).off('click.fstPosDoc').on('click.fstPosDoc', function(e) {
+        if (!$(e.target).closest('#checklist .fstElement').length) {
+            $('#checklist tr.fst-row-active').removeClass('fst-row-active');
+            $('#checklist .fstElement.fstDropUp').removeClass('fstDropUp');
+        }
+    });
+}
+
+function inicializarPersistenciaAbaChecklist() {
+    if (typeof $ === 'undefined') return;
+    
+    var hash = window.location.hash;
+    if (hash && $('.nav-tabs a[href="' + hash + '"]').length) {
+        $('.nav-tabs a[href="' + hash + '"]').tab('show');
+    }
+    
+    $('.nav-tabs a').off('shown.bs.tab.checklistHash').on('shown.bs.tab.checklistHash', function(e) {
+        var targetHash = $(e.target).attr('href');
+        if (targetHash && targetHash.indexOf('#') === 0) {
+            if (history.replaceState) {
+                history.replaceState(null, null, targetHash);
+            } else {
+                window.location.hash = targetHash;
+            }
         }
     });
 }

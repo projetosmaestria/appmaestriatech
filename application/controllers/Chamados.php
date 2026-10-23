@@ -3949,6 +3949,193 @@ class Chamados extends Admin_Controller
 		}
 	}
 
+	public function atualizar_todas_etapas_checklist()
+	{
+		$this->output->set_content_type('application/json');
+		$this->output->set_header('Content-Encoding: none');
+
+		if (!$this->input->is_ajax_request()) {
+			$this->output->set_status_header(404);
+			$this->output->set_output(json_encode(['success' => false, 'message' => 'Requisição inválida']));
+			return;
+		}
+
+		try {
+			if (!$this->ion_auth->logged_in()) {
+				throw new Exception('Usuário não autenticado');
+			}
+
+			$etapas = $this->input->post('etapas');
+			if (is_string($etapas)) {
+				$etapas = json_decode($etapas, true);
+			}
+
+			if (empty($etapas) || !is_array($etapas)) {
+				throw new Exception('Nenhuma etapa enviada para atualização');
+			}
+
+			$this->load->model('chamados_checklists_etapas_model');
+			$this->load->model('chamados_checklists_model');
+			$this->load->model('ion_auth_model');
+
+			// Pré-validação: se alguma etapa for concluída, exigir responsável
+			foreach ($etapas as $item) {
+				$etapa_id = isset($item['etapa_id']) ? $item['etapa_id'] : null;
+				if (!$etapa_id) continue;
+
+				$concluida = isset($item['concluida']) ? intval($item['concluida']) : 0;
+				$responsavel = isset($item['responsavel']) && $item['responsavel'] !== '' ? $item['responsavel'] : null;
+
+				if ($concluida == 1) {
+					$etapa_banco = $this->chamados_checklists_etapas_model->get($etapa_id);
+					if (!$etapa_banco) continue;
+
+					$resp_valido = !empty($responsavel) || !empty($etapa_banco->responsavel);
+					if (!$resp_valido) {
+						$nome_etapa = !empty($etapa_banco->nome) ? "\"{$etapa_banco->nome}\"" : "ID {$etapa_id}";
+						$this->output->set_output(json_encode(array(
+							'success' => false,
+							'message' => "Para concluir a etapa {$nome_etapa}, é necessário selecionar um responsável.",
+							'etapa_id' => $etapa_id,
+							'campo' => 'responsavel'
+						)));
+						return;
+					}
+				}
+			}
+
+			$total_atualizadas = 0;
+			$etapas_atualizadas = array();
+
+			foreach ($etapas as $item) {
+				$etapa_id = isset($item['etapa_id']) ? $item['etapa_id'] : null;
+				if (!$etapa_id) continue;
+
+				$etapa_atual = $this->chamados_checklists_etapas_model->get($etapa_id);
+				if (!$etapa_atual) continue;
+
+				$chamado_id = $etapa_atual->chamado_id;
+				$checklist_pai = $this->chamados_checklists_model->get($etapa_atual->chamado_checklist_id);
+
+				$data_inicio = isset($item['data_inicio']) ? $item['data_inicio'] : null;
+				$data_prazo = isset($item['data_prazo']) ? $item['data_prazo'] : null;
+				$responsavel = isset($item['responsavel']) && $item['responsavel'] !== '' ? $item['responsavel'] : null;
+				$concluida = isset($item['concluida']) ? intval($item['concluida']) : null;
+
+				$dados = array();
+				$alteracoes = array();
+
+				if ($data_inicio !== null && $data_inicio !== '') {
+					if ($etapa_atual->data_inicio != $data_inicio) {
+						$dados['data_inicio'] = $data_inicio;
+						$alteracoes['data_inicio'] = array(
+							'antigo' => $etapa_atual->data_inicio ? date('d/m/Y', strtotime($etapa_atual->data_inicio)) : 'não definido',
+							'novo' => $data_inicio ? date('d/m/Y', strtotime($data_inicio)) : 'não definido'
+						);
+					}
+				} else {
+					if ($etapa_atual->data_inicio !== null) {
+						$dados['data_inicio'] = null;
+						$alteracoes['data_inicio'] = array(
+							'antigo' => date('d/m/Y', strtotime($etapa_atual->data_inicio)),
+							'novo' => 'removido'
+						);
+					}
+				}
+
+				if ($data_prazo !== null && $data_prazo !== '') {
+					if ($etapa_atual->data_prazo != $data_prazo) {
+						$dados['data_prazo'] = $data_prazo;
+						$alteracoes['data_prazo'] = array(
+							'antigo' => $etapa_atual->data_prazo ? date('d/m/Y', strtotime($etapa_atual->data_prazo)) : 'não definido',
+							'novo' => $data_prazo ? date('d/m/Y', strtotime($data_prazo)) : 'não definido'
+						);
+					}
+				} else {
+					if ($etapa_atual->data_prazo !== null) {
+						$dados['data_prazo'] = null;
+						$alteracoes['data_prazo'] = array(
+							'antigo' => date('d/m/Y', strtotime($etapa_atual->data_prazo)),
+							'novo' => 'removido'
+						);
+					}
+				}
+
+				if ($responsavel !== null && $responsavel !== '') {
+					if ($etapa_atual->responsavel != $responsavel) {
+						$dados['responsavel'] = $responsavel;
+						$responsavel_antigo_nome = $etapa_atual->responsavel ? $this->chamados_model->get_user_name($etapa_atual->responsavel) : 'não definido';
+						$responsavel_novo_nome = $responsavel ? $this->chamados_model->get_user_name($responsavel) : 'não definido';
+						$alteracoes['responsavel'] = array(
+							'antigo' => $responsavel_antigo_nome,
+							'novo' => $responsavel_novo_nome
+						);
+					}
+				} else {
+					if ($etapa_atual->responsavel !== null) {
+						$dados['responsavel'] = null;
+						$responsavel_antigo_nome = $this->chamados_model->get_user_name($etapa_atual->responsavel);
+						$alteracoes['responsavel'] = array(
+							'antigo' => $responsavel_antigo_nome,
+							'novo' => 'removido'
+						);
+					}
+				}
+
+				$status_alterado = false;
+				if ($concluida !== null) {
+					$concluida_int = intval($concluida);
+					if ($etapa_atual->concluida != $concluida_int) {
+						$dados['concluida'] = $concluida_int;
+						$status_alterado = true;
+						$alteracoes['status'] = array(
+							'antigo' => $etapa_atual->concluida == 1 ? 'Concluído' : 'Pendente',
+							'novo' => $concluida_int == 1 ? 'Concluído' : 'Pendente'
+						);
+
+						if ($concluida_int == 1) {
+							$dados['data_conclusao'] = date('Y-m-d H:i:s');
+							$dados['responsavel_conclusao'] = $this->session->userdata('user_id');
+						} else {
+							$dados['data_conclusao'] = null;
+							$dados['responsavel_conclusao'] = null;
+						}
+					}
+				}
+
+				if (!empty($dados)) {
+					$dados['data_atualizacao'] = date('Y-m-d H:i:s');
+					if ($this->chamados_checklists_etapas_model->update($etapa_id, $dados)) {
+						$this->gerar_dialogo_alteracao_etapa($chamado_id, $etapa_atual, $checklist_pai, $alteracoes, $status_alterado);
+						$total_atualizadas++;
+						$etapas_atualizadas[] = array(
+							'etapa_id' => $etapa_id,
+							'concluida' => isset($dados['concluida']) ? $dados['concluida'] : $etapa_atual->concluida,
+							'data_prazo' => isset($dados['data_prazo']) ? $dados['data_prazo'] : $etapa_atual->data_prazo
+						);
+					}
+				}
+			}
+
+			$msg = $total_atualizadas > 0 
+				? ($total_atualizadas == 1 ? '1 etapa atualizada com sucesso!' : "{$total_atualizadas} etapas atualizadas com sucesso!")
+				: 'Nenhuma alteração detectada nas etapas.';
+
+			$this->output->set_output(json_encode(array(
+				'success' => true,
+				'message' => $msg,
+				'total_atualizadas' => $total_atualizadas,
+				'etapas_atualizadas' => $etapas_atualizadas
+			)));
+		} catch (Exception $e) {
+			log_message('error', 'Exceção em atualizar_todas_etapas_checklist: ' . $e->getMessage());
+			$this->output->set_output(json_encode(array(
+				'success' => false,
+				'message' => $e->getMessage()
+			)));
+		}
+	}
+
 	/**
 	 * Gera um diálogo no chamado com as alterações realizadas na etapa
 	 */

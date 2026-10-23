@@ -376,6 +376,14 @@ defined('BASEPATH') or exit('No direct script access allowed');
                                         <div class="row">
                                             <div class="col-md-12">
                                                 <?php if (isset($checklists_associados) && !empty($checklists_associados)): ?>
+                                                    <!-- Barra de Título do Checklist -->
+                                                    <div class="row" style="margin-bottom: 15px;">
+                                                        <div class="col-xs-12">
+                                                            <h4 style="margin: 5px 0 0 0; font-weight: bold; color: #333;">
+                                                                <i class="fa fa-list-alt"></i> Checklists Associados
+                                                            </h4>
+                                                        </div>
+                                                    </div>
                                                     <?php foreach ($checklists_associados as $checklist): ?>
                                                         <div class="box box-solid" style="margin-bottom: 20px; border: 1px solid #d2d6de;" data-checklist-id="<?php echo $checklist->id ?>">
                                                             <div class="box-header with-border" style="background-color: #f4f4f4;">
@@ -383,6 +391,13 @@ defined('BASEPATH') or exit('No direct script access allowed');
                                                                     <i class="fa fa-list-alt"></i> <?php echo $checklist->nome ?>
                                                                 </h3>
                                                                 <div class="box-tools pull-right">
+                                                                    <button type="button"
+                                                                        class="btn btn-sm btn-primary"
+                                                                        onclick="salvarEtapasChecklist(<?php echo $checklist->id ?>)"
+                                                                        style="margin-right: 5px;"
+                                                                        title="Salvar etapas deste checklist">
+                                                                        <i class="fa fa-save"></i> Salvar Etapas
+                                                                    </button>
                                                                     <button type="button"
                                                                         class="btn btn-sm btn-success"
                                                                         onclick="abrirModalAdicionarEtapaExistente(<?php echo $checklist->id ?>, '<?php echo addslashes($checklist->nome) ?>')"
@@ -408,13 +423,13 @@ defined('BASEPATH') or exit('No direct script access allowed');
                                                                     <table class="table table-bordered table-striped table-hover" style="margin-top: 15px;">
                                                                         <thead>
                                                                             <tr>
-                                                                                <th width="5%">#</th>
-                                                                                <th width="25%">Etapa</th>
-                                                                                <th width="15%">Data Início</th>
-                                                                                <th width="15%">Data Prazo</th>
-                                                                                <th width="20%">Responsável</th>
+                                                                                <th width="4%">#</th>
+                                                                                <th width="24%">Etapa</th>
+                                                                                <th width="16%">Data Início</th>
+                                                                                <th width="16%">Data Prazo</th>
+                                                                                <th width="21%">Responsável</th>
                                                                                 <th width="10%">Status</th>
-                                                                                <th width="10%">Ações</th>
+                                                                                <th width="9%">Ações</th>
                                                                             </tr>
                                                                         </thead>
                                                                         <tbody>
@@ -428,7 +443,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
                                                                                         <?php endif; ?>
                                                                                     </td>
                                                                                     <td>
-                                                                                        <div class="input-group date datetimepicker-checklist-inline" style="width: 130px;">
+                                                                                        <div class="input-group date datetimepicker-checklist-inline" style="width: 155px;">
                                                                                             <input type="text"
                                                                                                 class="form-control input-sm data-inicio-etapa"
                                                                                                 id="data_inicio_etapa_<?php echo $etapa->id ?>"
@@ -441,7 +456,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
                                                                                         </div>
                                                                                     </td>
                                                                                     <td>
-                                                                                        <div class="input-group date datetimepicker-checklist-inline" style="width: 130px;">
+                                                                                        <div class="input-group date datetimepicker-checklist-inline" style="width: 155px;">
                                                                                             <input type="text"
                                                                                                 class="form-control input-sm data-prazo-etapa"
                                                                                                 id="data_prazo_etapa_<?php echo $etapa->id ?>"
@@ -500,6 +515,13 @@ defined('BASEPATH') or exit('No direct script access allowed');
                                                                             <?php endforeach; ?>
                                                                         </tbody>
                                                                     </table>
+                                                                    <div class="row" style="margin-top: 10px; margin-bottom: 5px;">
+                                                                        <div class="col-xs-12 text-right">
+                                                                            <button type="button" class="btn btn-sm btn-primary" onclick="salvarEtapasChecklist(<?php echo $checklist->id ?>)">
+                                                                                <i class="fa fa-save"></i> Salvar Etapas
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
                                                                 <?php else: ?>
                                                                     <div class="alert alert-info" style="margin-bottom: 0;">
                                                                         <i class="fa fa-info-circle"></i> Nenhuma etapa associada a este checklist.
@@ -508,6 +530,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
                                                             </div>
                                                         </div>
                                                     <?php endforeach; ?>
+
                                                 <?php else: ?>
                                                     <div class="alert alert-warning">
                                                         <i class="fa fa-exclamation-triangle"></i> Nenhum checklist associado a este chamado.
@@ -1222,17 +1245,180 @@ defined('BASEPATH') or exit('No direct script access allowed');
         transition: all 0.3s ease;
     }
 
-    .datetimepicker {
-        z-index: 9999 !important;
+    /* Estilo unificado para inputs de data dos checklists (Input e Calendário como componente único) */
+    .datetimepicker-checklist-inline {
+        width: 155px !important;
+        position: relative !important;
+        display: flex !important;
+        align-items: center !important;
+        background-color: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 8px !important;
+        overflow: visible !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .datetimepicker-checklist-inline:focus-within,
+    .datetimepicker-checklist-inline.active {
+        border-color: #9cd7d4 !important;
+        box-shadow: 0 0 0 3px rgba(156, 215, 212, 0.25) !important;
+    }
+
+    .datetimepicker-checklist-inline input.form-control,
+    .datetimepicker-checklist-inline input {
+        flex: 1 1 auto !important;
+        width: auto !important;
+        min-width: 0 !important;
+        border: none !important;
+        border-radius: 8px 0 0 8px !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        height: 34px !important;
+        line-height: 34px !important;
+        padding: 6px 4px 6px 10px !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        color: #1e293b !important;
+        outline: none !important;
+        cursor: text !important;
+    }
+
+    .datetimepicker-checklist-inline input.form-control:focus,
+    .datetimepicker-checklist-inline input:focus {
+        border: none !important;
+        box-shadow: none !important;
+        outline: none !important;
     }
 
     .datetimepicker-checklist-inline .input-group-addon {
-        cursor: pointer;
+        flex: 0 0 34px !important;
+        width: 34px !important;
+        min-width: 34px !important;
+        height: 34px !important;
+        line-height: 34px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border: none !important;
+        border-left: 1px solid #f1f5f9 !important;
+        border-radius: 0 8px 8px 0 !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        color: #64748b !important;
+        cursor: pointer !important;
+        transition: color 0.2s ease, background-color 0.2s ease !important;
     }
 
-    .datetimepicker-checklist-inline input {
-        background-color: white !important;
-        cursor: text;
+    .datetimepicker-checklist-inline .input-group-addon:hover {
+        color: #1e1d3f !important;
+        background-color: #f8fafc !important;
+    }
+
+    .datetimepicker-checklist-inline .input-group-addon i {
+        font-size: 14px !important;
+    }
+
+    #checklist table td {
+        overflow: visible !important;
+    }
+
+    #checklist table {
+        overflow: visible !important;
+    }
+
+    #checklist .box-body {
+        overflow: visible !important;
+    }
+
+    .bootstrap-datetimepicker-widget,
+    .datetimepicker {
+        z-index: 99999 !important;
+    }
+
+    /* Posicionamento exato sob o botão do calendário */
+    .datetimepicker-checklist-inline .bootstrap-datetimepicker-widget.dropdown-menu,
+    .datetimepicker-checklist-inline .bootstrap-datetimepicker-widget.dropdown-menu.bottom {
+        position: absolute !important;
+        top: 36px !important;
+        bottom: auto !important;
+        left: 120px !important;
+        right: auto !important;
+        width: 250px !important;
+        min-width: 250px !important;
+        max-width: 250px !important;
+        margin: 0 !important;
+        padding: 8px !important;
+        background-color: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 8px !important;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15) !important;
+        z-index: 99999 !important;
+    }
+
+    /* Quando abrir para cima (rodapé da página) */
+    .datetimepicker-checklist-inline .bootstrap-datetimepicker-widget.dropdown-menu.top {
+        top: auto !important;
+        bottom: 36px !important;
+        left: 120px !important;
+        right: auto !important;
+    }
+
+    /* Ajuste para borda direita da tela se necessário */
+    .datetimepicker-checklist-inline .bootstrap-datetimepicker-widget.dropdown-menu.widget-edge-right {
+        left: auto !important;
+        right: 0px !important;
+    }
+
+    /* Seta do calendário perfeitamente alinhada com o botão clicado */
+    .datetimepicker-checklist-inline .bootstrap-datetimepicker-widget.dropdown-menu:before {
+        left: 10px !important;
+        right: auto !important;
+    }
+
+    .datetimepicker-checklist-inline .bootstrap-datetimepicker-widget.dropdown-menu:after {
+        left: 11px !important;
+        right: auto !important;
+    }
+
+    .datetimepicker-checklist-inline .bootstrap-datetimepicker-widget.dropdown-menu.widget-edge-right:before {
+        left: auto !important;
+        right: 10px !important;
+    }
+
+    .datetimepicker-checklist-inline .bootstrap-datetimepicker-widget.dropdown-menu.widget-edge-right:after {
+        left: auto !important;
+        right: 11px !important;
+    }
+
+    .datetimepicker-checklist-inline .bootstrap-datetimepicker-widget table {
+        width: 100% !important;
+        margin: 0 !important;
+    }
+
+    .datetimepicker-checklist-inline .bootstrap-datetimepicker-widget td,
+    .datetimepicker-checklist-inline .bootstrap-datetimepicker-widget th {
+        text-align: center !important;
+        padding: 4px 2px !important;
+        border-radius: 4px !important;
+        height: 28px !important;
+        line-height: 28px !important;
+    }
+
+    .datetimepicker-checklist-inline .bootstrap-datetimepicker-widget td.day {
+        cursor: pointer !important;
+    }
+
+    .datetimepicker-checklist-inline .bootstrap-datetimepicker-widget td.active,
+    .datetimepicker-checklist-inline .bootstrap-datetimepicker-widget td.active:hover {
+        background-color: #3c8dbc !important;
+        color: #ffffff !important;
+        text-shadow: none !important;
     }
 
     .btn-xs.salvar-etapa {
@@ -1258,14 +1444,6 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
     .success td {
         background-color: #dff0d8 !important;
-    }
-
-    .datetimepicker-checklist-inline .input-group-addon {
-        padding: 3px 8px;
-    }
-
-    .datetimepicker-checklist-inline input {
-        height: 28px;
     }
 
     .btn-xs.salvar-etapa,
@@ -1313,11 +1491,63 @@ defined('BASEPATH') or exit('No direct script access allowed');
             width: calc(100% - 80px) !important;
         }
     }
+
+    /* Posicionamento inteligente para dropdown de responsável no Checklist (DropUp vs DropDown) */
+    #checklist .fstElement.fstDropUp .fstControls {
+        top: auto !important;
+        bottom: 100% !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        border-bottom: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.08) !important;
+        z-index: 1051 !important;
+        overflow: visible !important;
+    }
+
+    #checklist .fstElement.fstDropUp .fstResults {
+        top: auto !important;
+        bottom: 100% !important;
+        margin-top: 0 !important;
+        margin-bottom: -1px !important;
+        border: 1px solid #9cd7d4 !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+        border-radius: 8px 8px 0 0 !important;
+        box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.12) !important;
+        max-height: 240px !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        z-index: 1052 !important;
+    }
+
+    #checklist .fstElement.fstActive {
+        z-index: 1050 !important;
+    }
+
+    #checklist tr.fst-row-active {
+        position: relative;
+        z-index: 1050 !important;
+    }
+
+    #checklist .fstResults {
+        max-height: 250px !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+    }
+
+    .btn-salvar-geral {
+        transition: all 0.2s ease-in-out;
+    }
+
+    .btn-salvar-geral:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;
+    }
 </style>
-<link rel="stylesheet" href="<?php echo base_url('assets/bootstrap/css/bootstrap-datetimepicker.min.css') ?>">
-<script type="text/javascript" src="<?php echo base_url('assets/bootstrap/js/moment.min.js') ?>"></script>
-<script type="text/javascript" src="<?php echo base_url('assets/bootstrap/js/bootstrap-datetimepicker.min.js') ?>"></script>
-<script type="text/javascript" src="<?php echo base_url('assets/bootstrap/js/pt-br.js') ?>"></script>
+<link rel="stylesheet" href="<?php echo base_url('assets/plugins/datetimepicker/build/css/bootstrap-datetimepicker.min.css') ?>">
+<script type="text/javascript" src="<?php echo base_url('assets/xkey/moment.min.js') ?>"></script>
+<script type="text/javascript" src="<?php echo base_url('assets/xkey/pt-br.js') ?>"></script>
+<script type="text/javascript" src="<?php echo base_url('assets/plugins/datetimepicker/build/js/bootstrap-datetimepicker.min.js') ?>"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
