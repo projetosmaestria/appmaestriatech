@@ -319,3 +319,5 @@ $lang['menu_search'] = 'Pesquisa';
 
 
 $lang['menu_kanban'] = 'Kanban';
+$lang['menu_kanban_board'] = 'Quadro Kanban';
+$lang['menu_kanban_planejamento'] = 'Planejamento da equipe';

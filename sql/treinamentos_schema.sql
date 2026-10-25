@@ -67,7 +67,8 @@ CREATE TABLE IF NOT EXISTS `treinamento_etapas` (
   `titulo` VARCHAR(255) NOT NULL,
   `descricao_curta` VARCHAR(500) NULL DEFAULT NULL,
   `conteudo_detalhado` LONGTEXT NULL DEFAULT NULL,
-  `video_tipo` ENUM('youtube', 'vimeo', 'arquivo', 'nenhum') NOT NULL DEFAULT 'nenhum',
+  `conteudo_html` LONGTEXT NULL DEFAULT NULL,
+  `video_tipo` ENUM('youtube', 'vimeo', 'arquivo', 'upload', 'link_direto', 'nenhum') NOT NULL DEFAULT 'nenhum',
   `video_url` VARCHAR(500) NULL DEFAULT NULL,
   `video_duracao_segundos` INT(11) NOT NULL DEFAULT 0,
   `video_obrigatorio` TINYINT(1) NOT NULL DEFAULT 0,
@@ -138,12 +139,16 @@ CREATE TABLE IF NOT EXISTS `treinamento_progresso` (
   `treinamento_id` INT(11) UNSIGNED NOT NULL,
   `user_id` INT(11) UNSIGNED NOT NULL,
   `etapas_concluidas` INT(11) NOT NULL DEFAULT 0,
+  `ultima_etapa_id` INT(11) UNSIGNED NULL DEFAULT NULL,
+  `etapa_atual_id` INT(11) UNSIGNED NULL DEFAULT NULL,
   `total_etapas` INT(11) NOT NULL DEFAULT 0,
   `percentual` DECIMAL(5,2) NOT NULL DEFAULT 0.00,
   `status` ENUM('nao_iniciado', 'em_andamento', 'concluido') NOT NULL DEFAULT 'nao_iniciado',
   `data_inicio` DATETIME NULL DEFAULT NULL,
   `data_conclusao` DATETIME NULL DEFAULT NULL,
   `ultima_atividade` DATETIME NULL DEFAULT NULL,
+  `ultima_acao` VARCHAR(255) NULL DEFAULT NULL,
+  `detalhes_log` TEXT NULL DEFAULT NULL,
   `created_at` DATETIME NOT NULL,
   `updated_at` DATETIME NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -160,6 +165,7 @@ CREATE TABLE IF NOT EXISTS `treinamento_etapa_progresso` (
   `etapa_id` INT(11) UNSIGNED NOT NULL,
   `user_id` INT(11) UNSIGNED NOT NULL,
   `video_tempo_assistido` INT(11) NOT NULL DEFAULT 0,
+  `video_segundos_assistidos` INT(11) NOT NULL DEFAULT 0,
   `video_concluido` TINYINT(1) NOT NULL DEFAULT 0,
   `atividades_concluidas` TINYINT(1) NOT NULL DEFAULT 0,
   `status` ENUM('nao_iniciado', 'em_andamento', 'concluido') NOT NULL DEFAULT 'nao_iniciado',
@@ -188,18 +194,20 @@ CREATE TABLE IF NOT EXISTS `treinamento_atividade_progresso` (
   CONSTRAINT `fk_tatprog_atividade` FOREIGN KEY (`atividade_id`) REFERENCES `treinamento_atividades` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
 
--- 10. Avaliacoes de Satisfacao do Treinamento (1 a 5 estrelas + sugestao)
+-- 10. Avaliacoes de Satisfacao do Treinamento e Etapas (1 a 5 estrelas + sugestao)
 CREATE TABLE IF NOT EXISTS `treinamento_avaliacoes` (
   `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `treinamento_id` INT(11) UNSIGNED NOT NULL,
+  `etapa_id` INT(11) UNSIGNED NULL DEFAULT NULL,
   `user_id` INT(11) UNSIGNED NOT NULL,
   `nota` TINYINT(1) UNSIGNED NOT NULL COMMENT '1=Muito ruim, 2=Ruim, 3=Regular, 4=Bom, 5=Excelente',
   `comentario` TEXT NULL DEFAULT NULL,
   `created_at` DATETIME NOT NULL,
   `updated_at` DATETIME NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `unq_taval_user_treinamento` (`treinamento_id`, `user_id`),
+  UNIQUE KEY `unq_taval_user_etapa` (`etapa_id`, `user_id`),
   INDEX `idx_taval_treinamento` (`treinamento_id`),
+  INDEX `idx_taval_etapa` (`etapa_id`),
   INDEX `idx_taval_nota` (`nota`),
   CONSTRAINT `fk_taval_treinamento` FOREIGN KEY (`treinamento_id`) REFERENCES `treinamentos` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;

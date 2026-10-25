@@ -77,7 +77,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 <?php endif; ?>
 
 <?php if ($this->router->fetch_class() == 'kanban'): ?>
-    <script src="<?php echo base_url('assets/xkey/kanban.js'); ?>"></script>
+    <script src="<?php echo base_url('assets/xkey/kanban.js?v=1.1'); ?>"></script>
     <script type="text/javascript" src="<?php echo base_url($plugins_dir . '/fileinput/fileinput.min.js'); ?>"></script> 
     <script type="text/javascript" src="<?php echo base_url($plugins_dir . '/fileinput/pt-BR.js'); ?>"></script> 
     <script type="text/javascript" src="<?php echo base_url($plugins_dir . '/fileinput/sortable.min.js'); ?>"></script> 

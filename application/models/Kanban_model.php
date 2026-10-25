@@ -15,6 +15,7 @@ class Kanban_model extends CI_Model {
         $this->messages    = array();
         $this->errors      = array();
         $this->load->model('chamados_model');
+        $this->load->helper('functions_helper');
     }
 
     /**
@@ -177,6 +178,97 @@ class Kanban_model extends CI_Model {
 
         $res = $query->get("kanban_tarefa t");
         return $res;
+    }
+
+    public function get_chamados_atrasados($user_id, $empresa_id, $status_ids, $unidades_ids = [])
+    {
+        if (!$status_ids) {
+            return array();
+        }
+
+        $planejamento_subquery = 'NULL AS data_prevista';
+        if ($this->db->table_exists('kanban_tarefa_planejamento')) {
+            $planejamento_subquery = '(SELECT p.data_prevista FROM kanban_tarefa_planejamento p ' .
+                'WHERE p.chamado_id = c.id AND p.empresa_id = ' . (int) $empresa_id .
+                ' ORDER BY p.id DESC LIMIT 1) AS data_prevista';
+        }
+
+        $this->db->select(
+            'c.id, c.titulo, c.data_prazo, c.prioridade_id, c.nivel_id, un.unidade, st.descricao AS status, ' .
+            $planejamento_subquery
+        )
+            ->join('unidades un', 'un.id = c.unidade_id')
+            ->join('chamado_status st', 'st.id = c.status_id', 'left')
+            ->join('chamado_prioridade pri', 'pri.id = c.prioridade_id', 'left')
+            ->where('un.empresa_id', $empresa_id)
+            ->where('c.data_prazo <', date('Y-m-d H:i:s'))
+            ->where_in('c.status_id', $status_ids)
+            ->where(kanban_dono_chamado_sql($user_id), null, false);
+
+        if (!empty($unidades_ids)) {
+            $this->db->where_in('c.unidade_id', array_map('intval', (array) $unidades_ids));
+        }
+
+        return $this->db->order_by(
+                'CASE ' .
+                'WHEN LOWER(TRIM(pri.descricao)) = "alta" THEN 0 ' .
+                'WHEN LOWER(TRIM(pri.descricao)) IN ("média", "media", "normal") THEN 1 ' .
+                'WHEN LOWER(TRIM(pri.descricao)) = "baixa" THEN 2 ELSE 3 END',
+                'asc',
+                false
+            )
+            ->order_by('c.data_prazo', 'asc')
+            ->order_by('c.id', 'asc')
+            ->get('chamado c')
+            ->result();
+    }
+
+    public function get_chamados_sem_planejamento($user_id, $empresa_id, $status_ids, $unidades_ids = [])
+    {
+        if (!$status_ids) {
+            return array();
+        }
+
+        $query = $this->db->select(
+            'c.id, c.titulo, c.data_prazo, c.prioridade_id, c.nivel_id, un.unidade, st.descricao AS status'
+        )
+            ->join('unidades un', 'un.id = c.unidade_id')
+            ->join('chamado_status st', 'st.id = c.status_id', 'left')
+            ->join('chamado_prioridade pri', 'pri.id = c.prioridade_id', 'left')
+            ->where('un.empresa_id', $empresa_id)
+            ->group_start()
+                ->where('c.data_prazo IS NULL', null, false)
+                ->or_where('c.data_prazo >=', date('Y-m-d H:i:s'))
+            ->group_end()
+            ->where_in('c.status_id', $status_ids)
+            ->where(kanban_dono_chamado_sql($user_id), null, false);
+
+        if (!empty($unidades_ids)) {
+            $query->where_in('c.unidade_id', array_map('intval', (array) $unidades_ids));
+        }
+
+        if ($this->db->table_exists('kanban_tarefa_planejamento')) {
+            $query->where(
+                'NOT EXISTS (SELECT 1 FROM kanban_tarefa_planejamento p ' .
+                'WHERE p.chamado_id = c.id AND p.empresa_id = ' . (int) $empresa_id . ')',
+                null,
+                false
+            );
+        }
+
+        return $query
+            ->order_by(
+                'CASE ' .
+                'WHEN LOWER(TRIM(pri.descricao)) = "alta" THEN 0 ' .
+                'WHEN LOWER(TRIM(pri.descricao)) IN ("média", "media", "normal") THEN 1 ' .
+                'WHEN LOWER(TRIM(pri.descricao)) = "baixa" THEN 2 ELSE 3 END',
+                'asc',
+                false
+            )
+            ->order_by('c.data_prazo', 'asc')
+            ->order_by('c.id', 'asc')
+            ->get('chamado c')
+            ->result();
     }
 
     public function insert_tarefa_user($data = array()) {

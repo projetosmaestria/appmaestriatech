@@ -10,6 +10,7 @@ class Agenda extends Admin_Controller {
         /* Load :: Common */
         $this->lang->load('admin/agenda');
         $this->load->model('agenda_model');
+        $this->load->model('kanban_dashboard_model');
         $this->load->model('googlecalendar');
         $this->load->helper('functions_helper');
         $this->load->library('form_validation');
@@ -72,6 +73,40 @@ class Agenda extends Admin_Controller {
         	
             /* Breadcrumbs */
             $this->data['breadcrumb'] = $this->breadcrumbs->show();
+
+            $company_id = (int) $this->session->userdata('empresa_id');
+            $viewer_id = (int) $this->session->userdata('user_id');
+            $is_admin = $this->ion_auth->is_admin();
+            $collaborators = $this->kanban_dashboard_model->get_visible_collaborators(
+                $company_id,
+                $viewer_id,
+                $is_admin
+            );
+            $collaborator_ids = array_map(function ($collaborator) {
+                return (int) $collaborator->id;
+            }, $collaborators);
+            if (!in_array($viewer_id, $collaborator_ids, true)) {
+                $current_user = $this->db->select('id, CONCAT(first_name, " ", last_name) AS nome')
+                    ->where('id', $viewer_id)
+                    ->where('active', 1)
+                    ->get('users')
+                    ->row();
+                if ($current_user) {
+                    $collaborators[] = $current_user;
+                    $collaborator_ids[] = $viewer_id;
+                }
+            }
+
+            $requested_collaborator = $this->input->get('colaborador', true);
+            $selected_collaborator_id = $requested_collaborator === null || $requested_collaborator === ''
+                ? $viewer_id
+                : (int) $requested_collaborator;
+            if (!in_array($selected_collaborator_id, $collaborator_ids, true)) {
+                show_error('Você não tem permissão para visualizar este colaborador na agenda.', 403);
+                return;
+            }
+            $this->data['collaborators'] = $collaborators;
+            $this->data['selected_collaborator_id'] = $selected_collaborator_id;
 
             $this->data['agendas'] = $this->agenda_model->get_agenda();
 			$eventos_array_s = array();
@@ -200,6 +235,31 @@ class Agenda extends Admin_Controller {
             	$can_compartilhar_agenda = false;
             	$can_criar_evento = false;
             	$can_atualizar_evento = false;
+            }
+
+            if (isset($this->data['agenda_first'])) {
+                foreach ($this->kanban_dashboard_model->get_agenda_unavailability(
+                    $company_id,
+                    $selected_collaborator_id
+                ) as $availability) {
+                    $end_date = new DateTime($availability->data_fim);
+                    $end_date->modify('+1 day');
+                    $event_type = $availability->tipo === 'feriado'
+                        ? 'Feriado'
+                        : ($availability->tipo === 'ferias' ? 'Férias' : 'Indisponível');
+                    $event = array(
+                        'id' => 'indisponibilidade-' . (int) $availability->id,
+                        'title' => '[' . $event_type . '] ' . $availability->titulo,
+                        'start' => $availability->data_inicio . ' 00:00:00',
+                        'end' => $end_date->format('Y-m-d') . ' 00:00:00',
+                        'allDay' => true,
+                        'editable' => false,
+                        'backgroundColor' => $availability->tipo === 'feriado' ? '#dd4b39' : '#f39c12',
+                        'borderColor' => $availability->tipo === 'feriado' ? '#dd4b39' : '#f39c12',
+                    );
+                    $eventos_array_s[] = $event;
+                }
+                $this->data['agenda_first']->eventos_s = $eventos_array_s;
             }
 
         	$this->data['can_config_google_calendar'] = $can_config_google_calendar;

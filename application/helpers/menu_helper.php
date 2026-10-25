@@ -46,6 +46,60 @@ if ( ! function_exists('construirMenuSidebar'))
     
 }
 
+if ( ! function_exists('adicionarSubmenusKanban'))
+{
+    function adicionarSubmenusKanban(array &$menus)
+    {
+        foreach ($menus as $index => $menu) {
+            if (strtolower(isset($menu['controlador']) ? $menu['controlador'] : '') !== 'kanban' ||
+                (isset($menu['metodo']) ? $menu['metodo'] : '') !== 'index') {
+                continue;
+            }
+
+            if (!isset($menus[$index]['sub_menus']) || !is_array($menus[$index]['sub_menus'])) {
+                $menus[$index]['sub_menus'] = array();
+            }
+
+            $routes = array();
+            foreach ($menus[$index]['sub_menus'] as $submenu) {
+                $routes[] = strtolower(isset($submenu['controlador']) ? $submenu['controlador'] : '') . '/' .
+                    strtolower(isset($submenu['metodo']) ? $submenu['metodo'] : '');
+            }
+
+            $submenu_defaults = array(
+                'pai_id' => $menus[$index]['id'],
+                'tipo' => $menus[$index]['tipo'],
+                'ativo' => 1,
+                'sub_menus' => array(),
+                'nivel' => 2,
+            );
+
+            if (!in_array('kanban/index', $routes, true)) {
+                $menus[$index]['sub_menus'][] = array_merge($submenu_defaults, array(
+                    'id' => 'kanban-board',
+                    'nome' => lang('menu_kanban_board'),
+                    'icon_class' => '',
+                    'controlador' => 'kanban',
+                    'metodo' => 'index',
+                    'order' => 1,
+                ));
+            }
+
+            if (!in_array('kanban/planejamento', $routes, true)) {
+                $menus[$index]['sub_menus'][] = array_merge($submenu_defaults, array(
+                    'id' => 'kanban-planejamento',
+                    'nome' => lang('menu_kanban_planejamento'),
+                    'icon_class' => '',
+                    'controlador' => 'kanban',
+                    'metodo' => 'planejamento',
+                    'order' => 2,
+                ));
+            }
+            return;
+        }
+    }
+}
+
 if ( ! function_exists('getHtmlSidebar'))
 {
     function getHtmlSidebar($menu, $pai_id = null, $permissoes = null){
@@ -72,7 +126,15 @@ if ( ! function_exists('getHtmlSidebar'))
                     }
                 }
 
-                if ($perm_controlador !== null && !empty($metodo) && in_array($metodo, $perm_controlador)) {
+                $has_method_permission = $perm_controlador !== null &&
+                    !empty($metodo) &&
+                    in_array($metodo, $perm_controlador);
+                if ($ctrl_lower === 'kanban' && $metodo === 'planejamento' &&
+                    $perm_controlador !== null && in_array('index', $perm_controlador)) {
+                    $has_method_permission = true;
+                }
+
+                if ($has_method_permission) {
                     $has_access = true;
                 } elseif (!empty($menu['sub_menus'])) {
                     $has_access = hasMenu($menu['sub_menus'], $permissoes, true);

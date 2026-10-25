@@ -278,7 +278,7 @@ function atualizar_status(chamado_id, status) {
 	    type: 'POST',
 	    data: { chamado_id: chamado_id, status: status },
 	    success: function(data){
-	    	window.location.href = $("#base_url").val()+'kanban';
+	    	window.location.reload();
 	    }
 	});
 }
@@ -291,7 +291,7 @@ function atualizar_prioridade(chamado_id, prioridade) {
 	    type: 'POST',
 	    data: { chamado_id: chamado_id, prioridade: prioridade },
 	    success: function(data){
-	    	window.location.href = $("#base_url").val()+'kanban';
+	    	window.location.reload();
 	    }
 	});
 

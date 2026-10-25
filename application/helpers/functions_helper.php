@@ -1378,3 +1378,25 @@ if ( ! function_exists('removerAcentos') )
         return strtr($string, $caracteres_sem_acento);
     }
 }
+
+if (!function_exists('kanban_dono_chamado_sql')) {
+    /**
+     * Condição SQL que define em qual lista do planejamento o chamado aparece:
+     * aberto/fazendo com programador alocado fica só com o programador,
+     * aguardando teste com o cliente fica só com o responsável.
+     */
+    function kanban_dono_chamado_sql($user_id, $chamado_alias = 'c', $status_alias = 'st')
+    {
+        $user_id = (int) $user_id;
+        $status = 'LOWER(TRIM(' . $status_alias . '.descricao))';
+        $responsavel = $chamado_alias . '.responsavel_id';
+        $desenvolvedor = $chamado_alias . '.desenvolvedor_id';
+
+        return '(CASE ' .
+            'WHEN ' . $desenvolvedor . ' > 0 AND ' . $status . ' IN ("aberto", "fazendo", "em andamento") ' .
+                'THEN ' . $desenvolvedor . ' = ' . $user_id . ' ' .
+            'WHEN ' . $status . ' IN ("aguardando teste com o cliente", "aguardando testes com o cliente") ' .
+                'THEN ' . $responsavel . ' = ' . $user_id . ' ' .
+            'ELSE (' . $responsavel . ' = ' . $user_id . ' OR ' . $desenvolvedor . ' = ' . $user_id . ') END)';
+    }
+}

@@ -427,6 +427,7 @@ class Menus extends Admin_Controller {
     {
         $menuFinal = [];
         construirMenuSidebar($this->menus_model->get(array('select'=>'m.*', 'join'=>array(array('menus_empresas me','me.menus_id = m.id','join'), array('menus_modulos mm','mm.menu_id = m.id','join')), 'where'=>'m.ativo=1 AND me.empresas_id='.$this->session->userdata('empresa_id').' AND mm.modulo_id = '.$this->session->userdata('modulo_id'), 'order_by'=>'m.tipo asc, m.order asc'))->result_array(), $menuFinal, null);
+        adicionarSubmenusKanban($menuFinal);
 
         $user_groups = $this->ion_auth->get_users_groups();
         $user_groups_array = array();

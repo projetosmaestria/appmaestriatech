@@ -11,6 +11,26 @@ defined('BASEPATH') OR exit('No direct script access allowed');
         <div id="msg"></div>
         <div class="row">
             <div class="col-md-9">
+              <?php if (!empty($collaborators)) { ?>
+                <div class="box box-default">
+                  <div class="box-body">
+                    <?php echo form_open(current_url(), array('method' => 'get', 'class' => 'form-inline')); ?>
+                      <div class="form-group">
+                        <label for="agenda_colaborador">Colaborador</label>
+                        <select id="agenda_colaborador" name="colaborador" class="form-control">
+                          <?php foreach ($collaborators as $collaborator) { ?>
+                            <option value="<?php echo (int) $collaborator->id; ?>" <?php echo (int) $collaborator->id === (int) $selected_collaborator_id ? 'selected' : ''; ?>>
+                              <?php echo html_escape($collaborator->nome); ?>
+                            </option>
+                          <?php } ?>
+                        </select>
+                      </div>
+                      <button type="submit" class="btn btn-primary"><i class="fa fa-filter"></i> Filtrar</button>
+                      <span class="help-block">O filtro altera os feriados e as indisponibilidades exibidos; os eventos da agenda compartilhada permanecem visíveis.</span>
+                    <?php echo form_close(); ?>
+                  </div>
+                </div>
+              <?php } ?>
               <div class="box box-primary">
                 <div class="box-body no-padding">
                   <!-- THE CALENDAR -->
@@ -296,7 +316,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
     var arrayJson;
 
-    arrayJson = <?php echo json_encode($agenda_first->eventos_s) ?>;
+    arrayJson = <?php echo json_encode($agenda_first->eventos_s, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
     arrayJson.forEach(function(agenda_first){
         var start_data_part_um = agenda_first.start.split(" ");
         var start_data_hora = start_data_part_um[1].split(":");
