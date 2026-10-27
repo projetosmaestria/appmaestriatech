@@ -33,6 +33,9 @@ class Chamados_categoria extends Admin_Controller {
             $this->data['message'] = $this->session->flashdata('message');
 
             /* Load Template */
+            $this->data['setores_filtro'] = $this->chamados_categoria_model->get_setores()->result();
+            $this->data['can_create'] = $this->ion_auth->has_permissao('chamados_categoria', 'create');
+            $this->data['can_edit'] = $this->ion_auth->has_permissao('chamados_categoria', 'edit');
             $this->template->admin_render('admin/chamados/categoria/index', $this->data);
         }
     }
@@ -45,12 +48,12 @@ class Chamados_categoria extends Admin_Controller {
 		}
 
         /* Breadcrumbs */
-        $this->breadcrumbs->unshift(2, lang('menu_chamados_categoria_create'), 'categorias_chamado/create');
+        $this->breadcrumbs->unshift(2, lang('menu_chamados_categoria_create'), 'chamados_categoria/create');
         $this->data['breadcrumb'] = $this->breadcrumbs->show();
 
 		/* Validate form input */
 		$this->form_validation->set_rules('descricao', $this->lang->line('categoria_validation_descricao_label'), 'required');
-		$this->form_validation->set_rules('setor', 'lang:categoria_validation_setor_label', 'required');
+		$this->form_validation->set_rules('setor', 'lang:categoria_validation_setor_label', 'required|in_list[' . implode(',', $this->ids_setores_empresa()) . ']');
         $this->form_validation->set_rules('status', $this->lang->line('categoria_validation_status_label'), 'required');
 
 		$dados = array(
@@ -118,15 +121,25 @@ class Chamados_categoria extends Admin_Controller {
 		}
 
         /* Breadcrumbs */
-        $this->breadcrumbs->unshift(2, lang('menu_setores_edit'), 'setores/edit');
+        $this->breadcrumbs->unshift(2, lang('menu_chamados_categoria_edit'), 'chamados_categoria/edit');
         $this->data['breadcrumb'] = $this->breadcrumbs->show();
 
         /* Variables */
-		$categoria = $this->chamados_categoria_model->get(array('select'=>'*', 'where'=>'id = '.$id, 'order_by'=>array('id','desc')))->row();
+		// Só edita categorias de setores da empresa logada.
+		$categoria = $this->chamados_categoria_model->get(array(
+			'select' => 'chamado_categoria.*',
+			'join' => array(array('setores', 'setores.id = chamado_categoria.setor_id')),
+			'where' => 'chamado_categoria.id = ' . (int) $id . ' AND setores.empresa_id = ' . (int) $this->session->userdata('empresa_id'),
+			'order_by' => array('chamado_categoria.id', 'desc')
+		))->row();
+		if (!$categoria) {
+			$this->session->set_flashdata('message', show_alert_error('Categoria não encontrada.'));
+			redirect('chamados_categoria', 'refresh');
+		}
 
 		/* Validate form input */
         $this->form_validation->set_rules('descricao', $this->lang->line('categoria_validation_descricao_label'), 'required');
-		$this->form_validation->set_rules('setor', 'lang:categoria_validation_setor_label', 'required');
+		$this->form_validation->set_rules('setor', 'lang:categoria_validation_setor_label', 'required|in_list[' . implode(',', $this->ids_setores_empresa()) . ']');
         $this->form_validation->set_rules('status', $this->lang->line('categoria_validation_status_label'), 'required');
 
 		if (isset($_POST) && ! empty($_POST))
@@ -138,11 +151,11 @@ class Chamados_categoria extends Admin_Controller {
 			);
 			if ($this->form_validation->run() == TRUE)
 			{
-				$categoria_update = $this->chamados_categoria_model->update($id, $dados);
+				$categoria_update = $this->chamados_categoria_model->update((int) $id, $dados);
 
 				if ($categoria_update)
 				{
-					$this->session->set_flashdata('message', show_alert_success($this->lang->line('edit_categoria_saved')));
+					$this->session->set_flashdata('message', show_alert_success('Categoria atualizada.'));
 				}
 				else
 				{
@@ -151,7 +164,7 @@ class Chamados_categoria extends Admin_Controller {
 
 				redirect('chamados_categoria', 'refresh');
 			} else {
-        		$this->data['message'] = (validation_errors() ? show_alert_error(validation_errors()) : ($this->setores_model->errors() ? show_alert_error($this->setores_model->errors()) : show_alert_error($this->session->flashdata('message'))));
+        		$this->data['message'] = (validation_errors() ? show_alert_error(validation_errors()) : ($this->chamados_categoria_model->errors() ? show_alert_error($this->chamados_categoria_model->errors()) : show_alert_error($this->session->flashdata('message'))));
 			}
 		}
 		
@@ -177,12 +190,14 @@ class Chamados_categoria extends Admin_Controller {
 		);
 
         /* Load Template */
+        $this->data['categoria'] = $categoria;
         $this->template->admin_render('admin/chamados/categoria/edit', $this->data);
 	}
 
 	public function activate($id)
 	{
         $id = (int) $id;
+		$activation = false;
 		if ($this->ion_auth->has_permissao("chamados_categoria", "activate"))
 		{
 			$activation = $this->chamados_categoria_model->activate($id);
@@ -198,6 +213,7 @@ class Chamados_categoria extends Admin_Controller {
 	public function deactivate($id = NULL)
 	{
 		$id = (int) $id;
+		$deactivation = false;
 		if ($this->ion_auth->has_permissao("chamados_categoria", "deactivate"))
 		{
 			$deactivation = $this->chamados_categoria_model->deactivate($id);
@@ -207,5 +223,15 @@ class Chamados_categoria extends Admin_Controller {
         else
         	$this->session->set_flashdata('message', show_alert_error($this->chamados_categoria_model->messages()));
 		redirect('chamados_categoria', 'refresh');
+	}
+
+	// IDs dos setores ativos da empresa logada, para validar o setor escolhido no formulário.
+	private function ids_setores_empresa()
+	{
+		$ids = array();
+		foreach ($this->chamados_categoria_model->get_setores()->result() as $setor) {
+			$ids[] = (int) $setor->id;
+		}
+		return $ids ? $ids : array(0);
 	}
 }

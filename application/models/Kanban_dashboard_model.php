@@ -9,6 +9,7 @@ class Kanban_dashboard_model extends CI_Model
         $this->load->helper('functions_helper');
     }
 
+
     public function get_visible_collaborators($company_id, $viewer_id, $is_admin)
     {
         $eligible_collaborators = $this->get_comparison_collaborators($company_id);
@@ -529,6 +530,93 @@ class Kanban_dashboard_model extends CI_Model
         return $row ? (float) $row->horas_meta : 8.0;
     }
 
+    public function has_discord_tables()
+    {
+        return $this->db->table_exists('kanban_colaborador_discord') && $this->db->table_exists('kanban_discord_envio');
+    }
+
+    public function get_discord_ids($company_id)
+    {
+        if (!$this->has_discord_tables()) {
+            return array();
+        }
+        $rows = $this->db->select('colaborador_id, discord_id')
+            ->where('empresa_id', $company_id)
+            ->get('kanban_colaborador_discord')
+            ->result();
+        $result = array();
+        foreach ($rows as $row) {
+            $result[(int) $row->colaborador_id] = $row->discord_id;
+        }
+        return $result;
+    }
+
+    public function save_discord_ids($company_id, $discord_ids, $updated_by)
+    {
+        if (!$this->has_discord_tables() || !is_array($discord_ids)) {
+            return false;
+        }
+        $valid_users = array_map(function ($user) {
+            return (int) $user->id;
+        }, $this->get_company_users($company_id));
+
+        $changes = array();
+        foreach ($discord_ids as $collaborator_id => $discord_id) {
+            $collaborator_id = (int) $collaborator_id;
+            $discord_id = trim((string) $discord_id);
+            if (!in_array($collaborator_id, $valid_users, true) ||
+                ($discord_id !== '' && !preg_match('/^\d{17,20}$/', $discord_id))) {
+                return false;
+            }
+            $changes[$collaborator_id] = $discord_id;
+        }
+
+        $this->db->trans_start();
+        foreach ($changes as $collaborator_id => $discord_id) {
+            $this->db->where('empresa_id', $company_id)
+                ->where('colaborador_id', $collaborator_id)
+                ->delete('kanban_colaborador_discord');
+            if ($discord_id !== '') {
+                $this->db->insert('kanban_colaborador_discord', array(
+                    'empresa_id' => $company_id,
+                    'colaborador_id' => $collaborator_id,
+                    'discord_id' => $discord_id,
+                    'updated_by' => $updated_by,
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ));
+            }
+        }
+        $this->db->trans_complete();
+        return $this->db->trans_status();
+    }
+
+    public function get_discord_companies()
+    {
+        if (!$this->has_discord_tables()) {
+            return array();
+        }
+        return array_map(function ($row) {
+            return (int) $row->empresa_id;
+        }, $this->db->distinct()->select('empresa_id')->get('kanban_colaborador_discord')->result());
+    }
+
+    public function was_discord_sent($company_id, $collaborator_id, $date)
+    {
+        return $this->db->where('empresa_id', $company_id)
+            ->where('colaborador_id', $collaborator_id)
+            ->where('data', $date)
+            ->count_all_results('kanban_discord_envio') > 0;
+    }
+
+    public function mark_discord_sent($company_id, $collaborator_id, $date)
+    {
+        return $this->db->insert('kanban_discord_envio', array(
+            'empresa_id' => $company_id,
+            'colaborador_id' => $collaborator_id,
+            'data' => $date,
+        ));
+    }
+
     public function get_goals_for_users($company_id, $collaborator_ids)
     {
         if (!$collaborator_ids) {
@@ -732,25 +820,40 @@ class Kanban_dashboard_model extends CI_Model
                 'prioridade_id' => $priority_id,
                 'nivel_id' => $level_id,
             ));
-        $schedule = $this->db->where('empresa_id', $company_id)
-            ->where('chamado_id', $ticket_id)
+        $this->save_planned_date($company_id, $ticket_id, $scheduled_date, $updated_by);
+        $this->db->trans_complete();
+        return $this->db->trans_status();
+    }
+
+    public function get_planned_date($company_id, $ticket_id)
+    {
+        $schedule = $this->db->select('data_prevista')
+            ->where('empresa_id', (int) $company_id)
+            ->where('chamado_id', (int) $ticket_id)
+            ->get('kanban_tarefa_planejamento')
+            ->row();
+        return $schedule ? $schedule->data_prevista : null;
+    }
+
+    // Grava a data em que o chamado entra na agenda do planejamento da equipe.
+    public function save_planned_date($company_id, $ticket_id, $scheduled_date, $updated_by)
+    {
+        $schedule = $this->db->where('empresa_id', (int) $company_id)
+            ->where('chamado_id', (int) $ticket_id)
             ->get('kanban_tarefa_planejamento')
             ->row();
         if ($schedule) {
-            $this->db->where('id', $schedule->id)->update('kanban_tarefa_planejamento', array(
+            return $this->db->where('id', $schedule->id)->update('kanban_tarefa_planejamento', array(
                 'data_prevista' => $scheduled_date,
-                'updated_by' => $updated_by,
+                'updated_by' => (int) $updated_by,
                 'updated_at' => date('Y-m-d H:i:s'),
             ));
-        } else {
-            $this->db->insert('kanban_tarefa_planejamento', array(
-                'empresa_id' => $company_id,
-                'chamado_id' => $ticket_id,
-                'data_prevista' => $scheduled_date,
-                'created_by' => $updated_by,
-            ));
         }
-        $this->db->trans_complete();
-        return $this->db->trans_status();
+        return $this->db->insert('kanban_tarefa_planejamento', array(
+            'empresa_id' => (int) $company_id,
+            'chamado_id' => (int) $ticket_id,
+            'data_prevista' => $scheduled_date,
+            'created_by' => (int) $updated_by,
+        ));
     }
 }

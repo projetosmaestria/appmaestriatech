@@ -401,13 +401,14 @@ class Dashboard_model extends CI_Model {
 
     public function get_chamados_avaliados($start, $end, $unidades = array(0))
     {
-        $query = $this->db->select('c.*, un.unidade, CONCAT(u.first_name, " ", u.last_name) as dono, ca.created as data_avaliacao')
+        $query = $this->db->select('c.*, un.unidade, CONCAT(u.first_name, " ", u.last_name) as dono, MAX(ca.created) as data_avaliacao')
             ->join('users u','u.id = c.dono_id')
             ->join('unidades un','un.id = c.unidade_id')
             ->join('chamado_avaliacao ca','ca.chamado_id = c.id', 'left')
             ->where('c.unidade_id IN ('.implode(",", $unidades).')')
+            ->where('ca.created >=', $start.' 00:00:00')
+            ->where('ca.created <=', $end.' 23:59:59')
             ->group_by('c.id')
-            ->having('ca.created >= "'.$start.' 00:00:00" AND ca.created <= "'.$end.' 23:59:59"')
             ->get("chamado c");
 
         $result = array();

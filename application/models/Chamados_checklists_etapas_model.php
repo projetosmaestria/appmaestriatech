@@ -212,4 +212,39 @@ public function get_by_chamado_checklist($chamado_id, $chamado_checklist_id = nu
         
         return ($total > 0 && $total == $concluidas);
     }
-}
+
+    /**
+     * Get pending tasks for a specific user
+     * 
+     * @param int $user_id
+     * @return array
+     */
+    public function get_pending_tasks_by_user($user_id)
+    {
+        $this->db->select('ce.*, c.id as chamado_id, c.titulo as chamado_titulo');
+        $this->db->from($this->table . ' ce');
+        $this->db->join('chamado c', 'c.id = ce.chamado_id', 'left');
+        $this->db->where('ce.responsavel', $user_id);
+        $this->db->where('ce.concluida', 0);
+        $this->db->where('ce.status', 1);
+        $this->db->order_by('ce.data_prazo', 'ASC');
+        $this->db->order_by('ce.id', 'ASC');
+
+        $query = $this->db->get();
+        return $query->result();
+    }
+
+    /**
+     * Count pending tasks for a specific user
+     * 
+     * @param int $user_id
+     * @return int
+     */
+    public function count_pending_tasks_by_user($user_id)
+    {
+        $this->db->where('responsavel', $user_id);
+        $this->db->where('concluida', 0);
+        $this->db->where('status', 1);
+        return $this->db->count_all_results($this->table);
+    }
+}

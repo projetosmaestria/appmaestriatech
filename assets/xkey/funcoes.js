@@ -1,4 +1,4 @@
-﻿$(document).ready(function(){
+$(document).ready(function(){
   $('#cep').inputmask('99999-999');
   $('#cpf').inputmask('999.999.999-99');
   $('#cnpj').inputmask('99.999.999/9999-99');
@@ -362,14 +362,14 @@ function remove_seguimento_confirm(seguimento) {
 $(".btn_add_user").click(function() {
   var user_id = $(".singleInputDynamic").val();
   if(user_id == "") {
-    alert("Selecione um usuÃƒÂ¡rio.");
+    alert("Selecione um usuário.");
     return false;
   } else {
     if($("#ul-user-"+user_id).length) {
-      $("#ul-user-"+user_id).html("<li class='list-group-item '><label>#</label>"+user_id+" &nbsp; "+$(".singleInputDynamic option:selected").text()+" <button type='button' class='btn btn-danger btn-lista' style='float:right;' onclick='remove_user_seguimento(\""+user_id+"\")'><i class=\"fa fa-times\" aria-hidden=\"true\"></i></button></li> <li class='list-group-item'><label>Data ExpiraÃƒÂ§ÃƒÂ£o:</label> "+$("#data_expiracao_"+user_id).val()+"</li>");
+      $("#ul-user-"+user_id).html("<li class='list-group-item '><label>#</label>"+user_id+" &nbsp; "+$(".singleInputDynamic option:selected").text()+" <button type='button' class='btn btn-danger btn-lista' style='float:right;' onclick='remove_user_seguimento(\""+user_id+"\")'><i class=\"fa fa-times\" aria-hidden=\"true\"></i></button></li> <li class='list-group-item'><label>Data Expiração:</label> "+$("#data_expiracao_"+user_id).val()+"</li>");
     } else {
       $("#form-users_seguimentos").append('<input type="hidden" name="users[]" value="'+user_id+'">');
-      $(".div_form_users_seguimento").append("<ul class='list-group' id='ul-user-"+user_id+"'> <li class='list-group-item '><label>#</label>"+user_id+" &nbsp; "+$(".singleInputDynamic option:selected").text()+" <button type='button' class='btn btn-danger btn-lista' style='float:right;' onclick='remove_user_seguimento(\""+user_id+"\")'><i class=\"fa fa-times\" aria-hidden=\"true\"></i></button></li> <li class='list-group-item'><label>Data ExpiraÃƒÂ§ÃƒÂ£o:</label> "+$("#data_expiracao_"+user_id).val()+"</li> </ul>");
+      $(".div_form_users_seguimento").append("<ul class='list-group' id='ul-user-"+user_id+"'> <li class='list-group-item '><label>#</label>"+user_id+" &nbsp; "+$(".singleInputDynamic option:selected").text()+" <button type='button' class='btn btn-danger btn-lista' style='float:right;' onclick='remove_user_seguimento(\""+user_id+"\")'><i class=\"fa fa-times\" aria-hidden=\"true\"></i></button></li> <li class='list-group-item'><label>Data Expiração:</label> "+$("#data_expiracao_"+user_id).val()+"</li> </ul>");
     }
   }
 });
@@ -394,7 +394,7 @@ $(".btn_view_sms").click(function() {
     data: {id:$(this).val()},
     success: function(data){
       var result = $.parseJSON(data);
-      $(".modal-body").html("<p><strong>Unidade: </strong>"+result.unidade+"</p><p><strong>Remetente: </strong>"+result.remetente+"</p><p><strong>Telefone: </strong>"+result.telefone+"</p><p><strong>Data Cadastro: </strong>"+result.data_cadastro+"</p><p><strong>Data Agendamento: </strong>"+result.data_agendamento+"</p><p><strong>CÃƒÂ³digo Status: </strong>"+result.status_code+"</p><p><strong>DescriÃƒÂ§ÃƒÂ£o Status: </strong>"+result.status_description+"</p><p><strong>Mensagem: </strong>"+result.mensagem+"</p>");
+      $(".modal-body").html("<p><strong>Unidade: </strong>"+result.unidade+"</p><p><strong>Remetente: </strong>"+result.remetente+"</p><p><strong>Telefone: </strong>"+result.telefone+"</p><p><strong>Data Cadastro: </strong>"+result.data_cadastro+"</p><p><strong>Data Agendamento: </strong>"+result.data_agendamento+"</p><p><strong>Código Status: </strong>"+result.status_code+"</p><p><strong>Descrição Status: </strong>"+result.status_description+"</p><p><strong>Mensagem: </strong>"+result.mensagem+"</p>");
       $('#smsModal').modal('show');
     }
   });
@@ -429,171 +429,72 @@ function add_resposta(tipo, chamado_id) {
       var html_interno = '';
       if($('#acesso_interno').val() == "1")
         html_interno += "<div class='form-group'><label for='interno'><input type='checkbox' id='interno' name='interno' value='1'> Interno</label></div>";
-      var html = "<form id='resposta-chamado-form' action='"+$('#base_url').val()+"chamados/dialogo/"+chamado_id+"' method='post'><div class='form-group'><br><label for='dialogo'>Di\u00e1logo</label> <textarea id='dialogo' name='dialogo' class='form-control' rows='3' placeholder='Digite aqui...'></textarea></div>"+html_interno+"<div class='form-group'><button type='submit' class='btn btn-primary btn-flat'>Salvar</button></div></form>"; 
+      var html = "<form id='resposta-chamado-form' action='"+$('#base_url').val()+"chamados/dialogo/"+chamado_id+"' method='post'><div class='form-group'><br><label for='dialogo'>Diálogo</label> <textarea id='dialogo' name='dialogo' class='form-control' rows='3' placeholder='Digite aqui...'></textarea></div>"+html_interno+"<div class='form-group'><button type='submit' class='btn btn-primary btn-flat'>Salvar</button></div></form>"; 
       $('.dialogo-anexo').hide().html(html).fadeIn('slow');
     }
     if(tipo == 2) {
-      var html = "<form enctype='multipart/form-data' id='resposta-chamado-form' action='"+$('#base_url').val()+"chamados/anexo/"+chamado_id+"' method='post'><div class='form-group'><br><label for='anexo_desc'>Descri\u00e7\u00e3o do Anexo</label><textarea id='anexo_desc' name='anexo_desc' class='form-control' rows='3' placeholder='Digite aqui...'></textarea></div><div class='form-group'><label class='btn btn-primary' for='anexo'> <input id='anexo' type='file' name='anexo[]' multiple style='display:none' onchange='informarArquivos(this, \"upload-file-info\")'> Selecionar Anexo... </label> <span class='label label-info' id='upload-file-info'></span></div><div class='form-group'><button type='submit' class='btn btn-primary btn-flat'>Salvar</button></div></form>"; 
+      var html = "<form enctype='multipart/form-data' id='resposta-chamado-form' action='"+$('#base_url').val()+"chamados/anexo/"+chamado_id+"' method='post'><div class='form-group'><br><label for='anexo_desc'>Descrição do Anexo</label><textarea id='anexo_desc' name='anexo_desc' class='form-control' rows='3' placeholder='Digite aqui...'></textarea></div><div class='form-group'><label class='btn btn-primary' for='anexo'> <input id='anexo' type='file' name='anexo[]' multiple style='display:none' onchange='informarArquivos(this.files)'> Selecionar Anexo... </label> <span class='label label-info' id='upload-file-info'></span></div><div class='form-group'><button type='submit' class='btn btn-primary btn-flat'>Salvar</button></div></form>"; 
       $('.dialogo-anexo').hide().html(html).fadeIn('slow');
     }
   } else {
     $('.dialogo-anexo').html('');
   }
 }
-function informarArquivos(input, target_id) {
-  if (!target_id) target_id = 'upload-file-info';
-  var files = input.files;
-  if (!files || files.length === 0) {
-    $("#" + target_id).html("");
-    return;
-  }
-  
-  var allowed_extensions = ['jpg', 'png', 'gif', 'jpeg', 'bmp', 'xls', 'xlsx', 'xlsm', 'csv', 'doc', 'docx', 'pdf', 'zip', 'rar', 'txt'];
-  var dt = new DataTransfer();
-  var promises = [];
-  var hasError = false;
-
-  $.each(files, function(i, file) {
-    var ext = file.name.split('.').pop().toLowerCase();
-    if (allowed_extensions.indexOf(ext) === -1) {
-      Swal.fire('Aten\u00e7\u00e3o', 'Tipo de arquivo n\u00e3o suportado: ' + file.name + '<br>Tipos permitidos: ' + allowed_extensions.join(', '), 'warning');
-      hasError = true;
-      return false; // break loop
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      if (['jpg', 'jpeg', 'png', 'bmp'].indexOf(ext) !== -1) {
-        promises.push(new Promise(function(resolve, reject) {
-          var reader = new FileReader();
-          reader.readAsDataURL(file);
-          reader.onload = function(event) {
-            var img = new Image();
-            img.src = event.target.result;
-            img.onload = function() {
-              var canvas = document.createElement('canvas');
-              var ctx = canvas.getContext('2d');
-              var width = img.width;
-              var height = img.height;
-              
-              if (width > 1920) {
-                height = Math.round((height * 1920) / width);
-                width = 1920;
-              }
-              canvas.width = width;
-              canvas.height = height;
-              ctx.drawImage(img, 0, 0, width, height);
-
-              var quality = 0.8;
-              var dataUrl = canvas.toDataURL('image/jpeg', quality);
-              var compressedFile = dataURLtoFile(dataUrl, file.name.replace(/\.[^/.]+$/, "") + ".jpeg");
-              
-              while (compressedFile.size > 5 * 1024 * 1024 && quality > 0.1) {
-                  quality -= 0.1;
-                  dataUrl = canvas.toDataURL('image/jpeg', quality);
-                  compressedFile = dataURLtoFile(dataUrl, file.name.replace(/\.[^/.]+$/, "") + ".jpeg");
-              }
-              resolve(compressedFile);
-            };
-            img.onerror = function() { reject(file); };
-          };
-          reader.onerror = function() { reject(file); };
-        }));
-      } else {
-        Swal.fire('Aten\u00e7\u00e3o', 'O arquivo ' + file.name + ' \u00e9 maior que 5MB e n\u00e3o pode ser comprimido no navegador.', 'warning');
-        hasError = true;
-        return false;
-      }
-    } else {
-      promises.push(Promise.resolve(file));
-    }
+function informarArquivos(files) {
+  var html = "";
+  $.each(files, function(i, obj){
+    if(html != "")
+      html += ", ";
+    html += obj.name;
   });
-
-  if (hasError) {
-    input.value = "";
-    $("#" + target_id).html("");
-    return;
-  }
-
-  if (promises.length > 0) {
-    if ($('#overlay-compressao').length === 0) {
-      $('body').append('<div id="overlay-compressao" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; display:flex; justify-content:center; align-items:center; color:white; font-size:24px; font-weight:bold;">Aguarde, comprimindo arquivo(s)...</div>');
-    } else {
-      $('#overlay-compressao').show();
-    }
-
-    Promise.all(promises).then(function(processedFiles) {
-      var html = "";
-      $.each(processedFiles, function(i, f) {
-        dt.items.add(f);
-        if(html != "") html += ", ";
-        html += f.name;
-      });
-      input.files = dt.files;
-      $("#" + target_id).html(html);
-      $('#overlay-compressao').hide();
-      Swal.fire('Sucesso', 'Processamento conclu\u00eddo com sucesso!', 'success');
-    }).catch(function(err) {
-      console.error(err);
-      input.value = "";
-      $("#" + target_id).html("");
-      $('#overlay-compressao').hide();
-      Swal.fire("Erro", "Ocorreu um erro ao processar o arquivo.", "error");
-    });
-  }
-}
-
-function dataURLtoFile(dataurl, filename) {
-  var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
-      bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
-  while(n--){
-      u8arr[n] = bstr.charCodeAt(n);
-  }
-  return new File([u8arr], filename, {type:mime});
+  $("#upload-file-info").html(html)
 }
 
 //Carregar produtos habilitados para empresa
 $('#unidade').change(function(e){
     var id_unidade = $('#unidade').val();
     var base_url = $('#base_url').val();
-    carregar_select_default(id_unidade, 'produto', base_url+'chamados/get_produtos_habilitados', 'Esta unidade nÃƒÂ£o possui produtos habilitados!');
-    carregar_select_default_chamados(id_unidade, 'interessados', base_url+'chamados/get_users_unidade', 'Esta unidade nÃƒÂ£o possui usuÃƒÂ¡rios vinculados!');
-    carregar_select_default(id_unidade, 'plano_acao', base_url+'chamados/get_plano_acao', 'Esta unidade nÃƒÂ£o possui plano de aÃƒÂ§ÃƒÂ£o habilitados!');
+    carregar_select_default(id_unidade, 'produto', base_url+'chamados/get_produtos_habilitados', 'Esta unidade não possui produtos habilitados!');
+    carregar_select_default_chamados(id_unidade, 'interessados', base_url+'chamados/get_users_unidade', 'Esta unidade não usuários!');
+    carregar_select_default(id_unidade, 'plano_acao', base_url+'chamados/get_plano_acao', 'Esta unidade não possui projetos habilitados!');
+    //$('#dono').fastselect();
+    //$('#interessados').fastselect();
 });
 
-//Carregar MÃƒÂ³dulos de acordo com o produto
+//Carregar Módulos de acordo com o produto
 $('#produto').change(function(e){
     var id_produto = $('#produto').val();
     var id_unidade = $('#unidade').val();
     var base_url = $('#base_url').val();
-    carregar_select_modulos(id_unidade, id_produto, 'modulo', base_url+'chamados/get_modulos_habilitados', 'Este produto nÃƒÂ£o possui mÃƒÂ³dulos habilitados!');
+    carregar_select_modulos(id_unidade, id_produto, 'modulo', base_url+'chamados/get_modulos_habilitados', 'Este produto não possui módulos habilitados!');
 });
 
-//Carregar Categorias de acordo com o mÃƒÂ³dulo
+//Carregar Categorias de acordo com o módulo
 $('#modulo').change(function(e){
     var id_modulo = $('#modulo').val();
     var base_url = $('#base_url').val();
-    carregar_select_default(id_modulo, 'categoria', base_url+'chamados/get_modulo_categorias', 'Este mÃƒÂ³dulo nÃƒÂ£o possui categorias!');
+    carregar_select_default(id_modulo, 'categoria', base_url+'chamados/get_modulo_categorias', 'Este módulo não possui categorias!');
 });
 
-//Carregar MÃƒÂ³dulos de Categorias de acordo com o mÃƒÂ³dulo
+//Carregar Módulos de Categorias de acordo com o módulo
 $('#produto_modulo_categoria').change(function(e){
     var id_produto = $('#produto_modulo_categoria').val();
     var base_url = $('#base_url').val();
-    carregar_select_default(id_produto, 'modulo', base_url+'produtos_modulos_categorias/get_modulos_habilitados', 'Este produto nÃƒÂ£o possui mÃƒÂ³dulos!');
+    carregar_select_default(id_produto, 'modulo', base_url+'produtos_modulos_categorias/get_modulos_habilitados', 'Este produto não possui módulos!');
 });
 
-//Carregar MÃƒÂ³dulos de Categorias Edit de acordo com o mÃƒÂ³dulo
+//Carregar Módulos de Categorias Edit de acordo com o módulo
 $('#produto_modulo_categoria_edit').change(function(e){
     var id_produto = $('#produto_modulo_categoria_edit').val();
     var base_url = $('#base_url').val();
-    carregar_select_default(id_produto, 'modulo_edit', base_url+'produtos_modulos_categorias/get_modulos_habilitados', 'Este produto nÃƒÂ£o possui mÃƒÂ³dulos!');
+    carregar_select_default(id_produto, 'modulo_edit', base_url+'produtos_modulos_categorias/get_modulos_habilitados', 'Este produto não possui módulos!');
 });
 
-//Carregar Catalogo servico edit de acordo com o mÃƒÂ³dulo
+//Carregar Catalogo servico edit de acordo com o módulo
 $('#modulo_edit').change(function(e){
     var id_modulo = $('#modulo_edit').val();
     var base_url = $('#base_url').val();
-    carregar_select_default(id_modulo, 'categoria_edit', base_url+'chamados/get_modulo_categorias', 'Este mÃƒÂ³dulo nÃƒÂ£o possui categorias!');
+    carregar_select_default(id_modulo, 'categoria_edit', base_url+'chamados/get_modulo_categorias', 'Este módulo não possui categorias!');
 });
 
 $('#categoria').change(function(e){
@@ -614,7 +515,7 @@ $('#categoria').change(function(e){
             });
             $('#tipo_servico').html(option).show();
         }else{
-            option += '<option value="">Esta categoria nÃƒÂ£o possui serviÃƒÂ§o!</option>';
+            option += '<option value="">Esta categoria não possui serviço!</option>';
             $('#tipo_servico').html(option).show();
         }
 
@@ -642,7 +543,7 @@ $('#categoria_edit').change(function(e){
             });
             $('#tipo_servico').html(option).show();
         }else{
-            option += '<option value="">Esta categoria nÃƒÂ£o possui serviÃƒÂ§o!</option>';
+            option += '<option value="">Esta categoria não possui serviço!</option>';
             $('#tipo_servico').html(option).show();
         }
         
@@ -667,16 +568,10 @@ function carregar_select_default_chamados(id, select, controller, msg){
             });
             $('#interessados').html(option_multi).show();
             $('#dono').html(option_select).show();
-
-            $('#interessados').fastselect();
-            $('#dono').fastselect();
         }else{
             option_select = '<option value="">'+msg+'</option>';
             $('#interessados').html(option_select).show();
             $('#dono').html(option_select).show();
-
-            $('#interessados').fastselect();
-            $('#dono').fastselect();
         }
     }, 'json');
 }
@@ -726,7 +621,7 @@ function carregar_select_modulos(id_unidade, id_produto, select, controller, msg
 $(".reagendarChamado").click(function(event) {
   $("#chamado_id").val($(this).attr('id'));
   //$("#data_expiracao").val($("#data_expiracao_"+$(this).val()).val());
-  $(".modal-title").html("PrevisÃƒÂ£o ResoluÃƒÂ§ÃƒÂ£o Chamado #"+$(this).attr('id'));
+  $(".modal-title").html("Previsão Resolução Chamado #"+$(this).attr('id'));
 
   $('#reagendarModal').modal('show');
   event.stopImmediatePropagation();
@@ -904,7 +799,7 @@ function remove_user_turma(user_id) {
 $(".btn_add_user_turma").click(function() {
   var user_id = $(".singleInputDynamic").val();
   if(user_id == "") {
-    alert("Selecione um usuÃƒÂ¡rio.");
+    alert("Selecione um usuário.");
     return false;
   } else {
     if($("#ul-user-"+user_id).length) {
@@ -946,8 +841,8 @@ function carregarDadosQrcode(obj){
     var max_id = $(obj).attr('data-id-max');
     $('#inputQRCodeinfoId').val(id);
     var div_box = document.getElementById('infomacoes-qrcode');
-    var html = '<h4><strong>AtenÃƒÂ§ÃƒÂ£o</strong></h4>'+
-                '<p>NÃƒÂºmero de registros encontrados entre <b>'+min_id+'</b> e <b>'+max_id+'</b>, utilize estes valores para selecionar os qrcodes!</p>';
+    var html = '<h4><strong>Atenção</strong></h4>'+
+                '<p>Número de registros encontrados entre <b>'+min_id+'</b> e <b>'+max_id+'</b>, utilize estes valores para selecionar os qrcodes!</p>';
     div_box.innerHTML = html;
 }
 
@@ -1001,7 +896,7 @@ function selecao_curso(curso_id) {
         html_condicoes += "<table class='table'>";
         html_condicoes += "<theader>";
         html_condicoes += "<tr>";
-        html_condicoes += "<th>DescriÃƒÂ§ÃƒÂ£o</th>";
+        html_condicoes += "<th>Descrição</th>";
         html_condicoes += "<th>Forma Pagto</th>";
         html_condicoes += "<th>Qtde Parcelas</th>";
         html_condicoes += "<th>Tipo Recebimento</th>";
@@ -1037,7 +932,7 @@ function selecao_curso(curso_id) {
         html_condicoes += "</tbody>";
         html_condicoes += "</table>";
       } else {
-        html_condicoes += "<h6>NÃƒÂ£o hÃƒÂ¡ dados para mostrar</h6>";
+        html_condicoes += "<h6>Não há dados para mostrar</h6>";
       }
       
       html_turmas += "<div class='row'><div class='col-md-6'><fieldset class='scheduler-border'><legend class='scheduler-border'>Turmas:</legend>";
@@ -1046,9 +941,9 @@ function selecao_curso(curso_id) {
         html_turmas += "<theader>";
         html_turmas += "<tr>";
         html_turmas += "<th></th>";
-        html_turmas += "<th>DescriÃƒÂ§ÃƒÂ£o</th>";
+        html_turmas += "<th>Descrição</th>";
         html_turmas += "<th>Cap. Alunos</th>";
-        html_turmas += "<th>InÃƒÂ­cio</th>";
+        html_turmas += "<th>Início</th>";
         html_turmas += "</tr>";
         html_turmas += "</theader>";
         html_turmas += "<tbody>";
@@ -1063,7 +958,7 @@ function selecao_curso(curso_id) {
         html_turmas += "</tbody>";
         html_turmas += "</table>";
       } else {
-        html_turmas += "<h6>NÃƒÂ£o hÃƒÂ¡ dados para mostrar</h6>";
+        html_turmas += "<h6>Não há dados para mostrar</h6>";
       }
       html_turmas += "</fieldset></div>";
       
@@ -1073,8 +968,8 @@ function selecao_curso(curso_id) {
         html_disciplinas += "<theader>";
         html_disciplinas += "<tr>";
         html_disciplinas += "<th></th>";
-        html_disciplinas += "<th>DescriÃƒÂ§ÃƒÂ£o</th>";
-        html_disciplinas += "<th>FrequÃƒÂªncia</th>";
+        html_disciplinas += "<th>Descrição</th>";
+        html_disciplinas += "<th>Frequência</th>";
         html_disciplinas += "</tr>";
         html_disciplinas += "</theader>";
         html_disciplinas += "<tbody>";
@@ -1089,7 +984,7 @@ function selecao_curso(curso_id) {
         html_disciplinas += "</table>";
         html_disciplinas += "</fieldset>";
       } else {
-        html_disciplinas += "<h6>NÃƒÂ£o hÃƒÂ¡ dados para mostrar</h6>";
+        html_disciplinas += "<h6>Não há dados para mostrar</h6>";
       }
       html_disciplinas += "</fieldset></div></div>";
 
@@ -1097,9 +992,9 @@ function selecao_curso(curso_id) {
         html_produtos += "<table class='table'>";
         html_produtos += "<theader>";
         html_produtos += "<tr>";
-        html_produtos += "<th>DescriÃƒÂ§ÃƒÂ£o</th>";
+        html_produtos += "<th>Descrição</th>";
         html_produtos += "<th>Quantidade</th>";
-        html_produtos += "<th>PreÃƒÂ§o UnitÃƒÂ¡rio</th>";
+        html_produtos += "<th>Preço Unitário</th>";
         html_produtos += "</tr>";
         html_produtos += "</theader>";
         html_produtos += "<tbody>";
@@ -1113,16 +1008,16 @@ function selecao_curso(curso_id) {
         html_produtos += "</tbody>";
         html_produtos += "</table>";
       } else {
-        html_produtos += "<h6>NÃƒÂ£o hÃƒÂ¡ dados para mostrar</h6>";
+        html_produtos += "<h6>Não há dados para mostrar</h6>";
       }
 
       if(result.servicos.length > 0) {
         html_servicos += "<table class='table'>";
         html_servicos += "<theader>";
         html_servicos += "<tr>";
-        html_servicos += "<th>DescriÃƒÂ§ÃƒÂ£o</th>";
+        html_servicos += "<th>Descrição</th>";
         html_servicos += "<th>Quantidade</th>";
-        html_servicos += "<th>PreÃƒÂ§o UnitÃƒÂ¡rio</th>";
+        html_servicos += "<th>Preço Unitário</th>";
         html_servicos += "</tr>";
         html_servicos += "</theader>";
         html_servicos += "<tbody>";
@@ -1136,14 +1031,14 @@ function selecao_curso(curso_id) {
         html_servicos += "</tbody>";
         html_servicos += "</table>";
       } else {
-        html_servicos += "<h6>NÃƒÂ£o hÃƒÂ¡ dados para mostrar</h6>";
+        html_servicos += "<h6>Não há dados para mostrar</h6>";
       }
 
       if(result.parcelas.length > 0) {
         html_parcelas += "<table class='table'>";
         html_parcelas += "<theader>";
         html_parcelas += "<tr>";
-        html_parcelas += "<th>CondiÃƒÂ§ÃƒÂ£o</th>";
+        html_parcelas += "<th>Condição</th>";
         html_parcelas += "<th>Parcela</th>";
         html_parcelas += "<th>Valor</th>";
         html_parcelas += "<th>Vencimento</th>";
@@ -1163,7 +1058,7 @@ function selecao_curso(curso_id) {
         html_parcelas += "</tbody>";
         html_parcelas += "</table>";
       } else {
-        html_parcelas += "<h6>NÃƒÂ£o hÃƒÂ¡ dados para mostrar</h6>";
+        html_parcelas += "<h6>Não há dados para mostrar</h6>";
       }
 
       jQuery("#condicoes").html(html_condicoes);
@@ -1290,400 +1185,13 @@ function calculaPrazoChamado(prefix_url) {
   });
 }
 
-//Carregar Produtos
-function carregarProdutos(id_cliente, base_url){
-    $('#modalHabilitacaoProdutosCliente').modal('show');
-
-    var form = new FormData();
-    form.append('id_cliente', id_cliente);
-
-    $.ajax({
-        url: base_url+'habilitacoes/carregar_produtos',
-        type: 'POST',
-        xhrFields: {
-            withCredentials: true
-        },
-        async: true,
-        cache: false,
-        contentType: false,
-        processData: false,
-        data: form,
-        success: function (data) {
-            var retorno = jQuery.parseJSON(data)['produtos_disponiveis'];
-            var retorno_hbltds = jQuery.parseJSON(data)['produtos_habilitados'];
-            var div = $('#modalHabilitacaoProdutosCliente');
-            var html = '';
-            var html_hbltds = '';
-
-            //Lista de Produtos DisponÃƒÂ­veis
-            if(retorno.length > 0){
-                div.find('#content-produtos').html('');
-                    //Produtos
-                    for(var i = 0; i < retorno.length; i++){
-                        var modulos = '';
-                        if(retorno[i].modulos){modulos = 1;}else{modulos = 0;}
-                            html += '<div class="row row-habilitacao" data-toggle="collapse" data-target="#collapseModulos'+retorno[i].id+'" aria-expanded="false" aria-controls="collapseModulo'+retorno[i].id+'" rel="tooltip" data-placement="top" title="Clique para mais informaÃƒÂ§ÃƒÂµes" data-form="formHabilitarProduto'+retorno[i].id+'" onclick="insertDateMask(this)">'
-                                        +'<div class="col-sm-2">'+retorno[i].id+'</div>'
-                                        +'<div class="col-sm-4">'+retorno[i].produto+'</div>'
-                                        +'<div class="col-sm-3">'+retorno[i].aplicacao+'</div>'
-                                        +'<div class="col-sm-3">'+retorno[i].versao+'</div>';
-                            html += '</div>';
-                                html += '<div class="collapse collapse-habilitacao" id="collapseModulos'+retorno[i].id+'">';
-                                    html += '<form method="post" enctype="multipart/form-data" id="formHabilitarProduto'+retorno[i].id+'" name="formHabilitarProduto'+retorno[i].id+'" class="form" role="" onsubmit="return false;">'
-                                        html += '<input type="hidden" id="inputIdCliente" name="inputIdCliente" value="'+btoa(retorno[i].id_cliente)+'">';
-                                        html += '<input type="hidden" id="inputIdProduto" name="inputIdProduto" value="'+btoa(retorno[i].id)+'">';
-                                        html += '<input type="hidden" id="inputModulos" name="inputModulos" value="'+modulos+'">';
-                                        html += '<div class="row">';
-                                            //PerÃƒÂ­odo
-                                            html += '<div class="col-md-6">'
-                                                        +'<label for="inputHabilitacaoProdutoPeriodo" class="control-label">PerÃƒÂ­odo</label>'
-                                                        +'<div class="input-group input-group-md">'
-                                                            +'<div class="input-daterange input-group" id="datepicker">'
-                                                                +'<input type="text" class="form-control" id="inputHabilitacaoProdutoInicio" name="inputHabilitacaoProdutoInicio"/>'
-                                                                +'<span class="input-group-addon">AtÃƒÂ©</span>'
-                                                                +'<input type="text" class="form-control" id="inputHabilitacaoProdutoFim" name="inputHabilitacaoProdutoFim"/>'
-                                                            +'</div>'
-                                                        +'</div>'
-                                                    +'</div>';
-                                            //Contrato SAX
-                                            html += '<div class="col-md-6">'
-                                                        +'<label for="inputContratoSax" class="control-label">Contrato SAX</label>'
-                                                        +'<input type="text" class="form-control" id="inputContratoSax" name="inputContratoSax">'
-                                                    +'</div>';
-                                            //Habilitar
-                                            html += '<div class="col-md-12">'
-                                                        +'<div class="form-check">'
-                                                            +'<input type="checkbox" id="inputProdutoHabilitar" name="inputProdutoHabilitar" value="S" class="form-check-input">'
-                                                            +'<label class="form-check-label" for="inputProdutoHabilitar">Habilitar</label>'
-                                                        +'</div>'
-                                                    +'</div>';
-                                            //Habilitar Demo
-                                            html += '<div class="col-md-12">'
-                                                        +'<div class="form-check">'
-                                                            +'<input type="checkbox" id="inputHabilitarDemo" name="inputHabilitarDemo" value="S" data-form="formHabilitarProduto'+retorno[i].id+'" onclick="desabilitarPeriodo(this)" class="form-check-input">'
-                                                            +'<label class="form-check-label" for="inputHabilitarDemo">DemonstraÃƒÂ§ÃƒÂ£o(30 Dias)</label>'  
-                                                        +'</div>'
-                                                    +'</div>';
-                                             html += "<div class='col-md-12'><button type='submit' id='habilitar_produto' class='btn btn-success habilitar-produto' style='position: relative;' data-action='insert' onclick='return habilitarProduto(this.form,this,\""+base_url+"\");'><i class='fa fa-floppy-o'></i> Salvar</button></div>";
-                                        html += '</div>';
-                                        html += '<br>';
-
-                                    if(retorno[i].modulos.length > 0){
-                                        //MÃƒÂ³dulos
-                                        html += '<div class="panel panel-default"><div class="panel-heading">'
-                                                    +'<div class="row">'
-                                                        +'<div class="col-sm-4">MÃƒÂ³dulo(s)</div>'
-                                                    +'</div>'
-                                                +'</div>';
-                                        html += '<table id="lista-modulos" class="table table-striped table-hover">'
-                                                    +'<thead>'
-                                                        +'<tr>'
-                                                            +'<th class="col-sm-1"><i class="fa fa-database"></i> ID</th>'
-                                                            +'<th class="col-sm-4"><i class="glyphicon glyphicon-circle-arrow-down"></i> MÃƒÂ³dulo</th>'
-                                                            +'<th class="col-sm-2"><i class="glyphicon glyphicon-user"></i> UsuÃƒÂ¡rios</th>'
-                                                            +'<th class="col-sm-2"><i class="glyphicon glyphicon-ok-circle"></i> Liberado</th>'
-                                                            +'<th class="col-sm-2"><i class="glyphicon glyphicon-ban-circle"></i> Bloqueado</th>'
-                                                            +'<th class="col-sm-2"><i class="glyphicon glyphicon-list-alt"></i> Consulta</th>'
-                                                        +'</tr>'
-                                                    +'</thead>'
-                                                    +'<tbody>';
-                                            for(var im = 0; im < retorno[i].modulos.length; im++){
-                                                html += '<input type="hidden" id="inputModuloId" name="inputModuloId['+retorno[i].modulos[im].id+']" value="'+retorno[i].modulos[im].id+'">';
-                                                html += '<tr>';
-                                                    html += '<td class="text-left">'+retorno[i].modulos[im].id+'</td>';
-                                                    html += '<td class="text-left">'+retorno[i].modulos[im].nome+'</td>';
-                                                    html += '<td class="text-left"><input type="text" id="inputHabilitacaoModuloUsu" name="inputHabilitacaoModuloUsu-'+retorno[i].modulos[im].id+'" value="'+retorno[i].modulos[im].usuarios+'" class="col-sm-5"></td>';
-                                                    html += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno[i].modulos[im].id+']" value="L"></td>';
-                                                    html += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno[i].modulos[im].id+']" value="B" checked="checked"></td>';
-                                                    html += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno[i].modulos[im].id+']" value="C"></td>';
-                                                html += '</tr>';
-                                            }
-                                            html += '</tbody>';
-                                        html += '</table>';
-                                    }
-                                    html += '</form>';
-                                html += '</div>';
-                        html += '</div>';
-                    }
-                div.find('#content-produtos').html(html);                
-            }else{                
-                div.find('#content-produtos').html('');
-            }
-
-            //Lista de Produtos Habilitados
-            if(retorno_hbltds.length > 0){
-                div.find('#content-produtos-habilitados').html('');
-                    //VariÃƒÂ¡veis utilizadas
-                    var demo = '';
-                    var disabled = '';
-                    var modulos = '';
-                    var periodo_demo = '';
-
-                    //Produtos
-                    for(var i = 0; i < retorno_hbltds.length; i++){
-
-                        //Checa se demonstraÃƒÂ§ÃƒÂ£o
-                        if(retorno_hbltds[i].demonstracao == 'S'){
-                            demo = 'checked="checked"';
-                            periodo_demo = 'Sim';
-                            disabled = 'disabled="disabled"';
-                        }else{
-                            demo = '';
-                            periodo_demo = 'NÃƒÂ£o';
-                            disabled = '';
-                        }
-
-                        if(retorno_hbltds[i].modulos){modulos = 1;}else{modulos = 0;}
-                            html_hbltds += '<div class="row row-habilitacao '+retorno_hbltds[i].vencimento+'" data-toggle="collapse" data-target="#collapseModulosHabilitado'+retorno_hbltds[i].id_habilitacao+'" aria-expanded="false" aria-controls="collapseModulosHabilitado'+retorno_hbltds[i].id_habilitacao+'" rel="tooltip" data-placement="top" title="Clique para mais informaÃƒÂ§ÃƒÂµes" data-form="formHabilitarProduto'+retorno_hbltds[i].id_habilitacao+'" onclick="insertDateMask(this)">'
-                                                +'<div class="col-sm-2">'+retorno_hbltds[i].id+'</div>'
-                                                +'<div class="col-sm-4">'+retorno_hbltds[i].produto+'</div>'
-                                                +'<div class="col-sm-2">'+retorno_hbltds[i].aplicacao+'</div>'
-                                                +'<div class="col-sm-2 text-center">'+periodo_demo+'</div>'
-                                                +'<div class="col-sm-2 text-center">'+retorno_hbltds[i].periodo_fim+'</div>'
-                            html_hbltds += '</div>';
-                            html_hbltds += '<div class="collapse collapse-habilitacao" id="collapseModulosHabilitado'+retorno_hbltds[i].id_habilitacao+'">';
-                                html_hbltds += '<form method="post" enctype="multipart/form-data" id="formHabilitacao'+retorno_hbltds[i].id_habilitacao+'" name="formHabilitacao'+retorno_hbltds[i].id_habilitacao+'" class="form" role="" onsubmit="return false;">'
-                                    html_hbltds += '<input type="hidden" id="inputIdHabilitacao" name="inputIdHabilitacao" value="'+btoa(retorno_hbltds[i].id_habilitacao)+'">';
-                                    html_hbltds += '<input type="hidden" id="inputIdCliente" name="inputIdCliente" value="'+btoa(retorno_hbltds[i].id_cliente)+'">';
-                                    html_hbltds += '<input type="hidden" id="inputIdProduto" name="inputIdProduto" value="'+btoa(retorno_hbltds[i].id)+'">';
-                                    html_hbltds += '<input type="hidden" id="inputModulos" name="inputModulos" value="'+modulos+'">';
-                                    html_hbltds += '<div class="row">';
-                                      //PerÃƒÂ­odo
-                                      html_hbltds += '<div class="col-md-6">'
-                                                  +'<label for="inputHabilitacaoProdutoPeriodo" class="control-label">PerÃƒÂ­odo</label>'
-                                                  +'<div class="input-group input-group-md">'
-                                                      +'<div class="input-daterange input-group" id="datepicker">'
-                                                          +'<input type="text" class="form-control" id="inputHabilitacaoProdutoInicio" name="inputHabilitacaoProdutoInicio" value="'+retorno_hbltds[i].periodo_inicio+'" '+disabled+'/>'
-                                                          +'<span class="input-group-addon">AtÃƒÂ©</span>'
-                                                          +'<input type="text" class="form-control" id="inputHabilitacaoProdutoFim" name="inputHabilitacaoProdutoFim" value="'+retorno_hbltds[i].periodo_fim+'" '+disabled+'/>'
-                                                      +'</div>'
-                                                  +'</div>'
-                                              +'</div>';
-                                      //Contrato SAX
-                                      html_hbltds += '<div class="col-md-6">'
-                                                  +'<label for="inputContratoSax" class="control-label">Contrato SAX</label>'
-                                                  +'<input type="text" class="form-control" id="inputContratoSax" name="inputContratoSax" value="'+((retorno_hbltds[i].contrato_sax != null) ? retorno_hbltds[i].contrato_sax : '')+'">'
-                                              +'</div>';
-                                      //Habilitar Demo
-                                      html_hbltds += '<div class="col-md-12">'
-                                                      +'<div class="form-check">'
-                                                        +'<input type="checkbox" id="inputHabilitarDemo" name="inputHabilitarDemo" value="S" '+demo+' data-form="formHabilitacao'+retorno_hbltds[i].id_habilitacao+'" onclick="desabilitarPeriodo(this)" class="form-check-input">'
-                                                        +'<label class="form-check-label" for="inputHabilitarDemo">DemonstraÃƒÂ§ÃƒÂ£o(30 Dias) ?</label>'
-                                                      +'</div>'
-                                                    +'</div>';
-                                      html_hbltds += "<div class='col-md-12'>";
-                                      html_hbltds += "<button type='submit' id='habilitar_produto' class='btn btn-success habilitar-produto' style='position: relative;' data-action='update' onclick='return habilitarProduto(this.form,this,\""+base_url+"\");'><i class='fa fa-floppy-o'></i> Salvar</button>&nbsp;";
-                                      if(retorno_hbltds[i].status == 'N'){
-                                          html_hbltds += '<button type="submit" class="btn btn-warning" style="position: relative;" data-habilitacao="'+retorno_hbltds[i].id_habilitacao+'" data-status="S" onclick="return desabilitarProduto(this);"><i class="glyphicon glyphicon-ok-circle"></i> Reabilitar</button>&nbsp;';
-                                      }else{
-                                          html_hbltds += '<button type="submit" class="btn btn-danger" style="position: relative;" data-habilitacao="'+retorno_hbltds[i].id_habilitacao+'" data-status="N" onclick="return desabilitarProduto(this);"><i class="glyphicon glyphicon-ban-circle"></i> Desabilitar</button>';
-                                      }                                        
-                                      html_hbltds += '</div>';
-                                    html_hbltds += '</div>';
-                                    html_hbltds += '<br>';
-
-                                if(retorno_hbltds[i].modulos.length > 0){
-                                    //MÃƒÂ³dulos
-                                    html_hbltds += '<div class="panel panel-default"><div class="panel-heading">'
-                                                        +'<div class="row">'
-                                                            +'<div class="col-sm-4">MÃƒÂ³dulo(s)</div>'
-                                                        +'</div>'
-                                                    +'</div>';
-                                    html_hbltds += '<table id="lista-modulos" class="table table-striped table-hover">'
-                                                        +'<thead>'
-                                                            +'<tr>'
-                                                                +'<th class="col-sm-1"><i class="fa fa-database"></i> ID</th>'
-                                                                +'<th class="col-sm-4"><i class="glyphicon glyphicon-circle-arrow-down"></i> MÃƒÂ³dulo</th>'
-                                                                +'<th class="col-sm-2"><i class="glyphicon glyphicon-user"></i> UsuÃƒÂ¡rios</th>'
-                                                                +'<th class="col-sm-2"><i class="glyphicon glyphicon-ok-circle"></i> Liberado</th>'
-                                                                +'<th class="col-sm-2"><i class="glyphicon glyphicon-ban-circle"></i> Bloqueado</th>'
-                                                                +'<th class="col-sm-2"><i class="glyphicon glyphicon-list-alt"></i> Consulta</th>'
-                                                            +'</tr>'
-                                                        +'</thead>'
-                                                        +'<tbody>';
-                                            for(var im = 0; im < retorno_hbltds[i].modulos.length; im++){
-                                                //Verificar se jÃƒÂ¡ possui mÃƒÂ³dulo habilitado para carregar id da habilitaÃƒÂ§ÃƒÂ£o
-                                                var hbltc_mdl_id = '';
-                                                if(retorno_hbltds[i].modulos[im].id_hbltd_mdl > 0){
-                                                    hbltc_mdl_id = retorno_hbltds[i].modulos[im].id_hbltd_mdl;
-                                                }
-                                                //Carrega id da habilitaÃƒÂ§ÃƒÂ£o de acordo com o mÃƒÂ³dulo
-                                                html_hbltds += '<input type="hidden" id="inputHabilitacaoModuloId" name="inputHabilitacaoModuloId['+retorno_hbltds[i].modulos[im].id+']" value="'+hbltc_mdl_id+'">';
-                                                html_hbltds += '<tr>';
-                                                    html_hbltds += '<td class="text-left">'+retorno_hbltds[i].modulos[im].id+'</td>';
-                                                    html_hbltds += '<td class="text-left">'+retorno_hbltds[i].modulos[im].nome+'</td>';
-                                                    html_hbltds += '<td class="text-left"><input type="text" id="inputHabilitacaoModuloUsu" name="inputHabilitacaoModuloUsu-'+retorno_hbltds[i].modulos[im].id+'" class="col-sm-5" value="'+retorno_hbltds[i].modulos[im].usuarios+'" ></td>';
-                                                    //VerificaÃƒÂ§ÃƒÂ£o de status de mÃƒÂ³dulo
-                                                    if(retorno_hbltds[i].modulos[im].status == 'L'){
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="L" checked="checked"></td>';
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="B"></td>';
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="C"></td>';
-                                                    }else if(retorno_hbltds[i].modulos[im].status == 'B'){
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="L"></td>';
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="B" checked="checked"></td>';
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="C"></td>';
-                                                    }else if(retorno_hbltds[i].modulos[im].status == 'C'){
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="L"></td>';
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="B"></td>';
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="C" checked="checked"></td>';
-                                                    }else{
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="L"></td>';
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="B" checked="checked"></td>';
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="C"></td>';
-                                                    }
-                                                html_hbltds += '</tr>';
-                                            }
-                                        html_hbltds += '</tbody>';
-                                    html_hbltds += '</table>';
-                                }
-                                html_hbltds += '</form>';
-                            html_hbltds += '</div>';
-                        html_hbltds += '</div>';
-                    }
-                div.find('#content-produtos-habilitados').html(html_hbltds);                
-            }else{                
-                div.find('#content-produtos-habilitados').html('');
-            }
-        },
-        error: function (data) {
-            alert('Falha no envio, entre em contato com o administrador!');
-        }
-    });
-}
-
-function habilitarProduto(obj, acao, base_url) {
-    var form = new FormData($('#'+obj.id)[0]);
-    var funcao = $(acao).attr('data-action');
-    var acao = "";
-
-    if(funcao == "insert"){
-        acao = 'cadastrar_habilitacao';
-    }else if(funcao == "update"){
-        acao = 'atualizar_habilitacao';
-    }
-
-    $.ajax({
-        url: base_url+'habilitacoes/'+acao,
-        type: 'POST',
-        xhrFields: {
-            withCredentials: true
-        },
-        async: true,
-        cache: false,
-        contentType: false,
-        processData: false,
-        data: form,
-        beforeSend: function( xhr ) {
-          $(".overlay").show();
-        },
-        success: function (data) {
-          /*var retorno = jQuery.parseJSON(data);
-          $(".overlay").hide();*/
-          window.location.href = base_url+'habilitacoes';
-        },
-        error: function (data) {
-          alert('Falha no envio, entre em contato com o administrador!');
-        }
-    });
-}
-
-function desabilitarProduto(obj) {
-    $('#inputHabilitacaoId').val(btoa($(obj).attr('data-habilitacao')));
-    $('#inputStatus').val($(obj).attr('data-status'));
-    $('#confirm').modal({
-      backdrop: 'static',
-      keyboard: false
-    })
-    .one('click', '#desabilitar', function(e) {
-      $('#form-desativar-habilitacao').submit();
-    });
-}
-
-//Inserir mÃƒÂ¡scara de data para campos perÃƒÂ­odo
-function insertDateMask(obj) {
-    var form = $(obj).attr('data-form');
-    $('#'+form+' #inputHabilitacaoProdutoInicio').inputmask('99/99/9999');
-    $('#'+form+' #inputHabilitacaoProdutoFim').inputmask('99/99/9999');    
-}
-
-//Desabilitar campos de perÃƒÂ­odo quando demonstraÃƒÂ§ÃƒÂ£o
-function desabilitarPeriodo(obj){
-    var form = $(obj).attr('data-form');
-    if($(obj).prop('checked')){
-        $('#'+form+' #inputHabilitacaoProdutoInicio').prop('disabled', true);
-        $('#'+form+' #inputHabilitacaoProdutoFim').prop('disabled', true);
-        $('#'+form+' #inputHabilitacaoProdutoInicio').val('');
-        $('#'+form+' #inputHabilitacaoProdutoFim').val('');
-    }else{
-        $('#'+form+' #inputHabilitacaoProdutoInicio').prop('disabled', false);
-        $('#'+form+' #inputHabilitacaoProdutoFim').prop('disabled', false);
-    }
-}
-
-function visualizarHistorico(id_habilitacao, base_url) {
-    var form = new FormData();
-    form.append('id_habilitacao', id_habilitacao);
-
-    $.ajax({
-        url: base_url+'habilitacoes/carregar_historico',
-        type: 'POST',
-        xhrFields: {
-            withCredentials: true
-        },
-        async: true,
-        cache: false,
-        contentType: false,
-        processData: false,
-        data: form,
-        success: function (data) {
-            var retorno = jQuery.parseJSON(data);            
-            if(retorno.erro == false) {
-              var html = '<div class="modal-header">'
-                        +'<button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Fechar</span></button>'
-                        +'<h4 class="modal-title-chamado" id="title-chamado"> HistÃƒÂ³rico de HabilitaÃƒÂ§ÃƒÂ£o</h4>'
-                    +'</div>'
-                    +'<div class="modal-body">';
-              html += '<table class="table table-striped">';
-                html += '<tr>'
-                  +'<th>ID</th>'
-                  +'<th>UsuÃƒÂ¡rio</th>'
-                  +'<th>AÃƒÂ§ÃƒÂ£o</th>'
-                  +'<th>ObservaÃƒÂ§ÃƒÂ£o</th>'
-                  +'<th>Cadastro</th>'                                
-                +'</tr>';
-                  //Produtos
-                  $.each(retorno.data, function(key, item) {
-                      html += '<tr>'
-                        +'<td>'+item.id+'</td>'
-                        +'<td>'+item.usuario+'</td>'
-                        +'<td>'+item.acao+'</td>'
-                        +'<td>'+item.observacao+'</td>'
-                        +'<td>'+item.data_cadastro+'</td>'                                
-                      +'</tr>';
-                  });
-              html += '</table>'
-                +'</div>';
-              html += '<div class="modal-footer">'
-                     +'<button type="button" class="btn btn-default" data-dismiss="modal"><i class="fa fa-times"></i> Fechar</button>'
-                 +'</div>';
-
-              $("#historico").find(".modal-content").html(html);
-              $('#historico').modal('show');
-            }
-        },
-        error: function (data) {
-            alert('Falha no envio, entre em contato com o administrador!');
-        }
-    });
-}
-
 //Adicionar linhas extras
 $("#form-create_app_unidades_livro .adiciona-video_yt").click(function(){
     var uniqid = '_'+Math.random().toString(36).substr(2, 9);
     var nova_linha = $('<div class="form-group video_yt">'+
-                        '<label for="video_yt'+ uniqid +'" class="control-label col-sm-2">VÃƒÂ­deo Youtube <span class="label-numbers"></span></label>' + //no + '</span></label>'+
+                        '<label for="video_yt'+ uniqid +'" class="control-label col-sm-2">Vídeo Youtube <span class="label-numbers"></span></label>' + //no + '</span></label>'+
                         '<div class="col-sm-8">'+
-                            '<input type="text" id="video_yt' + uniqid + '" name="video_yt[]" class="form-control" placeholder="Informe o VÃƒÂ­deo do Youtube" maxlength="500">'+
+                            '<input type="text" id="video_yt' + uniqid + '" name="video_yt[]" class="form-control" placeholder="Informe o Vídeo do Youtube" maxlength="500">'+
                         '</div>'+
                         '<div class="col-sm-2">'+
                             '<a href="#" class="btn btn-danger remove-video_yt">Remover</a>'+
@@ -1739,7 +1247,7 @@ $(".apontarChamado").click(function(event) {
           $('#apontarModal').modal('show');
         } else {
           $("#apontamentoExistenteModal .modal-title").html("Apontamento aberto no chamado #"+retorno.data);
-          $("#apontamentoExistenteModal .modal-body").html("<p>VocÃƒÂª possui um apontamento aberto, <a target='_blank' href='"+$("#base_url").val()+"/chamados/details/"+retorno.data+"' alt='Chamado "+retorno.data+"' title='Chamado "+retorno.data+"'>acesse aqui o chamado #"+retorno.data+"</a> para para-lo antes de continuar.</p>");
+          $("#apontamentoExistenteModal .modal-body").html("<p>Você possui um apontamento aberto, <a target='_blank' href='"+$("#base_url").val()+"/chamados/details/"+retorno.data+"' alt='Chamado "+retorno.data+"' title='Chamado "+retorno.data+"'>acesse aqui o chamado #"+retorno.data+"</a> para para-lo antes de continuar.</p>");
           $("#apontamentoExistenteModal").modal("show");
         }
       }
@@ -1855,7 +1363,7 @@ function formatTime(timeInput) {
 function dataAtualFormatada(){
     var data = new Date(),
         dia  = data.getDate().toString().padStart(2, '0'),
-        mes  = (data.getMonth()+1).toString().padStart(2, '0'), //+1 pois no getMonth Janeiro comeÃƒÂ§a com zero.
+        mes  = (data.getMonth()+1).toString().padStart(2, '0'), //+1 pois no getMonth Janeiro começa com zero.
         ano  = data.getFullYear();
     return dia+"/"+mes+"/"+ano;
 }
@@ -1914,7 +1422,7 @@ function startApontamento() {
             });
           } else {
             $("#apontamentoExistenteModal .modal-title").html("Apontamento aberto no chamado #"+retorno.data);
-            $("#apontamentoExistenteModal .modal-body").html("<p>VocÃƒÂª possui um apontamento aberto, <a target='_blank' href='"+$("#base_url").val()+"/chamados/details/"+retorno.data+"' alt='Chamado "+retorno.data+"' title='Chamado "+retorno.data+"'>acesse aqui o chamado #"+retorno.data+"</a> para para-lo antes de continuar.</p>");
+            $("#apontamentoExistenteModal .modal-body").html("<p>Você possui um apontamento aberto, <a target='_blank' href='"+$("#base_url").val()+"/chamados/details/"+retorno.data+"' alt='Chamado "+retorno.data+"' title='Chamado "+retorno.data+"'>acesse aqui o chamado #"+retorno.data+"</a> para para-lo antes de continuar.</p>");
             $("#apontamentoExistenteModal").modal("show");
           }
           btn.attr('disabled', false);
@@ -1923,9 +1431,7 @@ function startApontamento() {
 }
 
 function stopApontamento() {
-    if (typeof myTimer !== 'undefined') {
-        clearInterval(myTimer);
-    }
+    clearInterval(myTimer);
     var progressBar = $('.progress-bar');
     var percentVal = 0;
     var btn = $('.btn-app');
@@ -1942,9 +1448,7 @@ function stopApontamento() {
     btn.attr('onclick', 'startApontamento()');
     btn.html('<i class="fa fa-play"></i> Iniciar');
     progressBar.css("width", percentVal + '%').attr("aria-valuenow", percentVal + '%');
-    try {
-        $('.duration-clock').countimer('destroy');
-    } catch(e) {}
+    $('.duration-clock').countimer('destroy');
     $('.duration-clock').html("00:00:00");
 
     $.ajax({
@@ -1982,7 +1486,7 @@ function loadCondicoesVincularUsuario(unidade_id) {
         if(unidade_id == "")
             $(".msg-condicoes").html('Selecione uma unidade acima.');
         else
-            $(".msg-condicoes").html('<p class="control-label" style="text-align: left !important;">NÃƒÂ£o hÃƒÂ¡ condiÃƒÂ§ÃƒÂµes disponÃƒÂ­veis para essa unidade.</p>');
+            $(".msg-condicoes").html('<p class="control-label" style="text-align: left !important;">Não há condições disponíveis para essa unidade.</p>');
     }
 }
 
@@ -2033,7 +1537,7 @@ function loadCondicoes(curso_id) {
                     $(".msg-condicoes").html('Selecione uma unidade acima.');
                 else {
                     if(result.entrada.count == 0) {
-                        $(".msg-entradas").html('<p class="control-label" style="text-align: left !important;">NÃƒÂ£o hÃƒÂ¡ entradas disponÃƒÂ­veis para essa unidade.</p>');
+                        $(".msg-entradas").html('<p class="control-label" style="text-align: left !important;">Não há entradas disponíveis para essa unidade.</p>');
                         $(".list-entradas").html('');
                     } else {
                         $(".msg-entradas").html('');
@@ -2041,7 +1545,7 @@ function loadCondicoes(curso_id) {
                     }
 
                     if(result.condicao.count == 0) {
-                        $(".msg-condicoes").html('<p class="control-label" style="text-align: left !important;">NÃƒÂ£o hÃƒÂ¡ condiÃƒÂ§ÃƒÂµes disponÃƒÂ­veis para essa unidade.</p>');
+                        $(".msg-condicoes").html('<p class="control-label" style="text-align: left !important;">Não há condições disponíveis para essa unidade.</p>');
                         $(".list-condicoes").html('');
                     } else {
                         $(".msg-condicoes").html('');
@@ -2134,13 +1638,13 @@ $('#sequencial').change(function() {
 $('#unidade_turmas').change(function(e){
     var id_unidade = $('#unidade_turmas').val();
     var base_url = $('#base_url').val();
-    carregar_select_default(id_unidade, 'curso', base_url+'app_turmas/get_cursos', 'Esta unidade nÃƒÂ£o possui curso(s)!');
+    carregar_select_default(id_unidade, 'curso', base_url+'app_turmas/get_cursos', 'Esta unidade não possui curso(s)!');
 });
 
 $('#curso').change(function(e){
   var id_livro = $('#curso').val();
   var base_url= $('#base_url').val();
-  carregar_select_default(id_livro, 'livro', base_url+'app_turmas/get_livros', 'Este curso nÃƒÂ£o possui livro(s)!');
+  carregar_select_default(id_livro, 'livro', base_url+'app_turmas/get_livros', 'Este curso não possui livro(s)!');
 })
 
 $(".add-to-email").click(function() {
@@ -2170,12 +1674,12 @@ $(".add-to-email").click(function() {
     if(cobranca == "S")
       cobranca = "Sim";
     else
-      cobranca = "NÃƒÂ£o";
+      cobranca = "Não";
 
     if(doc_fiscais == "S")
       doc_fiscais = "Sim";
     else
-      doc_fiscais = "NÃƒÂ£o";
+      doc_fiscais = "Não";
            
     var rowNode = table.row.add( [ $("input[name='email']").val(), cobranca, doc_fiscais, '<button type="button" title="Remover" class="btn btn-danger" onclick="remove_email(this)" id="'+(i+1)+'"><i class="fa fa-times" aria-hidden="true"></i><span class="txt-btn-orders"></span></button>' ] ).draw().node();
     
@@ -2276,12 +1780,12 @@ $( "#cnpj_cliente" ).blur(function() {
                 var table = $('#datatable').DataTable();
                 table.clear();
                 if(item.cobranca == "N")
-                  item.cobranca = "NÃƒÂ£o";
+                  item.cobranca = "Não";
                 else
                   item.cobranca = "Sim";
 
                 if(item.doc_fiscais == "N")
-                  item.doc_fiscais = "NÃƒÂ£o";
+                  item.doc_fiscais = "Não";
                 else
                   item.doc_fiscais = "Sim";
                 var rowNode = table.row.add( [ item.email, item.cobranca, item.doc_fiscais, '<button type="button" title="Remover" class="btn btn-danger" onclick="remove_email(this)" id="'+(i+1)+'"><i class="fa fa-times" aria-hidden="true"></i><span class="txt-btn-orders"></span></button>' ] ).draw().node();
@@ -2358,12 +1862,12 @@ $( "#cpf_cliente" ).blur(function() {
                 var table = $('#datatable').DataTable();
                 table.clear();
                 if(item.cobranca == "N")
-                  item.cobranca = "NÃƒÂ£o";
+                  item.cobranca = "Não";
                 else
                   item.cobranca = "Sim";
 
                 if(item.doc_fiscais == "N")
-                  item.doc_fiscais = "NÃƒÂ£o";
+                  item.doc_fiscais = "Não";
                 else
                   item.doc_fiscais = "Sim";
                 var rowNode = table.row.add( [ item.email, item.cobranca, item.doc_fiscais, '<button type="button" title="Remover" class="btn btn-danger" onclick="remove_email(this)" id="'+(i+1)+'"><i class="fa fa-times" aria-hidden="true"></i><span class="txt-btn-orders"></span></button>' ] ).draw().node();
@@ -2620,7 +2124,7 @@ $('.btn-avancar-oportunidade').on( 'click', function () {
         data: {data : $("#form-create_oportunidade").serializeJSON(), check_periodo_max_invest : check_periodo_max_invest, ids_equips : ids_equips, qtds_equips : qtds_equips}, 
         beforeSend: function( xhr ) { 
           $(".btn-avancar-oportunidade").attr("disabled", true);
-          $(".btn-avancar-oportunidade").html('AvanÃƒÂ§ar <i class="fa fa-refresh fa-spin"></i>');
+          $(".btn-avancar-oportunidade").html('Avançar <i class="fa fa-refresh fa-spin"></i>');
         }, 
         success: function(data){
           var result = $.parseJSON(data);
@@ -2706,7 +2210,7 @@ $('.btn-voltar-oportunidade').on( 'click', function (event) {
   } else {
 
     $(".btn-avancar-oportunidade").removeClass("btn-lg");
-    $(".btn-avancar-oportunidade").html('AvanÃƒÂ§ar <i class="fa fa-arrow-right" aria-hidden="true"></i>');
+    $(".btn-avancar-oportunidade").html('Avançar <i class="fa fa-arrow-right" aria-hidden="true"></i>');
     $(".btn-avancar-oportunidade").attr('disabled', false);
 
     $(this).attr('href', "#tab_"+(parseInt($("#step").val()) - 1));
@@ -2727,12 +2231,12 @@ $(".add-to-oportunidade").click(function() {
     }
 
     if( Number.isInteger(parseInt($("#qtd_produto").val())) == false || parseInt($("#qtd_produto").val()) <= 0 ) {
-      alert("A quantidade nÃƒÂ£o pode ser 0.");
+      alert("A quantidade não pode ser 0.");
       return;
     }
 
     if($("#vlr_unit_produto").val() == "") {
-      alert("O valor unitÃƒÂ¡rio nÃƒÂ£o pode ser 0.");
+      alert("O valor unitário não pode ser 0.");
       return;
     }
 
@@ -2828,7 +2332,7 @@ $('#lead').on( 'blur', function () {
       
       if(find == false) {
         $("#lead").val('');
-        alert("Lead nÃƒÂ£o encontrado.");
+        alert("Lead não encontrado.");
       }
     }
 });
@@ -2849,7 +2353,7 @@ $('#codigo_produto').on( 'blur', function () {
       
       if(find == false) {
         $("#codigo_produto").val('');
-        alert("Produto nÃƒÂ£o encontrado.");
+        alert("Produto não encontrado.");
       }
     }
 });
@@ -3009,17 +2513,17 @@ $("#form-parametros .adiciona-percentual").click(function(){
   var ultimo_valor_perc_comis = parseFloat($( "input[name*='percentual_comissao']" ).last().val());
 
   if(isNaN(ultimo_valor_perc_lucr_de) || (parseInt(ultimo_valor_perc_lucr_de) <= 0 && !isFloat(ultimo_valor_perc_lucr_de))) {
-      alert("Preencha corretamente os campos jÃƒÂ¡ existentes. (NÃƒÂºmeros inteiros ou decimais)");
+      alert("Preencha corretamente os campos já existentes. (Números inteiros ou decimais)");
       return false;
   }
 
   if(isNaN(ultimo_valor_perc_lucr_ate) || (parseInt(ultimo_valor_perc_lucr_ate) <= 0 && !isFloat(ultimo_valor_perc_lucr_ate))) {
-      alert("Preencha corretamente os campos jÃƒÂ¡ existentes. (NÃƒÂºmeros inteiros ou decimais)");
+      alert("Preencha corretamente os campos já existentes. (Números inteiros ou decimais)");
       return false;
   }
 
   if(isNaN(ultimo_valor_perc_comis) || (parseInt(ultimo_valor_perc_comis) <= 0 && !isFloat(ultimo_valor_perc_comis))) {
-      alert("Preencha corretamente os campos jÃƒÂ¡ existentes. (NÃƒÂºmeros inteiros ou decimais)");
+      alert("Preencha corretamente os campos já existentes. (Números inteiros ou decimais)");
       return false;
   }
 
@@ -3030,10 +2534,10 @@ $("#form-parametros .adiciona-percentual").click(function(){
                           '<input type="text" id="percentual_lucratividade_de_'+ uniqid +'" name="percentual_lucratividade_de['+ uniqid +']" class="form-control" placeholder="% lucratividade de" value="">' +
                       '</div>' +
                       '<div class="col-sm-2">' +
-                          '<input type="text" id="percentual_lucratividade_ate_'+ uniqid +'" name="percentual_lucratividade_ate['+ uniqid +']" class="form-control" placeholder="% lucratividade atÃƒÂ©" value="">' +
+                          '<input type="text" id="percentual_lucratividade_ate_'+ uniqid +'" name="percentual_lucratividade_ate['+ uniqid +']" class="form-control" placeholder="% lucratividade até" value="">' +
                       '</div>' +
                       '<div class="col-sm-2">' +
-                          '<input type="text" id="percentual_comissao_'+ uniqid +'" name="percentual_comissao['+ uniqid +']" class="form-control" placeholder="% comissÃƒÂ£o" value="">' +
+                          '<input type="text" id="percentual_comissao_'+ uniqid +'" name="percentual_comissao['+ uniqid +']" class="form-control" placeholder="% comissão" value="">' +
                       '</div>'+
                       '<div class="col-sm-2">'+
                           '<a href="#" class="btn btn-danger remove-percentual">Remover</a>'+
@@ -3155,306 +2659,6 @@ $(".btn_anular_contrato").click(function() {
 });
 
 
-function carregarProdutosContrato(id_contrato, id_cliente, base_url, id_habilitacao){
-
-    $('#filial').val(id_cliente);
-
-    var form = new FormData();
-    form.append('id_cliente', id_cliente);
-
-    $.ajax({
-        url: base_url+'habilitacoes/carregar_produtos',
-        type: 'POST',
-        xhrFields: {
-            withCredentials: true
-        },
-        async: true,
-        cache: false,
-        contentType: false,
-        processData: false,
-        data: form,
-        beforeSend: function( xhr ) { 
-          $('#divHabilitacaoProdutosCliente').hide();
-          $(".loading").show();
-        }, 
-        success: function (data) {
-            if(data == false) {
-              $(".loading").hide();
-              return false;
-            }
-
-            var retorno = jQuery.parseJSON(data)['produtos_disponiveis'];
-            var retorno_hbltds = jQuery.parseJSON(data)['produtos_habilitados'];
-            var div = $('#divHabilitacaoProdutosCliente');
-            var html = '';
-            var html_hbltds = '';
-
-            //Lista de Produtos DisponÃƒÂ­veis
-            if(retorno.length > 0){
-                div.find('#content-produtos').html('');
-                    //Produtos
-                    for(var i = 0; i < retorno.length; i++){
-                        var modulos = '';
-                        if(retorno[i].modulos){modulos = 1;}else{modulos = 0;}
-                            html += '<div class="row row-habilitacao" data-toggle="collapse" data-target="#collapseModulos'+retorno[i].id+'" aria-expanded="false" aria-controls="collapseModulo'+retorno[i].id+'" rel="tooltip" data-placement="top" title="Clique para mais informaÃƒÂ§ÃƒÂµes" data-form="formHabilitarProduto'+retorno[i].id+'" onclick="insertDateMask(this)">'
-                                        +'<div class="col-sm-2">'+retorno[i].id+'</div>'
-                                        +'<div class="col-sm-4">'+retorno[i].produto+'</div>'
-                                        +'<div class="col-sm-3">'+retorno[i].aplicacao+'</div>'
-                                        +'<div class="col-sm-3">'+retorno[i].versao+'</div>';
-                            html += '</div>';
-                                html += '<div class="collapse collapse-habilitacao" id="collapseModulos'+retorno[i].id+'">';
-                                    html += '<form method="post" enctype="multipart/form-data" id="formHabilitarProduto'+retorno[i].id+'" name="formHabilitarProduto'+retorno[i].id+'" class="form-horizontal" role="" onsubmit="return false;">'
-                                        html += '<input type="hidden" id="inputIdCliente" name="inputIdCliente" value="'+btoa(retorno[i].id_cliente)+'">';
-                                        html += '<input type="hidden" id="inputIdProduto" name="inputIdProduto" value="'+btoa(retorno[i].id)+'">';
-                                        html += '<input type="hidden" id="inputModulos" name="inputModulos" value="'+modulos+'">';
-                                        html += '<div class="col-md-12"><div class="form-group">';
-                                            //PerÃƒÂ­odo
-                                            html += '<div class="col-md-5">'
-                                                        +'<label for="inputHabilitacaoProdutoPeriodo" class="control-label">PerÃƒÂ­odo</label>'
-                                                        +'<div class="input-group input-group-md">'
-                                                            +'<div class="input-daterange input-group" id="datepicker">'
-                                                                +'<input type="text" class="form-control" id="inputHabilitacaoProdutoInicio" name="inputHabilitacaoProdutoInicio"/>'
-                                                                +'<span class="input-group-addon">AtÃƒÂ©</span>'
-                                                                +'<input type="text" class="form-control" id="inputHabilitacaoProdutoFim" name="inputHabilitacaoProdutoFim"/>'
-                                                            +'</div>'
-                                                        +'</div>'
-                                                    +'</div>';
-                                            //Habilitar
-                                            html += '<div class="col-md-2">'
-                                                        +'<label class="control-label" for="inputProdutoHabilitar">Habilitar ?</label>'
-                                                        +'<input type="checkbox" class="checkbox" id="inputProdutoHabilitar" name="inputProdutoHabilitar" value="S">'
-                                                    +'</div>';
-                                            //Habilitar Demo
-                                            html += '<div class="col-md-3">'
-                                                        +'<label class="control-label" for="inputHabilitarDemo">DemonstraÃƒÂ§ÃƒÂ£o(30 Dias) ?</label>'
-                                                        +'<input type="checkbox" class="checkbox" id="inputHabilitarDemo" name="inputHabilitarDemo" value="S" data-form="formHabilitarProduto'+retorno[i].id+'" onclick="desabilitarPeriodo(this)">'
-                                                    +'</div>';
-                                             html += "<div class='col-md-2'><button type='submit' id='habilitar_produto' class='btn btn-success habilitar-produto' style='position: relative;margin-top: 7px;' data-action='insert' onclick='return habilitarProdutoContrato(\""+id_contrato+"\", this.form,this,\""+base_url+"\");'><i class='fa fa-floppy-o'></i> Salvar</button></div>";
-                                            html += '<div class="hidden-sm clear-10"></div>';
-                                        html += '</div></div>';
-
-                                    if(retorno[i].modulos.length > 0){
-                                        //MÃƒÂ³dulos
-                                        html += '<div class="panel panel-default"><div class="panel-heading">'
-                                                    +'<div class="row">'
-                                                        +'<div class="col-sm-4">MÃƒÂ³dulo(s)</div>'
-                                                    +'</div>'
-                                                +'</div>';
-                                        html += '<table id="lista-modulos" class="table table-striped table-hover">'
-                                                    +'<thead>'
-                                                        +'<tr>'
-                                                            +'<th class="col-sm-1"><i class="fa fa-database"></i> ID</th>'
-                                                            +'<th class="col-sm-4"><i class="glyphicon glyphicon-circle-arrow-down"></i> MÃƒÂ³dulo</th>'
-                                                            +'<th class="col-sm-2"><i class="glyphicon glyphicon-user"></i> UsuÃƒÂ¡rios</th>'
-                                                            +'<th class="col-sm-2"><i class="glyphicon glyphicon-ok-circle"></i> Liberado</th>'
-                                                            +'<th class="col-sm-2"><i class="glyphicon glyphicon-ban-circle"></i> Bloqueado</th>'
-                                                            +'<th class="col-sm-2"><i class="glyphicon glyphicon-list-alt"></i> Consulta</th>'
-                                                        +'</tr>'
-                                                    +'</thead>'
-                                                    +'<tbody>';
-                                            for(var im = 0; im < retorno[i].modulos.length; im++){
-                                                html += '<input type="hidden" id="inputModuloId" name="inputModuloId['+retorno[i].modulos[im].id+']" value="'+retorno[i].modulos[im].id+'">';
-                                                html += '<tr>';
-                                                    html += '<td class="text-left">'+retorno[i].modulos[im].id+'</td>';
-                                                    html += '<td class="text-left">'+retorno[i].modulos[im].nome+'</td>';
-                                                    html += '<td class="text-left"><input type="text" id="inputHabilitacaoModuloUsu" name="inputHabilitacaoModuloUsu-'+retorno[i].modulos[im].id+'" value="'+retorno[i].modulos[im].usuarios+'" class="form-control"></td>';
-                                                    html += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno[i].modulos[im].id+']" value="L"></td>';
-                                                    html += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno[i].modulos[im].id+']" value="B" checked="checked"></td>';
-                                                    html += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno[i].modulos[im].id+']" value="C"></td>';
-                                                html += '</tr>';
-                                            }
-                                            html += '</tbody>';
-                                        html += '</table>';
-                                    }
-                                    html += '</form>';
-                                html += '</div>';
-                        html += '</div>';
-                    }
-                div.find('#content-produtos').html(html);                
-            }else{                
-                div.find('#content-produtos').html('');
-            }
-
-            //Lista de Produtos Habilitados
-            if(retorno_hbltds.length > 0){
-                div.find('#content-produtos-habilitados').html('');
-                    //VariÃƒÂ¡veis utilizadas
-                    var demo = '';
-                    var disabled = '';
-                    var modulos = '';
-                    var periodo_demo = '';
-
-                    //Produtos
-                    for(var i = 0; i < retorno_hbltds.length; i++){
-
-                        //Checa se demonstraÃƒÂ§ÃƒÂ£o
-                        if(retorno_hbltds[i].demonstracao == 'S'){
-                            demo = 'checked="checked"';
-                            periodo_demo = 'Sim';
-                            disabled = 'disabled="disabled"';
-                        }else{
-                            demo = '';
-                            periodo_demo = 'NÃƒÂ£o';
-                            disabled = '';
-                        }
-
-                        if(retorno_hbltds[i].modulos){modulos = 1;}else{modulos = 0;}
-                            
-                            html_hbltds += '<div class="row row-habilitacao '+retorno_hbltds[i].vencimento+'" data-toggle="collapse" data-target="#collapseModulosHabilitado'+retorno_hbltds[i].id_habilitacao+'" aria-expanded="false" aria-controls="collapseModulosHabilitado'+retorno_hbltds[i].id_habilitacao+'" rel="tooltip" data-placement="top" title="Clique para mais informaÃƒÂ§ÃƒÂµes" data-form="formHabilitarProduto'+retorno_hbltds[i].id_habilitacao+'" onclick="insertDateMask(this)">'
-                                                +'<div class="col-sm-2">'+retorno_hbltds[i].id+'</div>'
-                                                +'<div class="col-sm-4">'+retorno_hbltds[i].produto+'</div>'
-                                                +'<div class="col-sm-2">'+retorno_hbltds[i].aplicacao+'</div>'
-                                                +'<div class="col-sm-2 text-center">'+periodo_demo+'</div>'
-                                                +'<div class="col-sm-2 text-center">'+retorno_hbltds[i].periodo_fim+'</div>'
-                            html_hbltds += '</div>';
-                            html_hbltds += '<div class="collapse collapse-habilitacao" id="collapseModulosHabilitado'+retorno_hbltds[i].id_habilitacao+'">';
-                                html_hbltds += '<form method="post" enctype="multipart/form-data" id="formHabilitacao'+retorno_hbltds[i].id_habilitacao+'" name="formHabilitacao'+retorno_hbltds[i].id_habilitacao+'" class="form-horizontal" role="" onsubmit="return false;">'
-                                    html_hbltds += '<input type="hidden" id="inputIdHabilitacao" name="inputIdHabilitacao" value="'+btoa(retorno_hbltds[i].id_habilitacao)+'">';
-                                    html_hbltds += '<input type="hidden" id="inputIdCliente" name="inputIdCliente" value="'+btoa(retorno_hbltds[i].id_cliente)+'">';
-                                    html_hbltds += '<input type="hidden" id="inputIdProduto" name="inputIdProduto" value="'+btoa(retorno_hbltds[i].id)+'">';
-                                    html_hbltds += '<input type="hidden" id="inputModulos" name="inputModulos" value="'+modulos+'">';
-                                    html_hbltds += '<div class="col-md-12"><div class="form-group">';
-                                        //PerÃƒÂ­odo
-                                        html_hbltds += '<div class="col-md-5">'
-                                                    +'<label for="inputHabilitacaoProdutoPeriodo" class="control-label">PerÃƒÂ­odo</label>'
-                                                    +'<div class="input-group input-group-md">'
-                                                        +'<div class="input-daterange input-group" id="datepicker">'
-                                                            +'<input type="text" class="form-control" id="inputHabilitacaoProdutoInicio" name="inputHabilitacaoProdutoInicio" value="'+retorno_hbltds[i].periodo_inicio+'" '+disabled+'/>'
-                                                            +'<span class="input-group-addon">AtÃƒÂ©</span>'
-                                                            +'<input type="text" class="form-control" id="inputHabilitacaoProdutoFim" name="inputHabilitacaoProdutoFim" value="'+retorno_hbltds[i].periodo_fim+'" '+disabled+'/>'
-                                                        +'</div>'
-                                                    +'</div>'
-                                                +'</div>';
-
-                                        //Habilitar Demo
-                                        html_hbltds += '<div class="col-md-3">'
-                                                            +'<label class="control-label" for="inputHabilitarDemo">DemonstraÃƒÂ§ÃƒÂ£o(30 Dias) ?</label>'
-                                                            +'<input type="checkbox" class="checkbox" id="inputHabilitarDemo" name="inputHabilitarDemo" value="S" '+demo+' data-form="formHabilitacao'+retorno_hbltds[i].id_habilitacao+'" onclick="desabilitarPeriodo(this)">'
-                                                        +'</div>';
-                                        html_hbltds += "<div class='col-md-2 pull-right'><button type='submit' id='habilitar_produto' class='btn btn-success habilitar-produto' style='position: relative;margin-top: 7px;' data-action='update' onclick='return habilitarProdutoContrato(\""+id_contrato+"\", this.form,this,\""+base_url+"\");'><i class='fa fa-floppy-o'></i> Salvar</button></div>";
-                                        if(retorno_hbltds[i].status == 'N'){
-                                            html_hbltds += '<div class="col-md-2 pull-right"><button type="submit" class="btn btn-warning" style="position: relative;margin-top: 7px;" data-habilitacao="'+retorno_hbltds[i].id_habilitacao+'" data-status="S" onclick="return desabilitarProduto(this);"><i class="glyphicon glyphicon-ok-circle"></i> Reabilitar</button></div>';
-                                        }else{
-                                            html_hbltds += '<div class="col-md-2 pull-right"><button type="submit" class="btn btn-danger" style="position: relative;margin-top: 7px;" data-habilitacao="'+retorno_hbltds[i].id_habilitacao+'" data-status="N" onclick="return desabilitarProduto(this);"><i class="glyphicon glyphicon-ban-circle"></i> Desabilitar</button></div>';
-                                        }                                        
-                                        html_hbltds += '<div class="hidden-sm clear-10"></div>';
-                                    html_hbltds += '</div></div>';
-
-                                if(retorno_hbltds[i].modulos.length > 0){
-                                    //MÃƒÂ³dulos
-                                    html_hbltds += '<div class="panel panel-default"><div class="panel-heading">'
-                                                        +'<div class="row">'
-                                                            +'<div class="col-sm-4">MÃƒÂ³dulo(s)</div>'
-                                                        +'</div>'
-                                                    +'</div>';
-                                    html_hbltds += '<table id="lista-modulos" class="table table-striped table-hover">'
-                                                        +'<thead>'
-                                                            +'<tr>'
-                                                                +'<th class="col-sm-1"><i class="fa fa-database"></i> ID</th>'
-                                                                +'<th class="col-sm-4"><i class="glyphicon glyphicon-circle-arrow-down"></i> MÃƒÂ³dulo</th>'
-                                                                +'<th class="col-sm-2"><i class="glyphicon glyphicon-user"></i> UsuÃƒÂ¡rios</th>'
-                                                                +'<th class="col-sm-2"><i class="glyphicon glyphicon-ok-circle"></i> Liberado</th>'
-                                                                +'<th class="col-sm-2"><i class="glyphicon glyphicon-ban-circle"></i> Bloqueado</th>'
-                                                                +'<th class="col-sm-2"><i class="glyphicon glyphicon-list-alt"></i> Consulta</th>'
-                                                            +'</tr>'
-                                                        +'</thead>'
-                                                        +'<tbody>';
-                                            for(var im = 0; im < retorno_hbltds[i].modulos.length; im++){
-                                                //Verificar se jÃƒÂ¡ possui mÃƒÂ³dulo habilitado para carregar id da habilitaÃƒÂ§ÃƒÂ£o
-                                                var hbltc_mdl_id = '';
-                                                if(retorno_hbltds[i].modulos[im].id_hbltd_mdl > 0){
-                                                    hbltc_mdl_id = retorno_hbltds[i].modulos[im].id_hbltd_mdl;
-                                                }
-                                                //Carrega id da habilitaÃƒÂ§ÃƒÂ£o de acordo com o mÃƒÂ³dulo
-                                                html_hbltds += '<input type="hidden" id="inputHabilitacaoModuloId" name="inputHabilitacaoModuloId['+retorno_hbltds[i].modulos[im].id+']" value="'+hbltc_mdl_id+'">';
-                                                html_hbltds += '<tr>';
-                                                    html_hbltds += '<td class="text-left">'+retorno_hbltds[i].modulos[im].id+'</td>';
-                                                    html_hbltds += '<td class="text-left">'+retorno_hbltds[i].modulos[im].nome+'</td>';
-                                                    html_hbltds += '<td class="text-left"><input type="text" id="inputHabilitacaoModuloUsu" class="form-control" name="inputHabilitacaoModuloUsu-'+retorno_hbltds[i].modulos[im].id+'" class="col-sm-5" value="'+retorno_hbltds[i].modulos[im].usuarios+'" ></td>';
-                                                    //VerificaÃƒÂ§ÃƒÂ£o de status de mÃƒÂ³dulo
-                                                    if(retorno_hbltds[i].modulos[im].status == 'L'){
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="L" checked="checked"></td>';
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="B"></td>';
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="C"></td>';
-                                                    }else if(retorno_hbltds[i].modulos[im].status == 'B'){
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="L"></td>';
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="B" checked="checked"></td>';
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="C"></td>';
-                                                    }else if(retorno_hbltds[i].modulos[im].status == 'C'){
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="L"></td>';
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="B"></td>';
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="C" checked="checked"></td>';
-                                                    }else{
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="L"></td>';
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="B" checked="checked"></td>';
-                                                        html_hbltds += '<td class="text-left"><input type="radio" id="inputHabilitacaoModuloStatus" name="inputHabilitacaoModuloStatus['+retorno_hbltds[i].modulos[im].id+']" value="C"></td>';
-                                                    }
-                                                html_hbltds += '</tr>';
-                                            }
-                                        html_hbltds += '</tbody>';
-                                    html_hbltds += '</table>';
-                                }
-                                html_hbltds += '</form>';
-                            html_hbltds += '</div>';
-                        html_hbltds += '</div>';
-                    }
-                div.find('#content-produtos-habilitados').html(html_hbltds);                
-            }else{                
-                div.find('#content-produtos-habilitados').html('');
-            }
-
-            $(".loading").hide();
-            div.show();
-
-            if(id_habilitacao !== undefined) {
-               $('*[data-target="#collapseModulosHabilitado'+id_habilitacao+'"]').click();
-            }
-            window.location.href="#content-produtos-habilitados";
-        },
-        error: function (data) {
-            alert('Falha no envio, entre em contato com o administrador!');
-        }
-    });
-}
-
-function habilitarProdutoContrato(id_contrato, obj, acao, base_url) {
-    var form = new FormData($('#'+obj.id)[0]);
-    form.append('id_contrato', id_contrato);
-    
-    var funcao = $(acao).attr('data-action');
-    var acao = "";
-
-    if(funcao == "insert"){
-        acao = 'cadastrar_habilitacao';
-    }else if(funcao == "update"){
-        acao = 'atualizar_habilitacao';
-    }
-
-    $.ajax({
-        url: base_url+'contratos_sax/'+acao,
-        type: 'POST',
-        xhrFields: {
-            withCredentials: true
-        },
-        async: true,
-        cache: false,
-        contentType: false,
-        processData: false,
-        data: form,
-        beforeSend: function( xhr ) {
-          $(".overlay").show();
-        },
-        success: function (data) {
-          /*var retorno = jQuery.parseJSON(data);
-          $(".overlay").hide();*/
-          window.location.href = base_url+'contratos_sax/edit/'+$("#id_contrato").val();
-        },
-        error: function (data) {
-          alert('Falha no envio, entre em contato com o administrador!');
-        }
-    });
-}
-
 function suspenderOportunidade(id) {
   var url = $('#base_url').val()+'oportunidades/suspender/'+id
   $(".id_oportunidade_span").html(id);
@@ -3546,9 +2750,3 @@ function loadAudioExercicioBase64(id, prefix_url) {
     }
   });
 }
-
-
-
-
-
-

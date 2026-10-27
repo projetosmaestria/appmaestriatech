@@ -24,22 +24,34 @@ class Catalogo_servicos extends Admin_Controller {
         $this->breadcrumbs->unshift(1, lang('menu_catalogo_servicos'), 'catalogo_servicos');
     }
 
-
 	public function index()
 	{
         if ( ! $this->ion_auth->logged_in() OR ! $this->ion_auth->has_permissao("catalogo_servicos", "index"))
         {
             redirect('auth/login', 'refresh');
         }
-        else
-        {
-            /* Breadcrumbs */
-            $this->data['breadcrumb'] = $this->breadcrumbs->show();
-            $this->data['catalogo_servicos'] = $this->catalogo_servicos_model->get(array('select'=>'catalogo_servico.*, nivel.descricao as desc_nivel, modulos.nome as desc_modulo, produtos.nome as desc_produto, modulos_categoria.nome as desc_categoria', 'join' => array(array('nivel', 'nivel.id = catalogo_servico.nivel_id'),array('modulos_categoria', 'modulos_categoria.id = catalogo_servico.modulo_categoria_id'),array('modulos', 'modulos.id = modulos_categoria.id_modulo'),array('produtos', 'produtos.id = modulos.id_produto')), 'where'=>'produtos.empresa_id = '.$this->session->userdata('empresa_id') ,'order_by'=>array('catalogo_servico.id', 'desc')))->result();
-            $this->data['message'] = $this->session->flashdata('message');
-            /* Load Template */
-            $this->template->admin_render('admin/catalogo_servicos/index', $this->data);
-        }
+
+        $this->data['servicos'] = $this->db->query("SELECT cs.id, cs.descricao, cs.tempo_padrao, cs.prazo_padrao, cs.actived,
+                n.id AS nivel_id, n.descricao AS nivel, n.cor AS nivel_cor,
+                mc.nome AS categoria, m.nome AS modulo, p.id AS produto_id, p.nome AS produto,
+                COALESCE(uso.chamados, 0) AS chamados_90
+            FROM catalogo_servico cs
+            JOIN modulos_categoria mc ON mc.id = cs.modulo_categoria_id
+            JOIN modulos m ON m.id = mc.id_modulo
+            JOIN produtos p ON p.id = m.id_produto
+            LEFT JOIN nivel n ON n.id = cs.nivel_id
+            LEFT JOIN (SELECT catalogoservico_id, COUNT(*) AS chamados FROM chamado
+                       WHERE created >= CURDATE() - INTERVAL 90 DAY GROUP BY catalogoservico_id) uso ON uso.catalogoservico_id = cs.id
+            WHERE p.empresa_id = ?
+            ORDER BY cs.actived DESC, p.nome, m.nome, mc.nome, cs.descricao", array((int) $this->session->userdata('empresa_id')))->result();
+        $this->data['niveis'] = $this->niveis_empresa();
+        $this->data['breadcrumb'] = $this->breadcrumbs->show();
+        $this->data['message'] = $this->session->flashdata('message');
+        $this->data['can_create'] = $this->ion_auth->has_permissao('catalogo_servicos', 'create');
+        $this->data['can_edit'] = $this->ion_auth->has_permissao('catalogo_servicos', 'edit');
+        $this->data['can_status'] = $this->ion_auth->has_permissao('catalogo_servicos', 'deactivate') || $this->ion_auth->has_permissao('catalogo_servicos', 'activate');
+
+        $this->template->admin_render('admin/catalogo_servicos/index', $this->data);
 	}
 
 	public function create()
@@ -48,344 +60,174 @@ class Catalogo_servicos extends Admin_Controller {
 		{
 			redirect('auth', 'refresh');
 		}
-
-        /* Breadcrumbs */
-        $this->breadcrumbs->unshift(2, lang('menu_catalogo_servicos_create'), 'catalogo_servicos/create');
-        $this->data['breadcrumb'] = $this->breadcrumbs->show();
-
-		/* Validate form input */
-		$this->form_validation->set_rules('status', 'lang:create_validation_status_label', 'required');
-		$this->form_validation->set_rules('produto', 'lang:create_validation_produto_label', 'required');
-		$this->form_validation->set_rules('modulo', 'lang:create_validation_modulo_label', 'required');
-		$this->form_validation->set_rules('categoria', 'lang:create_validation_categoria_label', 'required');
-		$this->form_validation->set_rules('nivel', 'lang:create_validation_nivel_label', 'required');
-		$this->form_validation->set_rules('tempo_padrao', 'lang:create_validation_tempo_padrao_label', 'required|numeric');
-		$this->form_validation->set_rules('prazo_padrao', 'lang:create_validation_prazo_padrao_label', 'required|numeric');
-
-		$dados["actived"] = $this->input->post('status');
-		$dados["descricao"] = $this->input->post('descricao');
-		$dados["tempo_padrao"] = $this->input->post('tempo_padrao');
-		$dados["prazo_padrao"] = $this->input->post('prazo_padrao');
-		$dados["nivel_id"] = $this->input->post('nivel');
-		$dados["modulo_categoria_id"] = $this->input->post('categoria');
-		$dados["created"] = date('Y-m-d H:i:s');
-
-		if ($this->form_validation->run() == TRUE && $id = $this->catalogo_servicos_model->create($dados))
-		{
-			$this->session->set_flashdata('message', show_alert_success($this->catalogo_servicos_model->messages()));
-			redirect('catalogo_servicos', 'refresh');
-		} else {
-			if($_POST) {
-            	$this->data['message'] = (validation_errors() ? show_alert_error(validation_errors()) : ($this->catalogo_servicos_model->errors() ? show_alert_error($this->catalogo_servicos_model->errors()) : show_alert_error($this->session->flashdata('message'))));
-
-            	if($this->input->post('produto')) {
-			        $produto_modulo_options = array(""=>"Selecione");
-					$produtos_modulos = $this->produtos_modulos_model->get(array('select'=>'modulos.*', 'where'=>'id_produto = "'.$this->input->post('produto').'"', 'order_by'=>array('modulos.id', 'desc')));
-					if($produtos_modulos->num_rows() > 0):
-			        	foreach ($produtos_modulos->result() as $value) {
-			        		$produto_modulo_options[$value->id] = $value->nome;       		
-			        	}
-			        endif;
-		        }
-		        if($this->input->post('modulo')) {
-			        $produto_modulo_categoria_options = array(""=>"Selecione");
-					$produtos_modulos_categorias = $this->produtos_modulos_categorias_model->get(array('select'=>'modulos_categoria.*', 'where'=>'id_modulo = "'.$this->input->post('modulo').'"', 'order_by'=>array('modulos_categoria.id', 'desc')));
-					if($produtos_modulos_categorias->num_rows() > 0):
-			        	foreach ($produtos_modulos_categorias->result() as $value) {
-			        		$produto_modulo_categoria_options[$value->id] = $value->nome;       		
-			        	}
-			        endif;
-		        }
-			}
-
-            $this->data['status'] = $this->form_validation->set_value('status');
-
-			$produto_options = array(""=>"Selecione");
-			$produtos = $this->produtos_model->get(array('select'=>'produtos.*', 'where'=>'produtos.empresa_id = '.$this->session->userdata('empresa_id') ,'order_by'=>array('produtos.id', 'desc')));
-			if($produtos->num_rows() > 0):
-	        	foreach ($produtos->result() as $value) {
-	        		$produto_options[$value->id] = $value->nome;       		
-	        	}
-	        endif;
-			$this->data['produto'] = array(
-				'name'  => 'produto',
-				'id'    => 'produto_modulo_categoria',
-	            'class' => 'form-control',
-	            'options' => $produto_options,
-				'selected' => $this->form_validation->set_value('produto')
-			);
-			if(!$this->input->post('produto'))
-				$produto_modulo_options = array(""=>"Selecione");
-			$this->data['modulo'] = array(
-				'name'  => 'modulo',
-				'id'    => 'modulo',
-	            'class' => 'form-control',
-	            'options' => $produto_modulo_options,
-				'selected' => $this->form_validation->set_value('modulo')
-			);
-			if(!$this->input->post('modulo'))
-				$produto_modulo_categoria_options = array(""=>"Selecione");
-			$this->data['categoria'] = array(
-				'name'  => 'categoria',
-				'id'    => 'categoria',
-	            'class' => 'form-control',
-	            'options' => $produto_modulo_categoria_options,
-				'selected' => $this->form_validation->set_value('categoria')
-			);
-			$nivel_options = array(""=>"Selecione");
-			$niveis = $this->catalogo_servicos_model->get_niveis('actived = 1');
-			if($niveis->num_rows() > 0):
-	        	foreach ($niveis->result() as $value) {
-	        		$nivel_options[$value->id] = $value->descricao;       		
-	        	}
-	        endif;
-			$this->data['nivel'] = array(
-				'name'  => 'nivel',
-				'id'    => 'nivel',
-	            'class' => 'form-control',
-	            'options' => $nivel_options,
-				'selected' => $this->form_validation->set_value('nivel')
-			);
-			$this->data['descricao'] = array(
-				'name'  => 'descricao',
-				'id'    => 'descricao',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('descricao')
-			);
-			$this->data['texto'] = array(
-   				'name'  => 'texto',
-   				'id'    => 'texto',
-   				'type'  => 'text',
-                'class' => 'form-control',
-  				'value' => $this->form_validation->set_value('texto')
-   			);
-			$this->data['tempo_padrao'] = array(
-				'name'  => 'tempo_padrao',
-				'id'    => 'tempo_padrao',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('tempo_padrao')
-			);
-			$this->data['prazo_padrao'] = array(
-				'name'  => 'prazo_padrao',
-				'id'    => 'prazo_padrao',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('prazo_padrao')
-			);
-
-            /* Load Template */
-            $this->template->admin_render('admin/catalogo_servicos/create', $this->data);
-		}
+        $this->formulario(null);
 	}
 
-	/*public function delete()
+	public function edit($id = null)
 	{
-        if ( ! $this->ion_auth->logged_in() OR ! $this->ion_auth->has_permissao("produtos", "delete"))
-        {
-            redirect('auth/login', 'refresh');
-        }
-        elseif ( ! $this->ion_auth->is_admin())
-		{
-            return show_error('You must be an administrator to view this page.');
-        }
-        else
-        {
-            $this->load->view('admin/produtos/delete');
-        }
-	}*/
-
-	public function edit($id)
-	{
-		if ( ! $this->ion_auth->logged_in() OR ! $id OR empty($id) OR ! $this->ion_auth->has_permissao("catalogo_servicos", "edit"))
+		if ( ! $this->ion_auth->logged_in() OR ! $this->ion_auth->has_permissao("catalogo_servicos", "edit"))
 		{
 			redirect('auth', 'refresh');
 		}
-
-        /* Breadcrumbs */
-        $this->breadcrumbs->unshift(2, lang('menu_catalogo_servicos_edit'), 'catalogo_servicos/edit');
-        $this->data['breadcrumb'] = $this->breadcrumbs->show();
-
-        /* Variables */
-		$catalogo_servico = $this->catalogo_servicos_model->get(array('select'=>'catalogo_servico.*, modulos_categoria.id as categoria_id, modulos.id as modulo_id, produtos.id as produto_id', 'join'=>array(array('modulos_categoria', 'modulos_categoria.id = catalogo_servico.modulo_categoria_id'), array('modulos', 'modulos.id = modulos_categoria.id_modulo'), array('produtos', 'produtos.id = modulos.id_produto')), 'where'=>'catalogo_servico.id = '.$id, 'order_by'=>array('catalogo_servico.id','desc')))->row();
-
-		/* Validate form input */
-		$this->form_validation->set_rules('status', 'lang:create_validation_status_label', 'required');
-		$this->form_validation->set_rules('produto', 'lang:create_validation_produto_label', 'required');
-		$this->form_validation->set_rules('modulo', 'lang:create_validation_modulo_label', 'required');
-		$this->form_validation->set_rules('categoria', 'lang:create_validation_categoria_label', 'required');
-		$this->form_validation->set_rules('nivel', 'lang:create_validation_nivel_label', 'required');
-		$this->form_validation->set_rules('tempo_padrao', 'lang:create_validation_tempo_padrao_label', 'required|numeric');
-		$this->form_validation->set_rules('prazo_padrao', 'lang:create_validation_prazo_padrao_label', 'required|numeric');
-
-		$dados["actived"] = $this->input->post('status');
-		$dados["descricao"] = $this->input->post('descricao');
-		$dados["texto"] = $this->input->post('texto');
-		$dados["tempo_padrao"] = $this->input->post('tempo_padrao');
-		$dados["prazo_padrao"] = $this->input->post('prazo_padrao');
-		$dados["nivel_id"] = $this->input->post('nivel');
-		$dados["modulo_categoria_id"] = $this->input->post('categoria');
-
-		if (isset($_POST) && ! empty($_POST))
-		{
-			if ($this->form_validation->run() == TRUE)
-			{
-				$catalogo_servico_update = $this->catalogo_servicos_model->update($id, $dados);
-
-				if ($catalogo_servico_update)
-				{
-					$this->session->set_flashdata('message', show_alert_success($this->catalogo_servicos_model->messages()));
-				}
-				else
-				{
-					$this->session->set_flashdata('message', show_alert_error($this->catalogo_servicos_model->errors()));
-				}
-
-				redirect('catalogo_servicos', 'refresh');
-			} else {
-				$this->data['message'] = (validation_errors() ? show_alert_error(validation_errors()) : ($this->catalogo_servicos_model->errors() ? show_alert_error($this->catalogo_servicos_model->errors()) : show_alert_error($this->session->flashdata('message'))));
-			}
-		}
-
-        $this->data['catalogo_servico'] = $catalogo_servico;
-		$this->data['status'] = $this->form_validation->set_value('status', $catalogo_servico->actived);
-		$produto_options = array(""=>"Selecione");
-		$produtos = $this->produtos_model->get(array('select'=>'produtos.*', 'where'=>'produtos.empresa_id = '.$this->session->userdata('empresa_id') ,'order_by'=>array('produtos.id', 'desc')));
-		if($produtos->num_rows() > 0):
-        	foreach ($produtos->result() as $value) {
-        		$produto_options[$value->id] = $value->nome;       		
-        	}
-        endif;
-		$this->data['produto'] = array(
-			'name'  => 'produto',
-			'id'    => 'produto_modulo_categoria_edit',
-            'class' => 'form-control',
-            'options' => $produto_options,
-			'selected' => $this->form_validation->set_value('produto', $catalogo_servico->produto_id)
-		);
-		$modulo_options = array(""=>"Selecione");
-		$modulos = $this->produtos_modulos_model->get(array('select'=>'modulos.*', 'where'=>'id_produto = "'.$this->form_validation->set_value('produto', $catalogo_servico->produto_id).'"', 'order_by'=>array('modulos.id', 'desc')));
-		if($modulos->num_rows() > 0):
-        	foreach ($modulos->result() as $value) {
-        		$modulo_options[$value->id] = $value->nome;       		
-        	}
-        endif;
-		$this->data['modulo'] = array(
-			'name'  => 'modulo',
-			'id'    => 'modulo_edit',
-            'class' => 'form-control',
-            'options' => $modulo_options,
-			'selected' => $this->form_validation->set_value('modulo', $catalogo_servico->modulo_id)
-		);
-		$categoria_options = array(""=>"Selecione");
-		$categorias = $this->produtos_modulos_categorias_model->get(array('select'=>'modulos_categoria.*', 'where'=>'id_modulo = "'.$this->form_validation->set_value('modulo', $catalogo_servico->modulo_id).'"', 'order_by'=>array('modulos_categoria.id', 'desc')));
-		if($categorias->num_rows() > 0):
-        	foreach ($categorias->result() as $value) {
-        		$categoria_options[$value->id] = $value->nome;       		
-        	}
-        endif;
-		$this->data['categoria'] = array(
-			'name'  => 'categoria',
-			'id'    => 'categoria_edit',
-            'class' => 'form-control',
-            'options' => $categoria_options,
-			'selected' => $this->form_validation->set_value('categoria', $catalogo_servico->modulo_categoria_id)
-		);
-		$nivel_options = array(""=>"Selecione");
-			$niveis = $this->catalogo_servicos_model->get_niveis('actived = 1');
-			if($niveis->num_rows() > 0):
-	        	foreach ($niveis->result() as $value) {
-	        		$nivel_options[$value->id] = $value->descricao;       		
-	        	}
-	        endif;
-			$this->data['nivel'] = array(
-				'name'  => 'nivel',
-				'id'    => 'nivel',
-	            'class' => 'form-control',
-	            'options' => $nivel_options,
-				'selected' => $this->form_validation->set_value('nivel', $catalogo_servico->nivel_id)
-			);
-		$this->data['descricao'] = array(
-			'name'  => 'descricao',
-			'id'    => 'descricao',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('descricao', $catalogo_servico->descricao)
-		);
-		$this->data['texto'] = array(
-			'name'  => 'texto',
-			'id'    => 'texto',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('texto', $catalogo_servico->texto)
-   		);
-		$this->data['tempo_padrao'] = array(
-			'name'  => 'tempo_padrao',
-			'id'    => 'tempo_padrao',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('tempo_padrao', $catalogo_servico->tempo_padrao)
-		);
-		$this->data['prazo_padrao'] = array(
-			'name'  => 'prazo_padrao',
-			'id'    => 'prazo_padrao',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('prazo_padrao', $catalogo_servico->prazo_padrao)
-		);
-
-        /* Load Template */
-        $this->template->admin_render('admin/catalogo_servicos/edit', $this->data);
+        $servico = $this->servico_da_empresa($id);
+        if (!$servico) {
+            $this->session->set_flashdata('message', show_alert_error('Serviço não encontrado.'));
+            redirect('catalogo_servicos', 'refresh');
+        }
+        $this->formulario($servico);
 	}
 
-
-	function activate($id)
+	public function activate($id = NULL)
 	{
-        $id = (int) $id;
-		if ($this->ion_auth->has_permissao("catalogo_servicos", "activate"))
-		{
-			$activation = $this->catalogo_servicos_model->activate($id);
-		}
-		if($activation)
-        	$this->session->set_flashdata('message', show_alert_success($this->catalogo_servicos_model->messages()));
-        else
-        	$this->session->set_flashdata('message', show_alert_error($this->catalogo_servicos_model->messages()));
-		redirect('catalogo_servicos', 'refresh');
+        $this->alterar_status($id, 'activate');
 	}
-
 
 	public function deactivate($id = NULL)
 	{
-		$id = (int) $id;
-		if ($this->ion_auth->has_permissao("catalogo_servicos", "deactivate"))
-		{
-			$deactivation = $this->catalogo_servicos_model->deactivate($id);
-		}
-		if(@$deactivation)
-        	$this->session->set_flashdata('message', show_alert_success($this->catalogo_servicos_model->messages()));
-        else
-        	$this->session->set_flashdata('message', show_alert_error(lang('permission_denied')));
-		redirect('catalogo_servicos', 'refresh');
+        $this->alterar_status($id, 'deactivate');
 	}
 
-	public function get_modulos_habilitados(){
-		$modulos = $this->produtos_modulos_categorias_model->get_modulos($_POST["id"]);
-
+	public function get_modulos_habilitados()
+	{
+		$modulos = $this->produtos_modulos_categorias_model->get_modulos((int) $this->input->post('id'));
         $select = array();
-        if($modulos->num_rows() > 0):
-        	foreach ($modulos->result() as $value) {
-        		$prdt = array(
-                    'id' => $value->id,
-                    'nome' => $value->nome
-                );
-                array_push($select, $prdt);        		
-        	}
-        else:
-            $select = false;
-        endif;
-
-        exit(json_encode($select));
+        foreach ($modulos->result() as $value) {
+            $select[] = array('id' => $value->id, 'nome' => $value->nome);
+        }
+        exit(json_encode($select ? $select : false));
     }
-	
+
+    private function alterar_status($id, $acao)
+    {
+        if (!$this->ion_auth->logged_in() || !$this->ion_auth->has_permissao('catalogo_servicos', $acao)) {
+            redirect('auth/login', 'refresh');
+        }
+        $servico = $this->servico_da_empresa($id);
+        $ok = $servico && ($acao === 'activate' ? $this->catalogo_servicos_model->activate($servico->id) : $this->catalogo_servicos_model->deactivate($servico->id));
+        if ($ok) {
+            $this->session->set_flashdata('message', show_alert_success('Serviço "' . html_escape($servico->descricao) . '" ' . ($acao === 'activate' ? 'ativado.' : 'inativado.')));
+        } else {
+            $this->session->set_flashdata('message', show_alert_error('Não foi possível alterar o serviço.'));
+        }
+        redirect('catalogo_servicos', 'refresh');
+    }
+
+    private function servico_da_empresa($id)
+    {
+        return $this->db->select('cs.*, mc.id_modulo AS modulo_id, m.id_produto AS produto_id')
+            ->join('modulos_categoria mc', 'mc.id = cs.modulo_categoria_id')
+            ->join('modulos m', 'm.id = mc.id_modulo')
+            ->join('produtos p', 'p.id = m.id_produto')
+            ->where('cs.id', (int) $id)
+            ->where('p.empresa_id', (int) $this->session->userdata('empresa_id'))
+            ->get('catalogo_servico cs')->row();
+    }
+
+    private function niveis_empresa()
+    {
+        return $this->db->select('id, descricao, cor, actived')
+            ->where('empresa_id', (int) $this->session->userdata('empresa_id'))
+            ->order_by('actived', 'DESC')
+            ->order_by('descricao', 'ASC')
+            ->get('nivel')->result();
+    }
+
+    // Produtos, módulos e categorias da empresa, para a cascata do formulário.
+    private function arvore_empresa()
+    {
+        $empresa_id = (int) $this->session->userdata('empresa_id');
+        $produtos = $this->db->select('id, nome, status')->where('empresa_id', $empresa_id)->order_by('nome')->get('produtos')->result();
+        $modulos = $this->db->select('m.id, m.id_produto, m.nome, m.status')->join('produtos p', 'p.id = m.id_produto')
+            ->where('p.empresa_id', $empresa_id)->order_by('m.nome')->get('modulos m')->result();
+        $categorias = $this->db->select('mc.id, mc.id_modulo, mc.nome, mc.status')->join('modulos m', 'm.id = mc.id_modulo')->join('produtos p', 'p.id = m.id_produto')
+            ->where('p.empresa_id', $empresa_id)->order_by('mc.nome')->get('modulos_categoria mc')->result();
+        return array('produtos' => $produtos, 'modulos' => $modulos, 'categorias' => $categorias);
+    }
+
+    public function _categoria_da_empresa($id)
+    {
+        $existe = $this->db->join('modulos m', 'm.id = mc.id_modulo')->join('produtos p', 'p.id = m.id_produto')
+            ->where('mc.id', (int) $id)->where('p.empresa_id', (int) $this->session->userdata('empresa_id'))
+            ->count_all_results('modulos_categoria mc') > 0;
+        if (!$existe) {
+            $this->form_validation->set_message('_categoria_da_empresa', 'Selecione produto, módulo e categoria da empresa.');
+        }
+        return $existe;
+    }
+
+    public function _nivel_da_empresa($id)
+    {
+        $existe = $this->db->where('id', (int) $id)->where('empresa_id', (int) $this->session->userdata('empresa_id'))->count_all_results('nivel') > 0;
+        if (!$existe) {
+            $this->form_validation->set_message('_nivel_da_empresa', 'Selecione um nível da empresa.');
+        }
+        return $existe;
+    }
+
+    // Criação ($servico = null) e edição compartilham o formulário admin/catalogo_servicos/_form.
+    private function formulario($servico)
+    {
+        $editando = $servico !== null;
+        $this->breadcrumbs->unshift(2, lang($editando ? 'menu_catalogo_servicos_edit' : 'menu_catalogo_servicos_create'), $editando ? 'catalogo_servicos/edit/' . (int) $servico->id : 'catalogo_servicos/create');
+        $this->data['breadcrumb'] = $this->breadcrumbs->show();
+
+        $this->form_validation->set_rules('descricao', 'Serviço', 'trim|required|max_length[255]');
+        $this->form_validation->set_rules('categoria', 'Categoria', 'required|callback__categoria_da_empresa');
+        $this->form_validation->set_rules('nivel', 'Nível', 'required|callback__nivel_da_empresa');
+        $this->form_validation->set_rules('tempo_padrao', 'Tempo estimado', 'trim|required|validar_decimal');
+        $this->form_validation->set_rules('prazo_padrao', 'Prazo', 'trim|required|is_natural');
+        $this->form_validation->set_rules('texto', 'Orientações', 'trim');
+        $this->form_validation->set_rules('status', 'Status', 'required|in_list[0,1]');
+
+        if ($this->input->post() && $this->form_validation->run() == TRUE) {
+            $dados = array(
+                'descricao' => $this->input->post('descricao'),
+                'modulo_categoria_id' => (int) $this->input->post('categoria'),
+                'nivel_id' => (int) $this->input->post('nivel'),
+                'tempo_padrao' => number_format((float) str_replace(',', '.', $this->input->post('tempo_padrao')), 2, '.', ''),
+                'prazo_padrao' => (int) $this->input->post('prazo_padrao'),
+                'texto' => (string) $this->input->post('texto'),
+                'actived' => (int) $this->input->post('status'),
+            );
+            if ($editando) {
+                $ok = $this->catalogo_servicos_model->update($servico->id, $dados);
+            } else {
+                $dados['created'] = date('Y-m-d H:i:s');
+                $dados['aplicavel_os'] = 0;
+                $ok = $this->catalogo_servicos_model->create($dados);
+            }
+            if ($ok) {
+                $this->session->set_flashdata('message', show_alert_success('Serviço "' . html_escape($dados['descricao']) . '" ' . ($editando ? 'atualizado.' : 'criado.')));
+                redirect('catalogo_servicos', 'refresh');
+            }
+            $this->data['message'] = show_alert_error($this->catalogo_servicos_model->errors() ? $this->catalogo_servicos_model->errors() : 'Não foi possível salvar o serviço.');
+        } elseif ($this->input->post()) {
+            $this->data['message'] = show_alert_error(validation_errors());
+        }
+
+        $uso = 0;
+        if ($editando) {
+            $uso = (int) $this->db->where('catalogoservico_id', (int) $servico->id)->where('created >=', date('Y-m-d', strtotime('-90 days')))->count_all_results('chamado');
+        }
+
+        $post = $this->input->post();
+        $this->data['modo'] = $editando ? 'edit' : 'create';
+        $this->data['servico'] = $servico;
+        $this->data['uso_90'] = $uso;
+        $this->data['arvore'] = $this->arvore_empresa();
+        $this->data['niveis'] = $this->niveis_empresa();
+        $this->data['valores'] = array(
+            'descricao' => $post ? (string) $this->input->post('descricao') : ($editando ? $servico->descricao : ''),
+            'produto' => $post ? (int) $this->input->post('produto') : ($editando ? (int) $servico->produto_id : 0),
+            'modulo' => $post ? (int) $this->input->post('modulo') : ($editando ? (int) $servico->modulo_id : 0),
+            'categoria' => $post ? (int) $this->input->post('categoria') : ($editando ? (int) $servico->modulo_categoria_id : 0),
+            'nivel' => $post ? (int) $this->input->post('nivel') : ($editando ? (int) $servico->nivel_id : 0),
+            'tempo_padrao' => $post ? (string) $this->input->post('tempo_padrao') : ($editando ? str_replace('.', ',', rtrim(rtrim($servico->tempo_padrao, '0'), '.')) : ''),
+            'prazo_padrao' => $post ? (string) $this->input->post('prazo_padrao') : ($editando ? (string) $servico->prazo_padrao : ''),
+            'texto' => $post ? (string) $this->input->post('texto') : ($editando ? $servico->texto : ''),
+            'status' => $post ? (string) $this->input->post('status') : ($editando ? (string) (int) $servico->actived : '1'),
+        );
+
+        $this->template->admin_render('admin/catalogo_servicos/_form', $this->data);
+    }
 }

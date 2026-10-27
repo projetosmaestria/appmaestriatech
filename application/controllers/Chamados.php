@@ -124,70 +124,58 @@ class Chamados extends Admin_Controller
 				}
 
 				if ($this->input->get('filtro_plano_acao')) {
-					$where .= " AND c.plano_acao = '" . $this->input->get('filtro_plano_acao') . "'";
-					$plano_acao = $this->input->get('filtro_plano_acao');
+					$plano_acao = (int) $this->input->get('filtro_plano_acao');
+					$where .= " AND c.plano_acao = " . $plano_acao;
 				}
 
 				if ($this->input->get('filtro_dono') || $usuario_limitado == true) {
 					if ($usuario_limitado == true) {
-						$dono = $this->session->userdata('user_id');
+						$dono = (int) $this->session->userdata('user_id');
 						$where .= ' AND (c.dono_id = ' . $dono . ' OR c.responsavel_id = ' . $dono . ' OR c.desenvolvedor_id = ' . $dono . ')';
 					} else {
-						$dono = $this->input->get('filtro_dono');
+						$dono = (int) $this->input->get('filtro_dono');
 						$where .= ' AND c.dono_id = ' . $dono;
 					}
 				}
 				if ($this->input->get('filtro_dev')) {
-					$dev = $this->input->get('filtro_dev');
+					$dev = (int) $this->input->get('filtro_dev');
 					$where .= ' AND c.desenvolvedor_id = ' . $dev;
 				}
-				if ($this->input->get('filtro_status') == 'todos_menos_fechados_suspensos_avaliados' || $this->input->get('todos_menos_fechados_suspensos_avaliados') == 1) {
-					$st = 'todos_menos_fechados_suspensos_avaliados';
-					$status_excluidos = array(3, 5, 7);
-					$status_list = $this->chamados_model->get_status()->result();
-					$excluidos_db = array();
-					foreach ($status_list as $s_item) {
-						$desc = mb_strtolower(trim($s_item->descricao), 'UTF-8');
-						if (in_array($desc, array('fechado', 'suspenso', 'avaliado'))) {
-							$excluidos_db[] = (int)$s_item->id;
-						}
-					}
-					if (!empty($excluidos_db)) {
-						$status_excluidos = $excluidos_db;
-					}
-					$where .= ' AND c.status_id NOT IN (' . implode(',', $status_excluidos) . ')';
-				} else if ($this->input->get('filtro_status')) {
-					$st = $this->input->get('filtro_status');
+				if ($this->input->get('filtro_status')) {
+					$st = (int) $this->input->get('filtro_status');
 					if ($this->input->get('mostrar_resolvidos') != 1) {
-						$where .= ' AND (c.status_id != 5 AND c.status_id = ' . (int)$st . ')';
+						$where .= ' AND (c.status_id != 5 AND c.status_id = ' . $st . ')';
 					} else {
-						$where .= ' AND c.status_id = ' . (int)$st;
+						$where .= ' AND c.status_id = ' . $st;
 					}
 				}
 				if ($this->input->get('filtro_prior')) {
-					$prior = $this->input->get('filtro_prior');
+					$prior = (int) $this->input->get('filtro_prior');
 					$where .= ' AND c.prioridade_id = ' . $prior;
 				}
-				if (urlencode(base64_encode($this->input->get('q')))) {
-					$q = base64_decode(urldecode(urlencode(base64_encode($this->input->get('q')))));
+				if (trim((string) $this->input->get('q')) !== '') {
+					$q = trim((string) $this->input->get('q'));
+					$like = $this->db->escape_str($q);
+					$like_upper = $this->db->escape_str(mb_strtoupper($q));
 					$create = explode(' ', $q);
-					$where .= ' AND (c.id like "%' . $q . '%" OR UPPER(c.titulo) like "%' . mb_strtoupper($q) . '%" OR c.created like "%' . implode("-", array_reverse(explode("/", $create[0]))) . '%" OR UPPER(u.first_name) like "%' . mb_strtoupper($q) . '%" OR UPPER(u.last_name) like "%' . mb_strtoupper($q) . '%" OR UPPER(cst.descricao) like "%' . mb_strtoupper($q) . '%" OR UPPER(cp.descricao) like "%' . mb_strtoupper($q) . '%" OR UPPER(un.unidade) like "%' . mb_strtoupper($q) . '%" OR UPPER(cs.descricao) like "%' . mb_strtoupper($q) . '%")';
+					$like_date = $this->db->escape_str(implode("-", array_reverse(explode("/", $create[0]))));
+					$where .= ' AND (c.id like "%' . $like . '%" OR UPPER(c.titulo) like "%' . $like_upper . '%" OR c.created like "%' . $like_date . '%" OR UPPER(u.first_name) like "%' . $like_upper . '%" OR UPPER(u.last_name) like "%' . $like_upper . '%" OR UPPER(cst.descricao) like "%' . $like_upper . '%" OR UPPER(cp.descricao) like "%' . $like_upper . '%" OR UPPER(un.unidade) like "%' . $like_upper . '%" OR UPPER(cs.descricao) like "%' . $like_upper . '%")';
 				}
 				if ($this->input->get('filtro_unidade')) {
-					$cliente .= $this->input->get('filtro_unidade');
+					$cliente = (int) $this->input->get('filtro_unidade');
 					$where .= ' AND un.id = ' . $cliente;
 				}
 				if ($this->input->get('data_filtro_inicio_abertura') || $this->input->get('data_filtro_fim_abertura')) {
 					$where .= ' AND (';
 					if ($this->input->get('data_filtro_inicio_abertura')) {
 						$data_filtro_inicio_abertura = convertDateBRToEU($this->input->get('data_filtro_inicio_abertura'));
-						$where .= ' c.created >= "' . $data_filtro_inicio_abertura . '" ';
+						$where .= ' c.created >= ' . $this->db->escape($data_filtro_inicio_abertura) . ' ';
 					}
 					if ($this->input->get('data_filtro_fim_abertura')) {
 						$data_filtro_fim_abertura = convertDateBRToEU($this->input->get('data_filtro_fim_abertura'));
 						if ($this->input->get('data_filtro_inicio_abertura'))
 							$where .= ' AND';
-						$where .= ' c.created <= "' . $data_filtro_fim_abertura . '" ';
+						$where .= ' c.created <= ' . $this->db->escape($data_filtro_fim_abertura . ' 23:59:59') . ' ';
 					}
 					$where .= ' )';
 				}
@@ -195,13 +183,13 @@ class Chamados extends Admin_Controller
 					$where .= ' AND (';
 					if ($this->input->get('data_filtro_inicio_encerramento')) {
 						$data_filtro_inicio_encerramento = convertDateBRToEU($this->input->get('data_filtro_inicio_encerramento'));
-						$where .= ' c.data_finalizacao >= "' . $data_filtro_inicio_encerramento . '" ';
+						$where .= ' c.data_finalizacao >= ' . $this->db->escape($data_filtro_inicio_encerramento) . ' ';
 					}
 					if ($this->input->get('data_filtro_fim_encerramento')) {
 						$data_filtro_fim_encerramento = convertDateBRToEU($this->input->get('data_filtro_fim_encerramento'));
 						if ($this->input->get('data_filtro_inicio_encerramento'))
 							$where .= ' AND';
-						$where .= ' c.data_finalizacao <= "' . $data_filtro_fim_encerramento . '" ';
+						$where .= ' c.data_finalizacao <= ' . $this->db->escape($data_filtro_fim_encerramento . ' 23:59:59') . ' ';
 					}
 					$where .= ' )';
 				}
@@ -212,11 +200,11 @@ class Chamados extends Admin_Controller
 				}
 			}
 
-			if ($this->input->get('mostrar_resolvidos') != 1 && @!$this->input->get('filtro_status') && @!$this->input->get('todos_menos_fechados_suspensos_avaliados')) {
+			if ($this->input->get('mostrar_resolvidos') != 1 && @!$this->input->get('filtro_status')) {
 				$where .= ' AND c.status_id != 5';
 			}
 			if ($this->input->get('mostrar_responsaveis') == 1 && @!$this->input->get('filtro_dono')) {
-				$where .= ' AND c.responsavel_id = "' . $this->session->userdata('user_id') . '"';
+				$where .= ' AND c.responsavel_id = ' . (int) $this->session->userdata('user_id');
 			}
 
 			$where .= ' AND c.unidade_id IN (' . implode(",", $unidade_in_where) . ')';
@@ -224,36 +212,36 @@ class Chamados extends Admin_Controller
 			if ($this->input->get('filtro_avaliacao_de') || $this->input->get('filtro_avaliacao_ate')) {
 				$average = "";
 				if ($this->input->get('filtro_avaliacao_de') != "") {
-					$average .= "AVG(ca.resposta) >= " . $this->input->get('filtro_avaliacao_de');
-					$avaliacao_de = $this->input->get('filtro_avaliacao_de');
+					$avaliacao_de = (int) $this->input->get('filtro_avaliacao_de');
+					$average .= "AVG(ca.resposta) >= " . $avaliacao_de;
 				}
 				if ($this->input->get('filtro_avaliacao_ate') != "") {
 					if ($average != "")
 						$average .= " AND ";
-					$average .= "AVG(ca.resposta) <= " . $this->input->get('filtro_avaliacao_ate');
-					$avaliacao_ate = $this->input->get('filtro_avaliacao_ate');
+					$avaliacao_ate = (int) $this->input->get('filtro_avaliacao_ate');
+					$average .= "AVG(ca.resposta) <= " . $avaliacao_ate;
 				}
 				$chamados = $this->chamados_model->get(array(
-					'select' => 'c.id, c.categoria_id, c.modulo_id, c.resposta, c.referencia_id, c.unidade_id, c.produto_id, c.modulo_id, c.protocolo, c.titulo, c.descricao, c.horas, c.reincidencia, c.created, c.data_finalizacao, c.data_inicio, c.data_prazo, c.modified, u.first_name, u.last_name, cs.descricao as catalogo_desc, un.unidade as cliente, cst.descricao as status, c.status_id, cp.descricao as prioridade, ud.first_name as dono_first_name, ud.last_name as dono_last_name, AVG(ca.resposta) AS average, c.responsavel_id, udev.first_name as dev_first_name, udev.last_name as dev_last_name',
-					'join' => array(array('users u', 'u.id = c.responsavel_id', 'left'), array('users ud', 'ud.id = c.dono_id', 'left'), array('catalogo_servico cs', 'cs.id = c.catalogoservico_id', 'left'), array('unidades un', 'un.id = c.unidade_id', 'inner'), array('chamado_status cst', 'cst.id = c.status_id', 'inner'), array('chamado_prioridade cp', 'cp.id = c.prioridade_id', 'inner'), array('chamado_avaliacao ca', 'ca.chamado_id = c.id', 'left'), array('users udev', 'udev.id = c.desenvolvedor_id', 'left')),
+					'select' => 'c.id, c.categoria_id, c.modulo_id, c.resposta, c.referencia_id, c.unidade_id, c.produto_id, c.modulo_id, c.protocolo, c.titulo, c.descricao, c.horas, c.reincidencia, c.created, c.data_finalizacao, c.data_inicio, c.data_prazo, c.modified, u.first_name, u.last_name, cs.descricao as catalogo_desc, un.unidade as cliente, cst.descricao as status, cp.descricao as prioridade, ud.first_name as dono_first_name, ud.last_name as dono_last_name, AVG(ca.resposta) AS average, c.responsavel_id',
+					'join' => array(array('users u', 'u.id = c.responsavel_id', 'left'), array('users ud', 'ud.id = c.dono_id', 'left'), array('catalogo_servico cs', 'cs.id = c.catalogoservico_id', 'left'), array('unidades un', 'un.id = c.unidade_id', 'inner'), array('chamado_status cst', 'cst.id = c.status_id', 'inner'), array('chamado_prioridade cp', 'cp.id = c.prioridade_id', 'inner'), array('chamado_avaliacao ca', 'ca.chamado_id = c.id', 'left')),
 					'where' => $where,
 					'order_by' => array('c.id', 'desc')
 				), 15, $offset, "c.id", $average);
 				$chamados_num_rows = $this->chamados_model->get(array(
-					'select' => 'c.id, c.categoria_id, c.modulo_id, c.resposta, c.referencia_id, c.unidade_id, c.produto_id, c.modulo_id, c.protocolo, c.titulo, c.descricao, c.horas, c.reincidencia, c.created, c.data_finalizacao, c.data_inicio, c.data_prazo, c.modified, u.first_name, u.last_name, cs.descricao as catalogo_desc, un.unidade as cliente, cst.descricao as status, c.status_id, cp.descricao as prioridade',
+					'select' => 'c.id, c.categoria_id, c.modulo_id, c.resposta, c.referencia_id, c.unidade_id, c.produto_id, c.modulo_id, c.protocolo, c.titulo, c.descricao, c.horas, c.reincidencia, c.created, c.data_finalizacao, c.data_inicio, c.data_prazo, c.modified, u.first_name, u.last_name, cs.descricao as catalogo_desc, un.unidade as cliente, cst.descricao as status, cp.descricao as prioridade',
 					'join' => array(array('users u', 'u.id = c.responsavel_id', 'left'), array('users ud', 'ud.id = c.dono_id', 'left'), array('catalogo_servico cs', 'cs.id = c.catalogoservico_id', 'left'), array('unidades un', 'un.id = c.unidade_id', 'inner'), array('chamado_status cst', 'cst.id = c.status_id', 'inner'), array('chamado_prioridade cp', 'cp.id = c.prioridade_id', 'inner'), array('chamado_avaliacao ca', 'ca.chamado_id = c.id', 'left')),
 					'where' => $where,
 					'order_by' => array('c.id', 'desc')
 				), null, null, "c.id", $average)->num_rows();
 			} else {
 				$chamados = $this->chamados_model->get(array(
-					'select' => 'c.id, c.categoria_id, c.modulo_id, c.resposta, c.referencia_id, c.unidade_id, c.produto_id, c.modulo_id, c.protocolo, c.titulo, c.descricao, c.horas, c.reincidencia, c.created, c.data_finalizacao, c.data_inicio, c.data_prazo, c.modified, u.first_name, u.last_name, cs.descricao as catalogo_desc, un.unidade as cliente, cst.descricao as status, c.status_id, cp.descricao as prioridade, ud.first_name as dono_first_name, ud.last_name as dono_last_name, c.responsavel_id, udev.first_name as dev_first_name, udev.last_name as dev_last_name',
-					'join' => array(array('users u', 'u.id = c.responsavel_id', 'left'), array('users ud', 'ud.id = c.dono_id', 'left'), array('catalogo_servico cs', 'cs.id = c.catalogoservico_id', 'left'), array('unidades un', 'un.id = c.unidade_id', 'inner'), array('chamado_status cst', 'cst.id = c.status_id', 'inner'), array('chamado_prioridade cp', 'cp.id = c.prioridade_id', 'inner'), array('users udev', 'udev.id = c.desenvolvedor_id', 'left')),
+					'select' => 'c.id, c.categoria_id, c.modulo_id, c.resposta, c.referencia_id, c.unidade_id, c.produto_id, c.modulo_id, c.protocolo, c.titulo, c.descricao, c.horas, c.reincidencia, c.created, c.data_finalizacao, c.data_inicio, c.data_prazo, c.modified, u.first_name, u.last_name, cs.descricao as catalogo_desc, un.unidade as cliente, cst.descricao as status, cp.descricao as prioridade, ud.first_name as dono_first_name, ud.last_name as dono_last_name, c.responsavel_id',
+					'join' => array(array('users u', 'u.id = c.responsavel_id', 'left'), array('users ud', 'ud.id = c.dono_id', 'left'), array('catalogo_servico cs', 'cs.id = c.catalogoservico_id', 'left'), array('unidades un', 'un.id = c.unidade_id', 'inner'), array('chamado_status cst', 'cst.id = c.status_id', 'inner'), array('chamado_prioridade cp', 'cp.id = c.prioridade_id', 'inner')),
 					'where' => $where,
 					'order_by' => array('c.id', 'desc')
 				), 15, $offset);
 				$chamados_num_rows = $this->chamados_model->get(array(
-					'select' => 'c.id, c.categoria_id, c.modulo_id, c.resposta, c.referencia_id, c.unidade_id, c.produto_id, c.modulo_id, c.protocolo, c.titulo, c.descricao, c.horas, c.reincidencia, c.created, c.data_finalizacao, c.data_inicio, c.data_prazo, c.modified, u.first_name, u.last_name, cs.descricao as catalogo_desc, un.unidade as cliente, cst.descricao as status, c.status_id, cp.descricao as prioridade',
+					'select' => 'c.id, c.categoria_id, c.modulo_id, c.resposta, c.referencia_id, c.unidade_id, c.produto_id, c.modulo_id, c.protocolo, c.titulo, c.descricao, c.horas, c.reincidencia, c.created, c.data_finalizacao, c.data_inicio, c.data_prazo, c.modified, u.first_name, u.last_name, cs.descricao as catalogo_desc, un.unidade as cliente, cst.descricao as status, cp.descricao as prioridade',
 					'join' => array(array('users u', 'u.id = c.responsavel_id', 'left'), array('users ud', 'ud.id = c.dono_id', 'left'), array('catalogo_servico cs', 'cs.id = c.catalogoservico_id', 'left'), array('unidades un', 'un.id = c.unidade_id', 'inner'), array('chamado_status cst', 'cst.id = c.status_id', 'inner'), array('chamado_prioridade cp', 'cp.id = c.prioridade_id', 'inner')),
 					'where' => $where,
 					'order_by' => array('c.id', 'desc')
@@ -291,7 +279,10 @@ class Chamados extends Admin_Controller
 			$this->data['inicio_encerramento'] = $data_filtro_inicio_encerramento;
 			$this->data['fim_encerramento'] = $data_filtro_fim_encerramento;
 
-			$this->data['desenvolvedores'] = $this->chamados_model->get_groups_dev()->result();
+			$desenvolvedores = $this->chamados_model->get_groups_dev();
+			$this->data['desenvolvedores'] = is_object($desenvolvedores) ? $desenvolvedores->result() : array();
+			$this->data['dev'] = isset($dev) ? $dev : '';
+			$this->data['total_chamados'] = $chamados_num_rows;
 
 			/* Load Template */
 			$this->template->admin_render('admin/chamados/index', $this->data);
@@ -368,6 +359,8 @@ class Chamados extends Admin_Controller
 			$this->kanban_model->atualizarKanban($this->input->post(), $id, true);
 			/** fim kanban **/
 
+			$erros_anexos = $this->salvar_anexos_abertura($id);
+
 			$chamado = $this->chamados_model->get(array(
 				'select' => 'c.id, c.categoria_id, c.catalogoservico_id, c.modulo_id, c.resposta, c.referencia_id, c.unidade_id, c.produto_id, c.modulo_id, c.protocolo, c.titulo, c.descricao, c.horas, c.reincidencia, c.created, c.data_finalizacao, c.data_inicio, c.data_prazo, c.modified, c.status_id, c.prioridade_id, c.dono_id, c.responsavel_id, u.first_name, u.last_name, cs.descricao as catalogo_desc, un.unidade as cliente, cst.descricao as status, cp.descricao as prioridade, un.empresa_id, p.nome as produto_desc, m.nome as modulo_desc, mc.nome as mcategoria_desc, ud.first_name as first_name_dono, ud.last_name as last_name_dono, u.email as email_resp, ud.email as email_dono, c.interessados, r.id as chamado_referencia_id, r.titulo as chamado_referencia_titulo, c.plano_acao, n.descricao as nivel_desc, c.desenvolvedor_id, udev.first_name as first_name_dev, udev.last_name as last_name_dev, udev.email as email_dev',
 				'join' => array(array('produtos p', 'p.id = c.produto_id', 'left'), array('modulos m', 'm.id = c.modulo_id', 'left'), array('modulos_categoria mc', 'mc.id = c.categoria_id', 'left'), array('users u', 'u.id = c.responsavel_id', 'left'), array('users ud', 'ud.id = c.dono_id', 'left'), array('catalogo_servico cs', 'cs.id = c.catalogoservico_id', 'left'), array('unidades un', 'un.id = c.unidade_id', 'inner'), array('chamado_status cst', 'cst.id = c.status_id', 'inner'), array('chamado_prioridade cp', 'cp.id = c.prioridade_id', 'inner'), array('chamado r', 'r.id = c.referencia_id', 'left'), array('nivel n', 'n.id = c.nivel_id', 'left'), array('users udev', 'udev.id = c.desenvolvedor_id', 'left')),
@@ -392,30 +385,7 @@ class Chamados extends Admin_Controller
 				$from_name = $this->config->item('site_title', 'ion_auth');
 			}
 
-			$padrao_email = $this->ion_auth->get_email_padrao(5)->row();
-			$padrao_email_msg = $padrao_email->mensagem;
-			$padrao_email_msg = str_replace("{link_chamado}", base_url('chamados/details/' . $id), $padrao_email_msg);
-			$padrao_email_msg = str_replace("{chamado_id}", $id, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{unidade_desc}", $chamado->cliente, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{produto_desc}", $chamado->produto_desc, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{modulo_desc}", $chamado->modulo_desc, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{categoria_desc}", $chamado->mcategoria_desc, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{tipo_servico_desc}", $chamado->catalogo_desc, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{titulo}", $chamado->titulo, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{descricao}", $chamado->descricao, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{prioridade}", $chamado->prioridade, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{dono}", $chamado->first_name_dono . " " . $chamado->last_name_dono, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{responsavel}", $chamado->first_name . " " . $chamado->last_name, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{desenvolvedor}", $chamado->first_name_dev . " " . $chamado->last_name_dev, $padrao_email_msg);
-			if ($chamado->referencia_id != "")
-				$padrao_email_msg = str_replace("{referencia}", "<p><b>Referência:</b> Chamado #" . $chamado->chamado_referencia_id . " - " . $chamado->chamado_referencia_titulo . "</p>", $padrao_email_msg);
-			else
-				$padrao_email_msg = str_replace("{referencia}", "", $padrao_email_msg);
-			$padrao_email_msg = str_replace("{nivel}", $chamado->nivel_desc, $padrao_email_msg);
-
-			$padrao_email_ass = $padrao_email->assunto;
-			$padrao_email_ass = str_replace("{chamado_id}", $id, $padrao_email_ass);
-			$padrao_email_ass = str_replace("{titulo}", $chamado->titulo, $padrao_email_ass);
+			list($padrao_email_ass, $padrao_email_msg) = $this->montar_email_chamado($id, $chamado);
 
 			/*$this->email->clear();
 			$this->email->from($from_email, utf8_decode($from_name));
@@ -431,18 +401,14 @@ class Chamados extends Admin_Controller
 			$mail->SMTPAuth = true;
 			$mail->Username = $email_config['smtp_user'];
 			$mail->Password = $email_config['smtp_pass'];
-			$mail->SMTPSecure = 'tsl'; // mantendo compatibilidade com o resto do sistema
+			$mail->SMTPSecure = 'tsl';
 			$mail->Port     = $email_config['smtp_port'];
 
 			$mail->setFrom($from_email, utf8_decode($from_name));
 
-			$interessados_ids = unserialize($chamado->interessados);
-			if (is_array($interessados_ids) && !empty($interessados_ids)) {
-				$interessados_emails = $this->chamados_model->get_emails($interessados_ids);
-				foreach ($interessados_emails as $row_int) {
-					if ($row_int['email']) {
-						$mail->addAddress($row_int['email']);
-					}
+			if (is_array(unserialize($chamado->interessados))) {
+				foreach (unserialize($chamado->interessados) as $int) {
+					$mail->addAddress($this->chamados_model->get_email($int));
 				}
 			}
 			$mail->addAddress($chamado->email_dono);
@@ -453,8 +419,15 @@ class Chamados extends Admin_Controller
 			$mail->isHTML(true);
 
 			$mail->Body = utf8_decode($padrao_email_msg);
-			// Processa dialogos e flashdata antes
-			$this->session->set_flashdata('message', show_alert_success($this->chamados_model->messages()));
+			$mail->send();
+
+			$this->avisar_whatsapp_solicitante($id, 'abertura');
+
+			$mensagem_criacao = show_alert_success($this->chamados_model->messages());
+			if ($erros_anexos) {
+				$mensagem_criacao .= show_alert_error('Alguns anexos não foram enviados:<br>' . implode('<br>', $erros_anexos));
+			}
+			$this->session->set_flashdata('message', $mensagem_criacao);
 
 			$dados_diag = array();
 			$dados_diag["chamado_id"] = $id;
@@ -464,32 +437,10 @@ class Chamados extends Admin_Controller
 
 			$dialogo_create = $this->chamados_model->create_dialogo($dados_diag);
 
-			$redirect_url = ($back_to_kanban == true) ? site_url('kanban/index/') : site_url('chamados/details/' . $id);
+			if ($back_to_kanban == true)
+				redirect('kanban/index/', 'refresh');
 
-			// Libera a tela do usuario informando que o carregamento terminou, mandando o email em background
-			if (function_exists('fastcgi_finish_request')) {
-				header('Refresh:0;url='.$redirect_url);
-				session_write_close();
-				fastcgi_finish_request();
-				$mail->send();
-				exit;
-			} else {
-				ignore_user_abort(true);
-				while (ob_get_level() > 0) ob_end_clean();
-				header('Connection: close');
-				header('Refresh:0;url='.$redirect_url);
-				ob_start();
-				echo '<html><head><meta http-equiv="refresh" content="0;url='.$redirect_url.'"></head><body>Redirecionando...</body></html>';
-				$size = ob_get_length();
-				header("Content-Length: $size");
-				ob_end_flush();
-				@ob_flush();
-				flush();
-				if(session_id()) session_write_close();
-				
-				$mail->send();
-				exit;
-			}
+			redirect('chamados/details/' . $id, 'refresh');
 		} else {
 
 			$unidade_selecionada = '';
@@ -716,7 +667,7 @@ class Chamados extends Admin_Controller
 				$this->data['dono'] = array(
 					'name'  => 'dono',
 					'id'    => 'dono',
-					'class' => 'singleInputDynamic form-control',
+					'class' => 'form-control',
 					'options' => $dono_options,
 					'selected' => $this->form_validation->set_value('dono')
 				);
@@ -770,6 +721,308 @@ class Chamados extends Admin_Controller
 		}
 	}
 
+	/**
+	 * Assunto e corpo do e-mail de abertura (modelo tipo 5), usado ao criar e ao editar o chamado.
+	 */
+	private function montar_email_chamado($id, $chamado = null)
+	{
+		return $this->aplicar_email_chamado(5, $id);
+	}
+
+	/**
+	 * Monta assunto e corpo de um modelo de e-mail de chamado (tipos 5 a 10) com os marcadores comuns
+	 * e os específicos do evento ($extras). Mensagens internas só entram na conversa quando
+	 * $incluir_internos é verdadeiro (e-mail enviado apenas para a equipe).
+	 */
+	private function aplicar_email_chamado($tipo, $chamado_id, $extras = array(), $incluir_internos = false, $pular_recentes = 0)
+	{
+		$padrao_email = $this->ion_auth->get_email_padrao($tipo)->row();
+		$chamado = $this->dados_email_chamado($chamado_id);
+		$marcadores = $this->marcadores_email_chamado($chamado);
+		$marcadores['{timeline}'] = $this->timeline_email_html($chamado_id, $incluir_internos, $pular_recentes);
+
+		$mensagem = strtr($padrao_email->mensagem, array_merge($marcadores, $extras));
+		$assunto = strtr($padrao_email->assunto, array(
+			'{chamado_id}' => $chamado->id,
+			'{titulo}' => $chamado->titulo,
+			'{chamado_status}' => isset($extras['{chamado_status}']) ? html_entity_decode(strip_tags($extras['{chamado_status}']), ENT_QUOTES, 'UTF-8') : $chamado->status,
+		));
+		return array($assunto, $mensagem);
+	}
+
+	private function dados_email_chamado($chamado_id)
+	{
+		return $this->db->select(
+			'c.id, c.titulo, c.descricao, c.created, c.data_prazo, c.referencia_id, c.status_id, un.unidade AS cliente, ' .
+			'p.nome AS produto_desc, m.nome AS modulo_desc, mc.nome AS mcategoria_desc, cs.descricao AS catalogo_desc, ' .
+			'n.descricao AS nivel_desc, cst.descricao AS status, cp.descricao AS prioridade, ' .
+			'r.id AS chamado_referencia_id, r.titulo AS chamado_referencia_titulo, u.first_name, u.last_name, ' .
+			'ud.first_name AS first_name_dono, ud.last_name AS last_name_dono, udev.first_name AS first_name_dev, udev.last_name AS last_name_dev',
+			false
+		)
+			->from('chamado c')
+			->join('unidades un', 'un.id = c.unidade_id')
+			->join('produtos p', 'p.id = c.produto_id', 'left')
+			->join('modulos m', 'm.id = c.modulo_id', 'left')
+			->join('modulos_categoria mc', 'mc.id = c.categoria_id', 'left')
+			->join('catalogo_servico cs', 'cs.id = c.catalogoservico_id', 'left')
+			->join('nivel n', 'n.id = c.nivel_id', 'left')
+			->join('chamado_status cst', 'cst.id = c.status_id', 'left')
+			->join('chamado_prioridade cp', 'cp.id = c.prioridade_id', 'left')
+			->join('chamado r', 'r.id = c.referencia_id', 'left')
+			->join('users u', 'u.id = c.responsavel_id', 'left')
+			->join('users ud', 'ud.id = c.dono_id', 'left')
+			->join('users udev', 'udev.id = c.desenvolvedor_id', 'left')
+			->where('c.id', (int) $chamado_id)
+			->get()
+			->row();
+	}
+
+	private function marcadores_email_chamado($chamado)
+	{
+		$nao_definido = '<span style="color:#999999;">N&atilde;o definido</span>';
+		$texto = function ($valor) use ($nao_definido) {
+			$valor = trim((string) $valor);
+			return $valor !== '' ? html_escape($valor) : $nao_definido;
+		};
+		$referencia = '';
+		if ($chamado->referencia_id != "") {
+			$referencia = '<p style="margin:0 0 16px;padding:10px 14px;background:#fff8e5;border-left:3px solid #f39c12;font-size:13px;color:#555555;"><b>Relacionado ao chamado #' . (int) $chamado->chamado_referencia_id . '</b> &ndash; ' . html_escape($chamado->chamado_referencia_titulo) . '</p>';
+		}
+
+		return array(
+			'{link_chamado}' => base_url('chamados/details/' . $chamado->id),
+			'{logo_url}' => base_url('assets/images/xkey-chamados.png'),
+			'{chamado_id}' => $chamado->id,
+			'{titulo}' => html_escape($chamado->titulo),
+			'{descricao}' => nl2br(html_escape($chamado->descricao)),
+			'{unidade_desc}' => $texto($chamado->cliente),
+			'{produto_desc}' => $texto($chamado->produto_desc),
+			'{modulo_desc}' => $texto($chamado->modulo_desc),
+			'{categoria_desc}' => $texto($chamado->mcategoria_desc),
+			'{tipo_servico_desc}' => $texto($chamado->catalogo_desc),
+			'{nivel}' => $texto($chamado->nivel_desc),
+			'{status}' => $texto($chamado->status),
+			'{prioridade}' => $texto($chamado->prioridade),
+			'{prioridade_cor}' => $this->cor_prioridade_email($chamado->prioridade),
+			'{dono}' => $texto($chamado->first_name_dono . ' ' . $chamado->last_name_dono),
+			'{responsavel}' => $texto($chamado->first_name . ' ' . $chamado->last_name),
+			'{desenvolvedor}' => $texto($chamado->first_name_dev . ' ' . $chamado->last_name_dev),
+			'{data_abertura}' => date('d/m/Y', strtotime($chamado->created)) . ' &agrave;s ' . date('H:i', strtotime($chamado->created)),
+			'{previsao}' => $chamado->data_prazo ? date('d/m/Y', strtotime($chamado->data_prazo)) . ' &agrave;s ' . date('H:i', strtotime($chamado->data_prazo)) : $nao_definido,
+			'{referencia}' => $referencia,
+			'{anexos}' => $this->bloco_anexos_email($chamado->id),
+		);
+	}
+
+	/**
+	 * Últimas interações do chamado com estilos inline (os e-mails não carregam o CSS do painel).
+	 */
+	private function timeline_email_html($chamado_id, $incluir_internos = false, $pular_recentes = 0, $limite = 5)
+	{
+		$this->db->select('d.descricao, d.data_envio AS created, d.interno, u.first_name, u.last_name, NULL AS anexo', false)
+			->from('chamado_dialogo d')
+			->join('users u', 'u.id = d.responsavel_id', 'left')
+			->where('d.chamado_id', (int) $chamado_id);
+		if (!$incluir_internos) {
+			$this->db->where('d.interno', 0);
+		}
+		$itens = $this->db->order_by('d.data_envio', 'desc')->limit($limite + $pular_recentes)->get()->result_array();
+		$anexos = $this->db->select('a.descricao, a.created, 0 AS interno, u.first_name, u.last_name, a.anexo', false)
+			->from('chamado_anexo a')
+			->join('users u', 'u.id = a.responsavel_id', 'left')
+			->where('a.chamado_id', (int) $chamado_id)
+			->order_by('a.created', 'desc')
+			->limit($limite + $pular_recentes)
+			->get()
+			->result_array();
+		$itens = array_merge($itens, $anexos);
+		usort($itens, function ($a, $b) {
+			return strtotime($b['created']) - strtotime($a['created']);
+		});
+		$itens = array_slice($itens, $pular_recentes, $limite);
+
+		$titulo = '<p style="margin:24px 0 8px;font-size:12px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#3c8dbc;">&Uacute;ltimas intera&ccedil;&otilde;es</p>';
+		if (!$itens) {
+			return $titulo . '<p style="margin:0;font-size:14px;color:#999999;">Nenhuma intera&ccedil;&atilde;o anterior.</p>';
+		}
+
+		$linhas = '';
+		foreach ($itens as $item) {
+			$autor = trim($item['first_name'] . ' ' . $item['last_name']);
+			$selo = !empty($item['interno']) ? ' <span style="display:inline-block;padding:1px 6px;border-radius:3px;background:#f39c12;color:#ffffff;font-size:11px;">Interno</span>' : '';
+			$corpo = trim((string) $item['descricao']) !== '' ? '<div style="margin-top:4px;font-size:14px;line-height:1.5;color:#444444;">' . nl2br(html_escape($item['descricao'])) . '</div>' : '';
+			if (!empty($item['anexo'])) {
+				$corpo .= '<div style="margin-top:6px;font-size:13px;">&#128206; <a href="' . base_url('upload/anexo/' . rawurlencode($item['anexo'])) . '" style="color:#3c8dbc;text-decoration:none;font-weight:bold;">' . html_escape($item['anexo']) . '</a></div>';
+			}
+			$linhas .= '<tr><td style="padding:10px 12px;border-bottom:1px solid #eeeeee;">' .
+				'<div style="font-size:12px;color:#888888;"><b style="color:#333333;">' . html_escape($autor !== '' ? $autor : 'Sistema') . '</b> &middot; ' . date('d/m/Y H:i', strtotime($item['created'])) . $selo . '</div>' .
+				$corpo .
+			'</td></tr>';
+		}
+
+		return $titulo . '<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eeeeee;border-radius:4px;border-collapse:separate;">' . $linhas . '</table>' .
+			'<p style="margin:8px 0 0;font-size:12px;"><a href="' . base_url('chamados/details/' . (int) $chamado_id) . '" style="color:#3c8dbc;">Ver a conversa completa no chamado</a></p>';
+	}
+
+	/**
+	 * Envia ao solicitante o modelo de WhatsApp do evento ('abertura' ou 'encerramento')
+	 * e registra o resultado como diálogo interno. Nunca interrompe o fluxo do chamado.
+	 */
+	private function avisar_whatsapp_solicitante($chamado_id, $evento)
+	{
+		$this->config->load('flwchat', true);
+		$template_id = $this->config->item('flwchat_modelo_' . $evento, 'flwchat');
+		$this->load->library('flwchat_notifier');
+		if (!$template_id || !$this->flwchat_notifier->is_configured()) {
+			return;
+		}
+
+		$chamado = $this->db->select(
+			'c.id, c.titulo, un.empresa_id, dono.first_name AS nome_dono, p.celular, pri.descricao AS prioridade, ' .
+			'CONCAT(resp.first_name, " ", resp.last_name) AS responsavel', false
+		)
+			->from('chamado c')
+			->join('unidades un', 'un.id = c.unidade_id')
+			->join('users dono', 'dono.id = c.dono_id', 'left')
+			->join('pessoas p', 'p.user_id = c.dono_id', 'left')
+			->join('users resp', 'resp.id = c.responsavel_id', 'left')
+			->join('chamado_prioridade pri', 'pri.id = c.prioridade_id', 'left')
+			->where('c.id', (int) $chamado_id)
+			->limit(1)
+			->get()
+			->row();
+		if (!$chamado || (int) $chamado->empresa_id !== (int) $this->config->item('flwchat_empresa_id', 'flwchat')) {
+			return;
+		}
+
+		$telefone = Flwchat_notifier::normalize_phone($chamado->celular);
+		if ($telefone === '') {
+			$this->registrar_aviso_whatsapp($chamado_id, 'Aviso de ' . $evento . ' não enviado pelo WhatsApp: o solicitante não tem celular válido no cadastro.');
+			return;
+		}
+
+		$nome = trim($chamado->nome_dono) !== '' ? strtok(trim($chamado->nome_dono), ' ') : 'cliente';
+		if ($evento === 'abertura') {
+			$parametros = array(
+				'[NOME]' => $nome,
+				'[CHAMADO]' => '#' . $chamado->id,
+				'[ASSUNTO]' => $chamado->titulo,
+				'[PRIORIDADE]' => $chamado->prioridade,
+				'[ATENDENTE]' => trim($chamado->responsavel) !== '' ? trim($chamado->responsavel) : 'Equipe XKEY',
+				'[NUMERO-CHAMADO]' => (string) $chamado->id,
+			);
+		} else {
+			$parametros = array(
+				'[NOME]' => $nome,
+				'[CHAMADO]' => '#' . $chamado->id . ' - ' . $chamado->titulo,
+				'[NUMERO-CHAMADO]' => (string) $chamado->id,
+			);
+		}
+
+		$telefone_desc = '+' . $telefone;
+		if ($this->flwchat_notifier->send_template($telefone, $template_id, $parametros, 'chamado-' . $chamado->id . '-' . $evento)) {
+			$this->registrar_aviso_whatsapp($chamado_id, 'Aviso de ' . $evento . ' enviado pelo WhatsApp para ' . $telefone_desc . '.');
+		} else {
+			log_message('error', 'FLW Chat: chamado ' . $chamado->id . ' (' . $evento . ') - ' . $this->flwchat_notifier->last_error());
+			$this->registrar_aviso_whatsapp($chamado_id, 'Falha ao enviar o aviso de ' . $evento . ' pelo WhatsApp para ' . $telefone_desc . ': ' . $this->flwchat_notifier->last_error());
+		}
+	}
+
+	private function registrar_aviso_whatsapp($chamado_id, $descricao)
+	{
+		$this->chamados_model->create_dialogo(array(
+			'chamado_id' => (int) $chamado_id,
+			'responsavel_id' => $this->session->userdata('user_id'),
+			'descricao' => $descricao,
+			'data_envio' => date('Y-m-d H:i:s'),
+			'interno' => 1,
+		));
+	}
+
+	private function cor_prioridade_email($prioridade)
+	{
+		$cores = array('alta' => '#dd4b39', 'média' => '#f39c12', 'media' => '#f39c12', 'normal' => '#f39c12', 'baixa' => '#00a65a');
+		$chave = mb_strtolower(trim($prioridade), 'UTF-8');
+		return isset($cores[$chave]) ? $cores[$chave] : '#777777';
+	}
+
+	/**
+	 * Lista os anexos do chamado para o marcador {anexos} do e-mail de abertura.
+	 */
+	private function bloco_anexos_email($chamado_id)
+	{
+		$anexos = $this->chamados_model->get_anexos($chamado_id)->result();
+		$titulo = '<p style="margin:24px 0 8px;font-size:12px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#3c8dbc;">Anexos (' . count($anexos) . ')</p>';
+		if (!$anexos) {
+			return $titulo . '<p style="margin:0;font-size:14px;color:#999999;">Nenhum arquivo anexado na abertura.</p>';
+		}
+
+		$linhas = '';
+		foreach (array_reverse($anexos) as $anexo) {
+			$arquivo = FCPATH . 'upload/anexo/' . $anexo->anexo;
+			$tamanho = is_file($arquivo) ? filesize($arquivo) : 0;
+			$tamanho_desc = $tamanho >= 1048576 ? number_format($tamanho / 1048576, 1, ',', '.') . ' MB' : max(1, round($tamanho / 1024)) . ' KB';
+			$linhas .= '<tr>' .
+				'<td style="padding:10px 12px;border-bottom:1px solid #eeeeee;font-size:14px;">' .
+					'<a href="' . base_url('upload/anexo/' . rawurlencode($anexo->anexo)) . '" style="color:#3c8dbc;text-decoration:none;font-weight:bold;">' . html_escape($anexo->anexo) . '</a>' .
+				'</td>' .
+				'<td align="right" style="padding:10px 12px;border-bottom:1px solid #eeeeee;font-size:12px;color:#999999;white-space:nowrap;">' . ($tamanho ? $tamanho_desc : '') . '</td>' .
+			'</tr>';
+		}
+
+		return $titulo . '<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eeeeee;border-radius:4px;border-collapse:separate;">' . $linhas . '</table>';
+	}
+
+	/**
+	 * Grava os arquivos enviados no campo anexo[] da abertura do chamado.
+	 * Retorna a lista de erros, sem impedir a criação do chamado.
+	 */
+	private function salvar_anexos_abertura($chamado_id, $descricao = 'Anexo enviado na abertura do chamado.')
+	{
+		if (empty($_FILES['anexo']['name']) || !is_array($_FILES['anexo']['name'])) {
+			return array();
+		}
+
+		$config = get_upload_config();
+		if (!is_dir($config['upload_path'])) {
+			@mkdir($config['upload_path'], 0755, true);
+		}
+		$this->load->library('upload', $config);
+
+		$erros = array();
+		$arquivos = $_FILES['anexo'];
+		foreach ($arquivos['name'] as $key => $nome) {
+			if ($arquivos['error'][$key] === UPLOAD_ERR_NO_FILE || $nome === '') {
+				continue;
+			}
+
+			$_FILES['anexo_abertura'] = array(
+				'name' => removerAcentos($nome),
+				'type' => $arquivos['type'][$key],
+				'tmp_name' => $arquivos['tmp_name'][$key],
+				'error' => $arquivos['error'][$key],
+				'size' => $arquivos['size'][$key],
+			);
+
+			$this->upload->initialize($config);
+			if ($this->upload->do_upload('anexo_abertura')) {
+				$this->chamados_model->create_anexo(array(
+					'chamado_id' => $chamado_id,
+					'responsavel_id' => $this->session->userdata('user_id'),
+					'descricao' => $descricao,
+					'anexo' => $this->upload->data('file_name'),
+					'created' => date('Y-m-d H:i:s'),
+				));
+			} else {
+				$erros[] = html_escape($nome) . ': ' . strip_tags($this->upload->display_errors('', ''));
+			}
+		}
+		unset($_FILES['anexo_abertura']);
+
+		return $erros;
+	}
+
 	public function edit($id)
 	{
 		if (! $this->ion_auth->logged_in() or ! $this->ion_auth->has_permissao("chamados", "edit")) {
@@ -788,11 +1041,6 @@ class Chamados extends Admin_Controller
 			'where' => 'c.id = "' . $id . '"',
 			'order_by' => array('c.id', 'desc')
 		))->row();
-
-		if (!$chamado || $chamado->empresa_id != $this->session->userdata('empresa_id') || !$this->tem_acesso_unidade($chamado->unidade_id)) {
-			$this->session->set_flashdata('message', show_alert_error("Você não tem permissão para editar este chamado ou ele não foi encontrado."));
-			redirect('chamados', 'refresh');
-		}
 
 		$is_full_create = $this->chamados_model->is_full_create();
 		$this->data['is_full_create'] = $is_full_create;
@@ -835,7 +1083,15 @@ class Chamados extends Admin_Controller
 		$dados["nivel_id"] = $this->input->post('nivel');
 		$dados["desenvolvedor_id"] = $this->input->post('desenvolvedor');
 
+		// Só aceita destinos internos (ex.: kanban) para o retorno após salvar.
+		$redirect = (string) $this->input->post('redirect');
+		if (!preg_match('~^[a-z0-9_/-]+$~i', $redirect)) {
+			$redirect = '';
+		}
+
 		if ($this->form_validation->run() == TRUE && $this->chamados_model->update($id, $dados)) {
+			$erros_anexos = $this->salvar_anexos_abertura($id, 'Anexo enviado na edição do chamado.');
+
 			//kanban----
 			$back_to_kanban = false;
 			if ($this->input->post('quadro') || $this->input->post('coluna')) {
@@ -864,30 +1120,7 @@ class Chamados extends Admin_Controller
 				$from_name = $this->config->item('site_title', 'ion_auth');
 			}
 
-			$padrao_email = $this->ion_auth->get_email_padrao(5)->row();
-			$padrao_email_msg = $padrao_email->mensagem;
-			$padrao_email_msg = str_replace("{link_chamado}", base_url('chamados/details/' . $id), $padrao_email_msg);
-			$padrao_email_msg = str_replace("{chamado_id}", $id, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{unidade_desc}", $chamado->cliente, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{produto_desc}", $chamado->produto_desc, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{modulo_desc}", $chamado->modulo_desc, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{categoria_desc}", $chamado->mcategoria_desc, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{tipo_servico_desc}", $chamado->catalogo_desc, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{titulo}", $chamado->titulo, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{descricao}", $chamado->descricao, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{prioridade}", $chamado->prioridade, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{dono}", $chamado->first_name_dono . " " . $chamado->last_name_dono, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{responsavel}", $chamado->first_name . " " . $chamado->last_name, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{desenvolvedor}", $chamado->first_name_dev . " " . $chamado->last_name_dev, $padrao_email_msg);
-			if ($chamado->referencia_id != "")
-				$padrao_email_msg = str_replace("{referencia}", "<p><b>Referência:</b> Chamado #" . $chamado->chamado_referencia_id . " - " . $chamado->chamado_referencia_titulo . "</p>", $padrao_email_msg);
-			else
-				$padrao_email_msg = str_replace("{referencia}", "", $padrao_email_msg);
-			$padrao_email_msg = str_replace("{nivel}", $chamado->nivel_desc, $padrao_email_msg);
-
-			$padrao_email_ass = $padrao_email->assunto;
-			$padrao_email_ass = str_replace("{chamado_id}", $id, $padrao_email_ass);
-			$padrao_email_ass = str_replace("{titulo}", $chamado->titulo, $padrao_email_ass);
+			list($padrao_email_ass, $padrao_email_msg) = $this->montar_email_chamado($id, $chamado);
 
 			/*$this->email->clear();
 			$this->email->from($from_email, utf8_decode($from_name));
@@ -930,11 +1163,18 @@ class Chamados extends Admin_Controller
 			$mail->isHTML(true);
 
 			$mail->Body = utf8_decode($padrao_email_msg);
-			
-			$this->session->set_flashdata('message', show_alert_success($this->chamados_model->messages()));
-			$this->_assync_finish_request($redirect == "" ? site_url('chamados/details/' . $id) : site_url($redirect));
 			$mail->send();
-			exit;
+
+			$mensagem_edicao = show_alert_success($this->chamados_model->messages());
+			if ($erros_anexos) {
+				$mensagem_edicao .= show_alert_error('Alguns anexos não foram enviados:<br>' . implode('<br>', $erros_anexos));
+			}
+			$this->session->set_flashdata('message', $mensagem_edicao);
+
+			if ($redirect == "")
+				redirect('chamados/details/' . $id, 'refresh');
+			else
+				redirect($redirect, 'refresh');
 		} else {
 			if ($_POST) {
 				$this->data['message'] = (validation_errors() ? show_alert_error(validation_errors()) : ($this->chamados_model->errors() ? show_alert_error($this->chamados_model->errors()) : show_alert_error($this->session->flashdata('message'))));
@@ -1130,7 +1370,7 @@ class Chamados extends Admin_Controller
 				$this->data['dono'] = array(
 					'name'  => 'dono',
 					'id'    => 'dono',
-					'class' => 'singleInputDynamic form-control',
+					'class' => 'form-control',
 					'options' => $dono_options,
 					'selected' => $this->form_validation->set_value('dono', $chamado->dono_id)
 				);
@@ -1174,6 +1414,9 @@ class Chamados extends Admin_Controller
 			);
 
 			/* Load Template */
+			$this->data['chamado'] = $chamado;
+			$this->data['anexos_existentes'] = $this->chamados_model->get_anexos($id)->result();
+
 			$this->template->admin_render('admin/chamados/edit', $this->data);
 		}
 	}
@@ -1193,19 +1436,6 @@ class Chamados extends Admin_Controller
 	{
 		if (! $this->ion_auth->logged_in() or ! $id or empty($id) or ! $this->ion_auth->has_permissao("chamados", "details")) {
 			redirect('auth', 'refresh');
-		}
-
-		/* Variables */
-		$chamado = $this->chamados_model->get(array(
-			'select' => 'c.id, c.categoria_id, c.catalogoservico_id, c.modulo_id, c.resposta, c.referencia_id, c.unidade_id, c.produto_id, c.modulo_id, c.protocolo, c.titulo, c.descricao, c.horas, c.reincidencia, c.created, c.data_finalizacao, c.data_inicio, c.data_prazo, c.modified, c.status_id, c.prioridade_id, c.dono_id, c.responsavel_id, u.first_name, u.last_name, cs.descricao as catalogo_desc, un.unidade as cliente, cst.descricao as status, cp.descricao as prioridade, un.empresa_id, p.nome as produto_desc, m.nome as modulo_desc, mc.nome as mcategoria_desc, ud.first_name as first_name_dono, ud.last_name as last_name_dono, r.id as chamado_referencia_id, r.titulo as chamado_referencia_titulo, c.horas_prevista, CONCAT(at.first_name, " ", at.last_name) as atualizado_por_nome, n.descricao as nivel_desc, c.nivel_id, c.desenvolvedor_id, dev.first_name as first_name_dev, dev.last_name as last_name_dev',
-			'join' => array(array('produtos p', 'p.id = c.produto_id', 'left'), array('modulos m', 'm.id = c.modulo_id', 'left'), array('modulos_categoria mc', 'mc.id = c.categoria_id', 'left'), array('users u', 'u.id = c.responsavel_id', 'left'), array('users ud', 'ud.id = c.dono_id', 'left'), array('catalogo_servico cs', 'cs.id = c.catalogoservico_id', 'left'), array('unidades un', 'un.id = c.unidade_id', 'inner'), array('chamado_status cst', 'cst.id = c.status_id', 'inner'), array('chamado_prioridade cp', 'cp.id = c.prioridade_id', 'inner'), array('chamado r', 'r.id = c.referencia_id', 'left'), array('users at', 'at.id = c.atualizado_por', 'left'), array('nivel n', 'n.id = c.nivel_id', 'left'), array('users dev', 'dev.id = c.desenvolvedor_id', 'left')),
-			'where' => 'c.id = "' . $id . '"',
-			'order_by' => array('c.id', 'desc')
-		))->row();
-
-		if (!$chamado || $chamado->empresa_id != $this->session->userdata('empresa_id') || !$this->tem_acesso_unidade($chamado->unidade_id)) {
-			$this->session->set_flashdata('message', show_alert_error("Você não tem permissão para visualizar este chamado ou ele não foi encontrado."));
-			redirect('chamados', 'refresh');
 		}
 
 		// carregar checklists e suas etapas para modal precoce
@@ -1240,6 +1470,12 @@ class Chamados extends Admin_Controller
 			$this->data['acesso_edit'] = true;
 		if ($this->ion_auth->has_permissao("chamados", "escalar"))
 			$this->data['acesso_escalar'] = true;
+		$this->data['acesso_planejar'] = $this->pode_planejar_equipe();
+		$this->data['data_planejada'] = null;
+		if ($this->data['acesso_planejar']) {
+			$this->load->model('kanban_dashboard_model');
+			$this->data['data_planejada'] = $this->kanban_dashboard_model->get_planned_date((int) $this->session->userdata('empresa_id'), $id);
+		}
 		if ($this->ion_auth->has_permissao("chamados", "status"))
 			$this->data['acesso_status'] = true;
 		if ($this->ion_auth->has_permissao("chamados", "imprimir"))
@@ -1281,6 +1517,18 @@ class Chamados extends Admin_Controller
 		$this->breadcrumbs->unshift(2, lang('menu_chamados_details'), 'chamados/details');
 		$this->data['breadcrumb'] = $this->breadcrumbs->show();
 
+		/* Variables */
+		$chamado = $this->chamados_model->get(array(
+			'select' => 'c.id, c.categoria_id, c.catalogoservico_id, c.modulo_id, c.resposta, c.referencia_id, c.unidade_id, c.produto_id, c.modulo_id, c.protocolo, c.titulo, c.descricao, c.horas, c.reincidencia, c.created, c.data_finalizacao, c.data_inicio, c.data_prazo, c.modified, c.status_id, c.prioridade_id, c.dono_id, c.responsavel_id, u.first_name, u.last_name, cs.descricao as catalogo_desc, un.unidade as cliente, cst.descricao as status, cp.descricao as prioridade, un.empresa_id, p.nome as produto_desc, m.nome as modulo_desc, mc.nome as mcategoria_desc, ud.first_name as first_name_dono, ud.last_name as last_name_dono, r.id as chamado_referencia_id, r.titulo as chamado_referencia_titulo, c.horas_prevista, CONCAT(at.first_name, " ", at.last_name) as atualizado_por_nome, n.descricao as nivel_desc, c.nivel_id, c.desenvolvedor_id, dev.first_name as first_name_dev, dev.last_name as last_name_dev',
+			'join' => array(array('produtos p', 'p.id = c.produto_id', 'left'), array('modulos m', 'm.id = c.modulo_id', 'left'), array('modulos_categoria mc', 'mc.id = c.categoria_id', 'left'), array('users u', 'u.id = c.responsavel_id', 'left'), array('users ud', 'ud.id = c.dono_id', 'left'), array('catalogo_servico cs', 'cs.id = c.catalogoservico_id', 'left'), array('unidades un', 'un.id = c.unidade_id', 'inner'), array('chamado_status cst', 'cst.id = c.status_id', 'inner'), array('chamado_prioridade cp', 'cp.id = c.prioridade_id', 'inner'), array('chamado r', 'r.id = c.referencia_id', 'left'), array('users at', 'at.id = c.atualizado_por', 'left'), array('nivel n', 'n.id = c.nivel_id', 'left'), array('users dev', 'dev.id = c.desenvolvedor_id', 'left')),
+			'where' => 'c.id = "' . $id . '"',
+			'order_by' => array('c.id', 'desc')
+		))->row();
+
+		if ($chamado->empresa_id != $this->session->userdata('empresa_id')) {
+			redirect('chamados', 'refresh');
+		}
+
 		$this->page_title->clear();
 
 		if ($chamado->referencia_id == "")
@@ -1300,7 +1548,6 @@ class Chamados extends Admin_Controller
 		$where .= "a.user_id IN (" . $this->session->userdata('user_id') . ")";
 		// $this->data['apontamentos'] = $this->chamados_model->get_apontamentos($chamado->id, "a.user_id = ".$this->session->userdata('user_id'));
 		$this->data['apontamentos'] = $this->chamados_model->get_apontamentos($chamado->id);
-		$this->data['tipos_apontamento'] = $this->db->get('chamado_apontamento_tipo')->result();
 
 		if ($this->ion_auth->has_permissao("chamados", "alterar_prioridade"))
 			$this->data['has_prioridade'] = true;
@@ -1357,7 +1604,7 @@ class Chamados extends Admin_Controller
 
 		$this->data['timeline'] = $timeline;
 
-		if ($chamado->status_id == 8 || $chamado->status_id == 14)
+		if ($chamado->status_id == 8)
 			$status_n_obrigatorios = $this->chamados_model->get_status_n_obrigatorios(true)->result();
 		else
 			$status_n_obrigatorios = $this->chamados_model->get_status_n_obrigatorios()->result();
@@ -1495,6 +1742,22 @@ class Chamados extends Admin_Controller
 
 		$this->data['apontamento_ativo'] = $this->chamados_model->get_apontamento_ativo($id);
 
+		// Para o popup de apontamento: horas que o usuário já apontou hoje (todos os chamados) e a meta diária dele.
+		$horas_hoje = $this->db->select('COALESCE(SUM(TIME_TO_SEC(esforco)), 0) AS segundos', false)
+			->where('user_id', (int) $this->session->userdata('user_id'))
+			->where('data', date('Y-m-d'))
+			->get('chamado_apontamento')
+			->row();
+		$this->data['apontado_hoje_segundos'] = $horas_hoje ? (int) $horas_hoje->segundos : 0;
+		$this->data['meta_diaria_horas'] = null;
+		if ($this->db->table_exists('kanban_dashboard_meta')) {
+			$this->load->model('kanban_dashboard_model');
+			$this->data['meta_diaria_horas'] = $this->kanban_dashboard_model->get_goal(
+				(int) $this->session->userdata('empresa_id'),
+				(int) $this->session->userdata('user_id')
+			);
+		}
+
 		$chamados_vinculados = $this->chamados_model->get(array(
 			'select' => 'c.id, c.titulo, cst.descricao as status',
 			'join' => array(array('chamado_status cst', 'cst.id = c.status_id', 'inner')),
@@ -1566,8 +1829,7 @@ class Chamados extends Admin_Controller
 			'order_by' => array('c.id', 'desc')
 		))->row();
 
-		if (!$chamado || $chamado->empresa_id != $this->session->userdata('empresa_id') || !$this->tem_acesso_unidade($chamado->unidade_id)) {
-			$this->session->set_flashdata('message', show_alert_error("Você não tem permissão para acessar este chamado ou ele não foi encontrado."));
+		if ($chamado->empresa_id != $this->session->userdata('empresa_id')) {
 			redirect('chamados', 'refresh');
 		}
 
@@ -1625,15 +1887,13 @@ class Chamados extends Admin_Controller
 						$from_name = $this->config->item('site_title', 'ion_auth');
 					}
 
-					$padrao_email = $this->ion_auth->get_email_padrao(6)->row();
-					$padrao_email_msg = $padrao_email->mensagem;
-					$padrao_email_msg = str_replace("{link_chamado}", base_url('chamados/details/' . $id), $padrao_email_msg);
-					$padrao_email_msg = str_replace("{chamado_id}", $id, $padrao_email_msg);
-					$padrao_email_msg = str_replace("{unidade_desc}", $chamado->cliente, $padrao_email_msg);
-					$padrao_email_msg = str_replace("{timeline}", generate_timeline_html($timeline), $padrao_email_msg);
-
-					$padrao_email_ass = $padrao_email->assunto;
-					$padrao_email_ass = str_replace("{chamado_id}", $id, $padrao_email_ass);
+					$autor_dialogo = trim($this->chamados_model->get_user_name($this->session->userdata('user_id')));
+					list($padrao_email_ass, $padrao_email_msg) = $this->aplicar_email_chamado(6, $id, array(
+						'{dialogo_autor}' => html_escape($autor_dialogo),
+						'{dialogo_data}' => date('d/m/Y') . ' &agrave;s ' . date('H:i'),
+						'{dialogo_texto}' => nl2br(html_escape($this->input->post('dialogo'))),
+						'{dialogo_interno}' => $eh_interno ? ' <span style="display:inline-block;padding:1px 6px;border-radius:3px;background:#f39c12;color:#ffffff;font-size:11px;">Interno</span>' : '',
+					), (bool) $eh_interno, 1);
 
 					$mail = $this->phpmailer_library->load();
 					$mail->isSMTP();
@@ -1647,7 +1907,7 @@ class Chamados extends Admin_Controller
 					$mail->setFrom($from_email, utf8_decode($from_name));
 
 					$chamado_email = $this->chamados_model->get(array(
-						'select' => 'c.id, c.dono_id, u.email as email_dono, c.responsavel_id, c.interessados, u.first_name, u.last_name, us.email as email_resp, c.plano_acao, c.desenvolvedor_id, udev.email as email_dev',
+						'select' => 'c.id, c.dono_id, u.email as email_dono, c.responsavel_id, c.interessados, u.first_name, u.last_name, us.email as email_resp, c.plano_acao, udev.email as email_dev',
 						'join' => array(array('users u', 'u.id = c.dono_id', 'left'), array('users us', 'us.id = c.responsavel_id', 'left'), array('users udev', 'udev.id = c.desenvolvedor_id', 'left')),
 						'where' => 'c.id = "' . $id . '"',
 						'order_by' => array('c.id', 'desc')
@@ -1657,32 +1917,37 @@ class Chamados extends Admin_Controller
 					$grupos_excluidos = array(2, 11, 35, 58, 68);
 
 					// ADICIONAR DESTINATÁRIOS
-					$interessados_ids = unserialize($chamado_email->interessados);
-					if (is_array($interessados_ids) && !empty($interessados_ids)) {
-						$interessados_emails = $this->chamados_model->get_emails($interessados_ids);
-						
-						$usuarios_excluidos = array();
-						if ($eh_interno) {
-							$usuarios_excluidos = $this->chamados_model->get_users_in_groups($interessados_ids, $grupos_excluidos);
-						}
-
-						foreach ($interessados_emails as $row_int) {
-							if ($row_int['email']) {
-								if ($eh_interno) {
-									if (!in_array($row_int['id'], $usuarios_excluidos)) {
-										$mail->addAddress($row_int['email']);
+					if (is_array(unserialize($chamado_email->interessados))) {
+						foreach (unserialize($chamado_email->interessados) as $int) {
+							// Se for interno, não adiciona usuários dos grupos excluídos
+							if ($eh_interno) {
+								$adicionar = true;
+								foreach ($grupos_excluidos as $grupo_id) {
+									if ($this->ion_auth->in_group($grupo_id, $int)) {
+										$adicionar = false;
+										break;
 									}
-								} else {
-									$mail->addAddress($row_int['email']);
 								}
+								if ($adicionar) {
+									$mail->addAddress($this->chamados_model->get_email($int));
+								}
+							} else {
+								// Se não for interno, adiciona todos
+								$mail->addAddress($this->chamados_model->get_email($int));
 							}
 						}
 					}
 
 					// DONO
 					if ($eh_interno) {
-						$dono_excluido = $this->chamados_model->get_users_in_groups(array($chamado_email->dono_id), $grupos_excluidos);
-						if (empty($dono_excluido)) {
+						$adicionar_dono = true;
+						foreach ($grupos_excluidos as $grupo_id) {
+							if ($this->ion_auth->in_group($grupo_id, $chamado_email->dono_id)) {
+								$adicionar_dono = false;
+								break;
+							}
+						}
+						if ($adicionar_dono) {
 							$mail->addAddress($chamado_email->email_dono);
 						}
 					} else {
@@ -1691,8 +1956,14 @@ class Chamados extends Admin_Controller
 
 					// RESPONSÁVEL
 					if ($eh_interno) {
-						$resp_excluido = $this->chamados_model->get_users_in_groups(array($chamado_email->responsavel_id), $grupos_excluidos);
-						if (empty($resp_excluido)) {
+						$adicionar_responsavel = true;
+						foreach ($grupos_excluidos as $grupo_id) {
+							if ($this->ion_auth->in_group($grupo_id, $chamado_email->responsavel_id)) {
+								$adicionar_responsavel = false;
+								break;
+							}
+						}
+						if ($adicionar_responsavel) {
 							$mail->addAddress($chamado_email->email_resp);
 						}
 					} else {
@@ -1702,8 +1973,14 @@ class Chamados extends Admin_Controller
 					// DESENVOLVEDOR
 					if ($chamado_email->desenvolvedor_id) {
 						if ($eh_interno) {
-							$dev_excluido = $this->chamados_model->get_users_in_groups(array($chamado_email->desenvolvedor_id), $grupos_excluidos);
-							if (empty($dev_excluido)) {
+							$adicionar_dev = true;
+							foreach ($grupos_excluidos as $grupo_id) {
+								if ($this->ion_auth->in_group($grupo_id, $chamado_email->desenvolvedor_id)) {
+									$adicionar_dev = false;
+									break;
+								}
+							}
+							if ($adicionar_dev) {
 								$mail->addAddress($chamado_email->email_dev);
 							}
 						} else {
@@ -1717,18 +1994,15 @@ class Chamados extends Admin_Controller
 
 					// Só envia se houver destinatários
 					if (count($mail->getToAddresses()) > 0) {
-						$this->session->set_flashdata('message', show_alert_success($this->chamados_model->messages()));
-						$this->_assync_finish_request(site_url('chamados/details/' . $id));
 						$mail->send();
-						exit;
 					}
 
-					$this->session->set_flashdata('message', show_alert_success($this->chamados_model->messages()));
+					$this->data['message'] = show_alert_success($this->chamados_model->messages());
 				} else {
-					$this->session->set_flashdata('message', show_alert_error($this->chamados_model->errors()));
+					$this->data['message'] = show_alert_error($this->chamados_model->errors());
 				}
 			} else {
-				$this->session->set_flashdata('message', (validation_errors() ? show_alert_error(validation_errors()) : ($this->chamados_model->errors() ? show_alert_error($this->chamados_model->errors()) : show_alert_error($this->session->flashdata('message')))));
+				$this->data['message'] = (validation_errors() ? show_alert_error(validation_errors()) : ($this->chamados_model->errors() ? show_alert_error($this->chamados_model->errors()) : show_alert_error($this->session->flashdata('message'))));
 			}
 		}
 
@@ -1753,8 +2027,7 @@ class Chamados extends Admin_Controller
 			'order_by' => array('c.id', 'desc')
 		))->row();
 
-		if (!$chamado || $chamado->empresa_id != $this->session->userdata('empresa_id') || !$this->tem_acesso_unidade($chamado->unidade_id)) {
-			$this->session->set_flashdata('message', show_alert_error("Você não tem permissão para acessar este chamado ou ele não foi encontrado."));
+		if ($chamado->empresa_id != $this->session->userdata('empresa_id')) {
 			redirect('chamados', 'refresh');
 		}
 
@@ -1829,21 +2102,22 @@ class Chamados extends Admin_Controller
 					$from_name = $this->config->item('site_title', 'ion_auth');
 				}
 
-				$padrao_email = $this->ion_auth->get_email_padrao(7)->row();
-				$padrao_email_msg = $padrao_email->mensagem;
-				$padrao_email_msg = str_replace("{link_chamado}", base_url('chamados/details/' . $id), $padrao_email_msg);
-				$padrao_email_msg = str_replace("{chamado_id}", $id, $padrao_email_msg);
-				$padrao_email_msg = str_replace("{unidade_desc}", $chamado->cliente, $padrao_email_msg);
-				$padrao_email_msg = str_replace("{timeline}", generate_timeline_html($timeline), $padrao_email_msg);
-
-				$padrao_email_ass = $padrao_email->assunto;
-				$padrao_email_ass = str_replace("{chamado_id}", $id, $padrao_email_ass);
+				$arquivos_email = '';
+				foreach (array_filter(array_map('trim', explode(',', $upload_msgs))) as $arquivo) {
+					$arquivos_email .= '<div style="margin-top:4px;font-size:14px;">&#128206; <a href="' . base_url('upload/anexo/' . rawurlencode($arquivo)) . '" style="color:#3c8dbc;text-decoration:none;font-weight:bold;">' . html_escape($arquivo) . '</a></div>';
+				}
+				list($padrao_email_ass, $padrao_email_msg) = $this->aplicar_email_chamado(7, $id, array(
+					'{anexo_autor}' => html_escape(trim($this->chamados_model->get_user_name($this->session->userdata('user_id')))),
+					'{anexo_data}' => date('d/m/Y') . ' &agrave;s ' . date('H:i'),
+					'{anexo_arquivos}' => $arquivos_email,
+					'{anexo_descricao}' => trim((string) $this->input->post('anexo_desc')) !== '' ? '<div style="margin-top:8px;font-size:14px;line-height:1.5;color:#444444;">' . nl2br(html_escape($this->input->post('anexo_desc'))) . '</div>' : '',
+				), false, $count_upload);
 
 				$this->email->clear();
 				$this->email->from($from_email, utf8_decode($from_name));
 
 				$chamado = $this->chamados_model->get(array(
-					'select' => 'c.id, c.dono_id, u.email as email_dono, c.responsavel_id, c.interessados, u.first_name, u.last_name, us.email as email_resp, c.plano_acao, c.desenvolvedor_id, udev.email as email_dev',
+					'select' => 'c.id, c.dono_id, u.email as email_dono, c.responsavel_id, c.interessados, u.first_name, u.last_name, us.email as email_resp, c.plano_acao, udev.email as email_dev',
 					'join' => array(array('users u', 'u.id = c.dono_id', 'left'), array('users us', 'us.id = c.responsavel_id', 'left'), array('users udev', 'udev.id = c.desenvolvedor_id', 'left')),
 					'where' => 'c.id = "' . $id . '"',
 					'order_by' => array('c.id', 'desc')
@@ -1874,13 +2148,9 @@ class Chamados extends Admin_Controller
 
 				$mail->setFrom($from_email, utf8_decode($from_name));
 
-				$interessados_ids = unserialize($chamado->interessados);
-				if (is_array($interessados_ids) && !empty($interessados_ids)) {
-					$interessados_emails = $this->chamados_model->get_emails($interessados_ids);
-					foreach ($interessados_emails as $row_int) {
-						if ($row_int['email']) {
-							$mail->addAddress($row_int['email']);
-						}
+				if (is_array(unserialize($chamado->interessados))) {
+					foreach (unserialize($chamado->interessados) as $int) {
+						$mail->addAddress($this->chamados_model->get_email($int));
 					}
 				}
 				$mail->addAddress($chamado->email_dono);
@@ -1891,34 +2161,9 @@ class Chamados extends Admin_Controller
 				$mail->isHTML(true);
 
 				$mail->Body = utf8_decode($padrao_email_msg);
-				// Processa a mensagem de sucesso antes
-				$this->session->set_flashdata('message', show_alert_success("Anexo " . $upload_msgs . " adicionado com sucesso."));
-				$redirect_url = site_url('chamados/details/' . $id);
+				$mail->send();
 
-				// Libera a tela do usuario informando que o carregamento terminou, mandando o email em background
-				if (function_exists('fastcgi_finish_request')) {
-					header('Refresh:0;url='.$redirect_url);
-					session_write_close();
-					fastcgi_finish_request();
-					$mail->send();
-					exit;
-				} else {
-					ignore_user_abort(true);
-					while (ob_get_level() > 0) ob_end_clean();
-					header('Connection: close');
-					header('Refresh:0;url='.$redirect_url);
-					ob_start();
-					echo '<html><head><meta http-equiv="refresh" content="0;url='.$redirect_url.'"></head><body>Redirecionando...</body></html>';
-					$size = ob_get_length();
-					header("Content-Length: $size");
-					ob_end_flush();
-					@ob_flush();
-					flush();
-					if(session_id()) session_write_close();
-					
-					$mail->send();
-					exit;
-				}
+				$this->session->set_flashdata('message', show_alert_success("Anexo " . $upload_msgs . " adicionado com sucesso."));
 			}
 		}
 
@@ -2457,11 +2702,6 @@ class Chamados extends Admin_Controller
 		return $data->format('Y-m-d');
 	}
 
-	/**
-	 * Retorna os IDs das unidades permitidas para o usuário logado
-	 *
-	 * @return array
-	 */
 	private function get_unidades_permitidas_ids()
 	{
 		$unidades_permitidas_usuario = $this->chamados_model->get_unidades_permitidas(
@@ -2507,13 +2747,14 @@ class Chamados extends Admin_Controller
 			->get('chamado c')
 			->row();
 
-		if (!$chamado || $chamado->empresa_id != $this->session->userdata('empresa_id')) {
+		if (!$chamado || $chamado->empresa_id != $this->session->userdata('empresa_id') || !$this->tem_acesso_unidade($chamado->unidade_id)) {
 			return false;
 		}
 
 		return $this->tem_acesso_unidade($chamado->unidade_id);
 	}
 
+	
 	public function avaliar_chamado()
 	{
 		if (! $this->ion_auth->logged_in() or ! $this->ion_auth->has_permissao("chamados", "avaliar_chamado")) {
@@ -2573,11 +2814,6 @@ class Chamados extends Admin_Controller
 			redirect('auth', 'refresh');
 		}
 
-		if (empty($_POST["chamado_id"]) || !$this->tem_acesso_chamado($_POST["chamado_id"])) {
-			$this->session->set_flashdata('message', show_alert_error("Você não tem permissão para reagendar este chamado."));
-			redirect('chamados', 'refresh');
-		}
-
 		$data_hora = explode(" ", $_POST["data_reagendar"]);
 		$data = explode("/", $data_hora[0]);
 		if (checkdate($data[1], $data[0], $data[2])) {
@@ -2609,26 +2845,7 @@ class Chamados extends Admin_Controller
 						$from_name = $this->config->item('site_title', 'ion_auth');
 					}
 
-					$padrao_email = $this->ion_auth->get_email_padrao(8)->row();
-					$padrao_email_msg = $padrao_email->mensagem;
-					$padrao_email_msg = str_replace("{link_chamado}", base_url('chamados/details/' . $_POST["chamado_id"]), $padrao_email_msg);
-					$padrao_email_msg = str_replace("{chamado_id}", $_POST["chamado_id"], $padrao_email_msg);
-					$padrao_email_msg = str_replace("{unidade_desc}", $chamado->cliente, $padrao_email_msg);
-					$padrao_email_msg = str_replace("{produto_desc}", $chamado->produto_desc, $padrao_email_msg);
-					$padrao_email_msg = str_replace("{modulo_desc}", $chamado->modulo_desc, $padrao_email_msg);
-					$padrao_email_msg = str_replace("{categoria_desc}", $chamado->mcategoria_desc, $padrao_email_msg);
-					$padrao_email_msg = str_replace("{tipo_servico_desc}", $chamado->catalogo_desc, $padrao_email_msg);
-					$padrao_email_msg = str_replace("{titulo}", $chamado->titulo, $padrao_email_msg);
-					$padrao_email_msg = str_replace("{descricao}", $chamado->descricao, $padrao_email_msg);
-					$padrao_email_msg = str_replace("{prioridade}", $chamado->prioridade, $padrao_email_msg);
-					$padrao_email_msg = str_replace("{dono}", $chamado->first_name_dono . " " . $chamado->last_name_dono, $padrao_email_msg);
-					$padrao_email_msg = str_replace("{responsavel}", $chamado->first_name . " " . $chamado->last_name, $padrao_email_msg);
-					$padrao_email_msg = str_replace("{previsao}", $_POST["data_reagendar"], $padrao_email_msg);
-					$padrao_email_msg = str_replace("{desenvolvedor}", $chamado->first_name_dev . " " . $chamado->last_name_dev, $padrao_email_msg);
-					$padrao_email_msg = str_replace("{nivel}", $chamado->nivel_desc, $padrao_email_msg);
-
-					$padrao_email_ass = $padrao_email->assunto;
-					$padrao_email_ass = str_replace("{chamado_id}", $id, $padrao_email_ass);
+					list($padrao_email_ass, $padrao_email_msg) = $this->aplicar_email_chamado(8, $_POST["chamado_id"]);
 
 					/*$this->email->clear();
 					$this->email->from($from_email, utf8_decode($from_name));
@@ -2671,11 +2888,7 @@ class Chamados extends Admin_Controller
 					$mail->isHTML(true);
 
 					$mail->Body = utf8_decode($padrao_email_msg);
-					
-					$this->session->set_flashdata('message', show_alert_success("Prazo para resolução alterado com sucesso."));
-					$this->_assync_finish_request(site_url('chamados'));
 					$mail->send();
-					exit;
 				}
 				$this->session->set_flashdata('message', show_alert_success("Prazo para resolução alterado com sucesso."));
 			} else {
@@ -2687,15 +2900,16 @@ class Chamados extends Admin_Controller
 		redirect('chamados', 'refresh');
 	}
 
+	// Mesma regra do planejamento da equipe (Kanban::planejamento), onde só administradores alteram a data prevista.
+	private function pode_planejar_equipe()
+	{
+		return $this->ion_auth->is_admin() && $this->db->table_exists('kanban_tarefa_planejamento');
+	}
+
 	public function escalar()
 	{
 		if (! $this->ion_auth->logged_in() or ! $this->ion_auth->has_permissao("chamados", "escalar")) {
 			redirect('auth', 'refresh');
-		}
-
-		if (empty($_POST["chamado_id"]) || !$this->tem_acesso_chamado($_POST["chamado_id"])) {
-			$this->session->set_flashdata('message', show_alert_error("Você não tem permissão para escalar este chamado."));
-			redirect('chamados', 'refresh');
 		}
 
 		//$this->form_validation->set_rules('responsavel', 'lang:create_validation_responsavel_label', 'required');
@@ -2711,7 +2925,7 @@ class Chamados extends Admin_Controller
 
 		if ($this->form_validation->run() == TRUE) {
 			$chamado = $this->chamados_model->get(array(
-				'select' => 'c.id, c.categoria_id, c.modulo_id, c.resposta, c.referencia_id, c.unidade_id, c.produto_id, c.modulo_id, c.protocolo, c.titulo, c.descricao, c.horas, c.reincidencia, c.created, c.data_finalizacao, c.data_inicio, c.data_prazo, c.modified, c.status_id, c.prioridade_id, c.dono_id, c.responsavel_id, u.first_name, u.last_name, cs.descricao as catalogo_desc, un.unidade as cliente, cst.descricao as status, cp.descricao as prioridade, un.empresa_id, c.catalogoservico_id',
+				'select' => 'c.id, c.categoria_id, c.modulo_id, c.resposta, c.referencia_id, c.unidade_id, c.produto_id, c.modulo_id, c.protocolo, c.titulo, c.descricao, c.horas, c.reincidencia, c.created, c.data_finalizacao, c.data_inicio, c.data_prazo, c.modified, c.status_id, c.prioridade_id, c.dono_id, c.responsavel_id, c.desenvolvedor_id, u.first_name, u.last_name, cs.descricao as catalogo_desc, un.unidade as cliente, cst.descricao as status, cp.descricao as prioridade, un.empresa_id, c.catalogoservico_id',
 				'join' => array(array('users u', 'u.id = c.responsavel_id', 'left'), array('catalogo_servico cs', 'cs.id = c.catalogoservico_id', 'left'), array('unidades un', 'un.id = c.unidade_id', 'inner'), array('chamado_status cst', 'cst.id = c.status_id', 'inner'), array('chamado_prioridade cp', 'cp.id = c.prioridade_id', 'inner')),
 				'where' => 'c.id = "' . $_POST["chamado_id"] . '"',
 				'order_by' => array('c.id', 'desc')
@@ -2720,9 +2934,7 @@ class Chamados extends Admin_Controller
 			if (!$this->ion_auth->has_permissao("chamados", "reagendar")) {
 				$catalogo_servico = $this->chamados_model->get_catalogo_servico($this->input->post('tipo_servico'))->row();
 				$parametro = $this->chamados_model->get_parametro()->row();
-				$expediente_inicio = isset($parametro->expediente_inicio) ? $parametro->expediente_inicio : "08:00:00"; // Define horário padrão se não houver configuração
-				$expediente_fim = isset($parametro->expediente_fim) ? $parametro->expediente_fim : "18:00:00";
-				$calculaPrazo = calcula_horas_uteis($catalogo_servico->prazo_padrao, $expediente_inicio, $expediente_fim, new DateTime($chamado->created))->format("Y-m-d H:i:s");
+				$calculaPrazo = calcula_horas_uteis($catalogo_servico->prazo_padrao, $parametro->expediente_inicio, $parametro->expediente_fim, new DateTime($chamado->created))->format("Y-m-d H:i:s");
 			} else {
 				$data_reagendar = explode(" ", $_POST["data_reagendar"]);
 				$data_reagendar_verif = explode("/", $data_reagendar[0]);
@@ -2731,9 +2943,7 @@ class Chamados extends Admin_Controller
 				} else {
 					$catalogo_servico = $this->chamados_model->get_catalogo_servico($this->input->post('tipo_servico'))->row();
 					$parametro = $this->chamados_model->get_parametro()->row();
-					$expediente_inicio = isset($parametro->expediente_inicio) ? $parametro->expediente_inicio : "08:00:00";
-					$expediente_fim = isset($parametro->expediente_fim) ? $parametro->expediente_fim : "18:00:00";
-					$calculaPrazo = calcula_horas_uteis($catalogo_servico->prazo_padrao, $expediente_inicio, $expediente_fim, new DateTime($chamado->created))->format("Y-m-d H:i:s");
+					$calculaPrazo = calcula_horas_uteis($catalogo_servico->prazo_padrao, $parametro->expediente_inicio, $parametro->expediente_fim, new DateTime($chamado->created))->format("Y-m-d H:i:s");
 				}
 			}
 
@@ -2761,24 +2971,62 @@ class Chamados extends Admin_Controller
 				$data['hash'] = sha1($chamado->id . $chamado->dono_id);
 			}
 
+			// Data planejada no planejamento da equipe: validada antes de salvar para não escalar pela metade.
+			$data_planejada = null;
+			$data_planejada_anterior = null;
+			$data_planejada_txt = trim((string) $this->input->post('data_planejada'));
+			if ($data_planejada_txt !== '' && $this->pode_planejar_equipe()) {
+				$partes = explode('/', $data_planejada_txt);
+				if (!preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $data_planejada_txt) || !checkdate((int) $partes[1], (int) $partes[0], (int) $partes[2])) {
+					$this->session->set_flashdata('message', show_alert_error("Data planejada inválida. Use o formato dd/mm/aaaa."));
+					redirect('chamados/details/' . (int) $_POST["chamado_id"], 'refresh');
+				}
+				$empresa_planejamento = (int) $this->session->userdata('empresa_id');
+				if ((int) $chamado->empresa_id !== $empresa_planejamento) {
+					$this->session->set_flashdata('message', show_alert_error("O chamado é de outra empresa. Selecione a empresa do chamado para planejá-lo."));
+					redirect('chamados/details/' . (int) $_POST["chamado_id"], 'refresh');
+				}
+				$data_planejada = sprintf('%04d-%02d-%02d', $partes[2], $partes[1], $partes[0]);
+				// Na agenda, o chamado conta para o programador quando há um; senão, para o responsável.
+				$colaborador_planejado = (int) ($this->input->post('desenvolvedor') ? $this->input->post('desenvolvedor') : $chamado->desenvolvedor_id);
+				if ($colaborador_planejado <= 0) {
+					$colaborador_planejado = (int) $data['responsavel_id'];
+				}
+				$this->load->model('kanban_dashboard_model');
+				if ($colaborador_planejado > 0 && $this->kanban_dashboard_model->is_date_unavailable($empresa_planejamento, $colaborador_planejado, $data_planejada)) {
+					$this->session->set_flashdata('message', show_alert_error("Não foi possível escalar: " . html_escape($this->chamados_model->get_user_name($colaborador_planejado)) . " está indisponível em " . $data_planejada_txt . " (folga, férias ou feriado). Escolha outra data planejada."));
+					redirect('chamados/details/' . (int) $_POST["chamado_id"], 'refresh');
+				}
+				$data_planejada_anterior = $this->kanban_dashboard_model->get_planned_date($empresa_planejamento, $chamado->id);
+			}
+
 			if ($this->chamados_model->update($_POST["chamado_id"], $data)) {
+				if ($data_planejada !== null && $data_planejada !== $data_planejada_anterior) {
+					$this->kanban_dashboard_model->save_planned_date((int) $chamado->empresa_id, $chamado->id, $data_planejada, $this->session->userdata("user_id"));
+					$this->chamados_model->create_dialogo(array(
+						"chamado_id" => $_POST["chamado_id"],
+						"responsavel_id" => $this->session->userdata("user_id"),
+						"descricao" => "Planejado para " . date("d/m/Y", strtotime($data_planejada)) . " no planejamento da equipe.",
+						"data_envio" => date("Y-m-d H:i:s"),
+					));
+				} else {
+					$data_planejada = null;
+				}
+
 				/** kanban **/
 				$this->kanban_model->atualizarKanban($this->input->post(), $_POST["chamado_id"], false);
 				/** fim kanban **/
 
-				// Cria diálogo se houver alteração de status e adiciona flag de retrabalho se necessário
-				$dados = array(); // Inicializa variável para evitar erro de undefined
-				if ($chamado->status_id != $_POST['status']) {
-					if (($chamado->status_id == 8 || $chamado->status_id == 14 || $chamado->status_id == 3 || $chamado->status_id == 5) && $_POST['status'] == 1) {
-						$dados["retrabalho"] = 1;
-					}
+				//adicionar flag retrabalho
+				if (($chamado->status_id == 8 || $chamado->status_id == 3 || $chamado->status_id == 5) && $_POST['status'] == 1) {
+					$dados["retrabalho"] = 1;
 					$dados["chamado_id"] = $_POST["chamado_id"];
 					$dados["responsavel_id"] = $this->session->userdata("user_id");
 					$dados["descricao"] = "Status do chamado alterado para " . $this->chamados_model->get_status_name($_POST["status"]) . ".";
 					$dados["data_envio"] = date("Y-m-d H:i:s");
 					$this->chamados_model->create_dialogo($dados);
 				}
-				if (isset($dados["retrabalho"])) unset($dados["retrabalho"]);
+				unset($dados["retrabalho"]);
 
 				if ($_POST["responsavel"]) {
 					$dados["chamado_id"] = $_POST["chamado_id"];
@@ -2846,46 +3094,31 @@ class Chamados extends Admin_Controller
 				$email_config_db = $this->ion_auth->get_email_config()->row();
 
 				if ($email_config_db->test == 1) {
-					$email_config = rowToConfigEmail($email_config_db);
 					$from_email = $email_config_db->from_email;
 					$from_name = $email_config_db->from_name;
 				} else {
-					$email_config = $this->config->item('email_config', 'ion_auth');
 					$from_email = $this->config->item('admin_email', 'ion_auth');
 					$from_name = $this->config->item('site_title', 'ion_auth');
 				}
 
-				$padrao_email = $this->ion_auth->get_email_padrao(9)->row();
-				$padrao_email_msg = $padrao_email->mensagem;
-				$padrao_email_msg = str_replace("{link_chamado}", base_url('chamados/details/' . $_POST["chamado_id"]), $padrao_email_msg);
-				$padrao_email_msg = str_replace("{chamado_id}", $_POST["chamado_id"], $padrao_email_msg);
-				$padrao_email_msg = str_replace("{unidade_desc}", $chamado->cliente, $padrao_email_msg);
-				$padrao_email_msg = str_replace("{produto_desc}", $chamado->produto_desc, $padrao_email_msg);
-				$padrao_email_msg = str_replace("{modulo_desc}", $chamado->modulo_desc, $padrao_email_msg);
-				$padrao_email_msg = str_replace("{categoria_desc}", $chamado->mcategoria_desc, $padrao_email_msg);
-				$padrao_email_msg = str_replace("{tipo_servico_desc}", $chamado->catalogo_desc, $padrao_email_msg);
-				$padrao_email_msg = str_replace("{titulo}", $chamado->titulo, $padrao_email_msg);
-				$padrao_email_msg = str_replace("{descricao}", $chamado->descricao, $padrao_email_msg);
-				$padrao_email_msg = str_replace("{prioridade}", $chamado->prioridade, $padrao_email_msg);
-				$padrao_email_msg = str_replace("{dono}", $chamado->first_name_dono . " " . $chamado->last_name_dono, $padrao_email_msg);
-				$padrao_email_msg = str_replace("{responsavel}", $chamado->first_name . " " . $chamado->last_name, $padrao_email_msg);
-				$padrao_email_msg = str_replace("{desenvolvedor}", $chamado->first_name_dev . " " . $chamado->last_name_dev, $padrao_email_msg);
-				$padrao_email_msg = str_replace("{nivel}", $chamado->nivel_desc, $padrao_email_msg);
-
 				$msg_adicional = "";
 				if ($prazo_antigo != $calculaPrazo . ":00") {
-					$msg_adicional .= "Prazo do chamado alterado para: " . date("d/m/Y H:i", strtotime($calculaPrazo));
+					$msg_adicional .= "<b>Nova previsão:</b> " . date("d/m/Y H:i", strtotime($calculaPrazo));
+				}
+				if ($data_planejada !== null) {
+					if ($msg_adicional != "")
+						$msg_adicional .= "<br>";
+					$msg_adicional .= "<b>Planejado para:</b> " . date("d/m/Y", strtotime($data_planejada));
 				}
 
 				if (trim($this->input->post('dialogo')) != "") {
 					if ($msg_adicional != "")
 						$msg_adicional .= "<br>";
-					$msg_adicional .= "Novo diálogo adicionado: " . $this->input->post('dialogo');
+					$msg_adicional .= "<b>Mensagem de quem escalou:</b><br>" . nl2br(html_escape($this->input->post('dialogo')));
 				}
-				$padrao_email_msg = str_replace("{msg_adicional}", $msg_adicional, $padrao_email_msg);
-
-				$padrao_email_ass = $padrao_email->assunto;
-				$padrao_email_ass = str_replace("{chamado_id}", $_POST["chamado_id"], $padrao_email_ass);
+				list($padrao_email_ass, $padrao_email_msg) = $this->aplicar_email_chamado(9, $_POST["chamado_id"], array(
+					'{msg_adicional}' => $msg_adicional !== '' ? '<div style="margin:0 0 16px;padding:12px 14px;background:#f7f9fb;border-left:3px solid #3c8dbc;font-size:14px;line-height:1.5;color:#444444;">' . $msg_adicional . '</div>' : '',
+				));
 
 				/*$this->email->clear();
 				$this->email->from($from_email, utf8_decode($from_name));
@@ -2955,9 +3188,7 @@ class Chamados extends Admin_Controller
 		if ($_POST['tipo_servico']) {
 			$catalogo_servico = $this->chamados_model->get_catalogo_servico($_POST['tipo_servico'])->row();
 			$parametro = $this->chamados_model->get_parametro()->row();
-			$expediente_inicio = isset($parametro->expediente_inicio) ? $parametro->expediente_inicio : "08:00:00";
-			$expediente_fim = isset($parametro->expediente_fim) ? $parametro->expediente_fim : "18:00:00";
-			$calculaPrazo = date("d/m/Y H:i", strtotime(calcula_horas_uteis($catalogo_servico->prazo_padrao, $expediente_inicio, $expediente_fim, new DateTime($chamado->created))->format("Y-m-d H:i:s")));
+			$calculaPrazo = date("d/m/Y H:i", strtotime(calcula_horas_uteis($catalogo_servico->prazo_padrao, $parametro->expediente_inicio, $parametro->expediente_fim, new DateTime($chamado->created))->format("Y-m-d H:i:s")));
 			$horas_prevista = str_replace(".", ",", $catalogo_servico->tempo_padrao);
 		}
 		exit(json_encode(array("calculaPrazo" => $calculaPrazo, "horas_prevista" => $horas_prevista)));
@@ -2969,11 +3200,6 @@ class Chamados extends Admin_Controller
 			redirect('auth', 'refresh');
 		}
 
-		if (empty($_POST["chamado_id"]) || !$this->tem_acesso_chamado($_POST["chamado_id"])) {
-			$this->session->set_flashdata('message', show_alert_error("Você não tem permissão para alterar o status deste chamado."));
-			redirect('chamados', 'refresh');
-		}
-
 		$chamado = $this->chamados_model->get(array(
 			'select' => 'c.id, c.dono_id, u.email as email_dono, c.status_id, c.responsavel_id, c.interessados, u.first_name, u.last_name, us.email as email_resp, un.unidade as cliente',
 			'join' => array(array('users u', 'u.id = c.dono_id', 'left'), array('users us', 'us.id = c.responsavel_id', 'left'), array('unidades un', 'un.id = c.unidade_id', 'inner')),
@@ -2981,7 +3207,7 @@ class Chamados extends Admin_Controller
 			'order_by' => array('c.id', 'desc')
 		))->row();
 
-		if ($_POST["status"] == 3 && $chamado->status_id != 8 && $chamado->status_id != 14) {
+		if ($_POST["status"] == 3 && $chamado->status_id != 8) {
 			$this->session->set_flashdata('message', show_alert_error('Status "Em Avaliação" apenas permitido para chamados resolvidos.'));
 			redirect('chamados/details/' . $_POST["chamado_id"], 'refresh');
 		}
@@ -3028,11 +3254,15 @@ class Chamados extends Admin_Controller
 			$dados["data_envio"] = date("Y-m-d H:i:s");
 
 			//adicionar flag retrabalho
-			if (($chamado->status_id == 8 || $chamado->status_id == 14 || $chamado->status_id == 3 || $chamado->status_id == 5) && $_POST['status'] == 1) {
+			if (($chamado->status_id == 8 || $chamado->status_id == 3 || $chamado->status_id == 5) && $_POST['status'] == 1) {
 				$dados["retrabalho"] = 1;
 			}
 
 			$this->chamados_model->create_dialogo($dados);
+
+			if ((int) $_POST["status"] === 3 && (int) $chamado->status_id !== 3) {
+				$this->avisar_whatsapp_solicitante((int) $_POST["chamado_id"], 'encerramento');
+			}
 
 			$i = 0;
 			$dialogos = array();
@@ -3067,16 +3297,15 @@ class Chamados extends Admin_Controller
 				$from_name = $this->config->item('site_title', 'ion_auth');
 			}
 
-			$padrao_email = $this->ion_auth->get_email_padrao(10)->row();
-			$padrao_email_msg = $padrao_email->mensagem;
-			$padrao_email_msg = str_replace("{link_chamado}", base_url('chamados/details/' . $_POST["chamado_id"]), $padrao_email_msg);
-			$padrao_email_msg = str_replace("{chamado_id}", $_POST["chamado_id"], $padrao_email_msg);
-			$padrao_email_msg = str_replace("{chamado_status}", $this->chamados_model->get_status($_POST["status"])->row()->descricao, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{unidade_desc}", $chamado->cliente, $padrao_email_msg);
-			$padrao_email_msg = str_replace("{timeline}", generate_timeline_html($timeline), $padrao_email_msg);
-
-			$padrao_email_ass = $padrao_email->assunto;
-			$padrao_email_ass = str_replace("{chamado_id}", $_POST["chamado_id"], $padrao_email_ass);
+			$novo_status = $this->chamados_model->get_status($_POST["status"])->row()->descricao;
+			$observacao_status = '';
+			if ($_POST["status"] == 3) {
+				$observacao_status = '<div style="margin-top:6px;font-size:13px;color:#555555;">O atendimento foi conclu&iacute;do. O solicitante receber&aacute; um e-mail para avaliar o chamado.</div>';
+			}
+			list($padrao_email_ass, $padrao_email_msg) = $this->aplicar_email_chamado(10, $_POST["chamado_id"], array(
+				'{chamado_status}' => html_escape($novo_status),
+				'{status_observacao}' => $observacao_status,
+			));
 
 			$this->email->clear();
 			$this->email->from($from_email, utf8_decode($from_name));
@@ -3126,10 +3355,6 @@ class Chamados extends Admin_Controller
 			$mail->isHTML(true);
 
 			$mail->Body = utf8_decode($padrao_email_msg);
-
-			// Libera cliente
-			$this->_assync_finish_request(site_url('chamados/details/' . $_POST["chamado_id"]));
-			
 			$mail->send();
 
 			if ($_POST["status"] == 3) {
@@ -3138,9 +3363,14 @@ class Chamados extends Admin_Controller
 
 				//$this->email->from($from_email, utf8_decode($from_name));
 
+				$chamado_avaliacao = $this->dados_email_chamado($_POST["chamado_id"]);
 				$data = array(
 					"dono" => $chamado->first_name . " " . $chamado->last_name,
-					"link" => base_url('auth/avaliacao_chamado/' . $chamado->dono_id . '/' . $data["hash"])
+					"link" => base_url('auth/avaliacao_chamado/' . $chamado->dono_id . '/' . $data["hash"]),
+					"chamado_id" => $_POST["chamado_id"],
+					"titulo" => $chamado_avaliacao ? $chamado_avaliacao->titulo : '',
+					"cliente" => $chamado->cliente,
+					"empresa_id" => $this->session->userdata('empresa_id'),
 				);
 				$msg_avaliacao = $this->load->view("admin/email/avaliacao_chamado.tpl.php", $data, true);
 
@@ -3150,11 +3380,10 @@ class Chamados extends Admin_Controller
 				$this->email->send();*/
 
 				$mail->addAddress($chamado->email_dono);
-				$mail->Subject = utf8_decode("Avaliação chamado #" . $_POST["chamado_id"]);
+				$mail->Subject = utf8_decode("Avalie o atendimento do chamado #" . $_POST["chamado_id"] . ($chamado_avaliacao ? " - " . $chamado_avaliacao->titulo : ""));
 				$mail->Body = utf8_decode($msg_avaliacao);
 				$mail->send();
 			}
-			exit;
 		} else {
 			$this->session->set_flashdata('message', show_alert_error(validation_errors()));
 		}
@@ -3163,21 +3392,45 @@ class Chamados extends Admin_Controller
 
 	public function imprimir($id)
 	{
+		log_message('error', '=== INICIANDO IMPRIMIR - ID: ' . $id);
 		if (! $this->ion_auth->logged_in() or ! $this->ion_auth->has_permissao("chamados", "imprimir")) {
+			log_message('error', 'IMPRIMIR - Sem permissão ou não logado');
 			redirect('auth', 'refresh');
 		}
 
+		// Carregar modelos de checklists
+		$this->load->model('chamados_checklists_model');
+		$this->load->model('chamados_checklists_etapas_model');
+
+		// BUSCAR CHECKLISTS ASSOCIADOS AO CHAMADO
+		$checklists_associados = $this->chamados_checklists_model->get_com_etapas($id);
+
 		$chamado = $this->chamados_model->get(array(
-			'select' => 'c.id, c.categoria_id, c.modulo_id, c.resposta, c.referencia_id, c.unidade_id, c.produto_id, c.modulo_id, c.protocolo, c.titulo, c.descricao, c.horas, c.reincidencia, c.created, c.data_finalizacao, c.data_inicio, c.data_prazo, c.modified, c.status_id, c.prioridade_id, c.dono_id, c.responsavel_id, u.first_name, u.last_name, cs.descricao as catalogo_desc, un.unidade as cliente, cst.descricao as status, cp.descricao as prioridade, un.empresa_id, mc.nome as categoria_desc, p.nome as produto_desc, m.nome as modulo_desc, n.descricao as nivel_desc',
-			'join' => array(array('users u', 'u.id = c.responsavel_id', 'left'), array('catalogo_servico cs', 'cs.id = c.catalogoservico_id', 'left'), array('unidades un', 'un.id = c.unidade_id', 'inner'), array('chamado_status cst', 'cst.id = c.status_id', 'inner'), array('chamado_prioridade cp', 'cp.id = c.prioridade_id', 'inner'), array('produtos p', 'p.id = c.produto_id', 'inner'), array('modulos m', 'm.id = c.modulo_id', 'inner'), array('modulos_categoria mc', 'mc.id = c.categoria_id', 'inner'), array('nivel n', 'n.id = c.nivel_id', 'left')),
+			'select' => 'c.id, c.categoria_id, c.modulo_id, c.resposta, c.referencia_id, c.unidade_id, c.produto_id, c.modulo_id, c.protocolo, c.titulo, c.descricao, c.horas, c.reincidencia, c.created, c.data_finalizacao, c.data_inicio, c.data_prazo, c.modified, c.status_id, c.prioridade_id, c.dono_id, c.responsavel_id, u.first_name, u.last_name, cs.descricao as catalogo_desc, un.unidade as cliente, cst.descricao as status, cp.descricao as prioridade, un.empresa_id, mc.nome as categoria_desc, p.nome as produto_desc, m.nome as modulo_desc, n.descricao as nivel_desc, ud.first_name as first_name_dono, ud.last_name as last_name_dono',
+			'join' => array(
+				array('users u', 'u.id = c.responsavel_id', 'left'),
+				array('users ud', 'ud.id = c.dono_id', 'left'),
+				array('catalogo_servico cs', 'cs.id = c.catalogoservico_id', 'left'),
+				array('unidades un', 'un.id = c.unidade_id', 'inner'),
+				array('chamado_status cst', 'cst.id = c.status_id', 'inner'),
+				array('chamado_prioridade cp', 'cp.id = c.prioridade_id', 'inner'),
+				array('produtos p', 'p.id = c.produto_id', 'inner'),
+				array('modulos m', 'm.id = c.modulo_id', 'inner'),
+				array('modulos_categoria mc', 'mc.id = c.categoria_id', 'inner'),
+				array('nivel n', 'n.id = c.nivel_id', 'left')
+			),
 			'where' => 'c.id = "' . $id . '"',
 			'order_by' => array('c.id', 'desc')
 		))->row();
 
-		if (!$chamado || $chamado->empresa_id != $this->session->userdata('empresa_id') || !$this->tem_acesso_unidade($chamado->unidade_id)) {
-			$this->session->set_flashdata('message', show_alert_error("Você não tem permissão para imprimir este chamado ou ele não foi encontrado."));
+		if (!$chamado) {
+			log_message('error', 'IMPRIMIR - Chamado não encontrado para o ID: ' . $id);
+			$this->session->set_flashdata('message', show_alert_error("Chamado não encontrado."));
 			redirect('chamados', 'refresh');
 		}
+
+		// Já buscamos os checklists com etapas acima usando $this->chamados_checklists_model->get_com_etapas($id)
+		$this->data['checklists_associados'] = $checklists_associados;
 
 		$i = 0;
 		$dialogos = array();
@@ -3202,7 +3455,6 @@ class Chamados extends Admin_Controller
 		});
 
 		$this->data['timeline'] = $timeline;
-
 		$this->data['chamado'] = $chamado;
 		$this->data['apontamentos'] = $this->chamados_model->get_apontamentos($chamado->id);
 
@@ -3302,7 +3554,7 @@ class Chamados extends Admin_Controller
 
 	public function get_users_unidade()
 	{
-		$users_unidade = $this->chamados_model->get_users_unidade($_POST["id"]);
+		$users_unidade = $this->chamados_model->get_users_interessados_unidade($_POST["id"]);
 
 		$select = array();
 		if ($users_unidade->num_rows() > 0):
@@ -3380,11 +3632,6 @@ class Chamados extends Admin_Controller
 	public function apontamento_automatico_criar()
 	{
 		$retorno = array();
-		if (empty($_POST["chamado_id"]) || !$this->tem_acesso_chamado($_POST["chamado_id"])) {
-			$retorno["erro"] = true;
-			$retorno["data"] = "Você não tem permissão para apontar neste chamado.";
-			exit(json_encode($retorno));
-		}
 		$data_hora = explode(" ", $_POST["data"]);
 		$data = explode("/", $data_hora[0]);
 		if ($_POST["chamado_id"] && checkdate($data[1], $data[0], $data[2]) && $this->ion_auth->has_permissao("chamados", "apontamento_automatico_criar")) {
@@ -3400,22 +3647,8 @@ class Chamados extends Admin_Controller
 
 	public function apontamento_manual_criar()
 	{
-		if (empty($_POST["chamado_id"]) || !$this->tem_acesso_chamado($_POST["chamado_id"])) {
-			$this->session->set_flashdata('message', show_alert_error("Você não tem permissão para apontar neste chamado."));
-			redirect('chamados', 'refresh');
-		}
 		if (!isset($_POST["data"])) {
 			$this->session->set_flashdata('message', show_alert_error("Data inválida."));
-			redirect('chamados/details/' . $_POST["chamado_id"], 'refresh');
-		}
-		if (empty($_POST['tipo']) || empty(trim($_POST['observacao']))) {
-			if (empty($_POST['tipo']) && empty(trim($_POST['observacao']))) {
-				$this->session->set_flashdata('message', show_alert_error("Os campos Tipo e Observação são obrigatórios."));
-			} elseif (empty($_POST['tipo'])) {
-				$this->session->set_flashdata('message', show_alert_error("O campo Tipo é obrigatório."));
-			} else {
-				$this->session->set_flashdata('message', show_alert_error("O campo Observação é obrigatório."));
-			}
 			redirect('chamados/details/' . $_POST["chamado_id"], 'refresh');
 		}
 		$data_hora = explode(" ", $_POST["data"]);
@@ -3434,171 +3667,122 @@ class Chamados extends Admin_Controller
 
 	public function apontamento_editar()
 	{
-		if (!isset($_POST["data"])) {
+		if (!$this->ion_auth->logged_in() || !$this->ion_auth->has_permissao("chamados", "apontamento_editar")) {
+			redirect('auth/login', 'refresh');
+			return;
+		}
+		$data = explode("/", explode(" ", (string) $this->input->post('data'))[0]);
+		if (count($data) !== 3 || !checkdate((int) $data[1], (int) $data[0], (int) $data[2])) {
 			$this->session->set_flashdata('message', show_alert_error("Data inválida."));
-			redirect('chamados/apontamentos', 'refresh');
-		}
-		if (empty($_POST['tipo']) || empty(trim($_POST['observacao']))) {
-			if (empty($_POST['tipo']) && empty(trim($_POST['observacao']))) {
-				$this->session->set_flashdata('message', show_alert_error("Os campos Tipo e Observação são obrigatórios."));
-			} elseif (empty($_POST['tipo'])) {
-				$this->session->set_flashdata('message', show_alert_error("O campo Tipo é obrigatório."));
-			} else {
-				$this->session->set_flashdata('message', show_alert_error("O campo Observação é obrigatório."));
-			}
-			redirect('chamados/apontamentos', 'refresh');
-		}
-
-		if (!empty($_POST["apontamento_id"])) {
-			$apontamento = $this->db->select('c.unidade_id')
-				->join('chamado c', 'c.id = a.chamado_id')
-				->where('a.id', (int) $_POST["apontamento_id"])
-				->get('chamado_apontamento a')
-				->row();
-			if (!$apontamento || !$this->tem_acesso_unidade($apontamento->unidade_id)) {
-				$this->session->set_flashdata('message', show_alert_error("Você não tem permissão para alterar este apontamento."));
-				redirect('chamados/apontamentos', 'refresh');
-			}
-		}
-
-		$data_hora = explode(" ", $_POST["data"]);
-		$data = explode("/", $data_hora[0]);
-		if (checkdate($data[1], $data[0], $data[2]) && $this->ion_auth->has_permissao("chamados", "apontamento_editar")) {
+		} elseif (!$this->chamados_model->apontamento_da_empresa($this->input->post('apontamento_id'))) {
+			$this->session->set_flashdata('message', show_alert_error("Apontamento não encontrado."));
+		} else {
 			$this->chamados_model->salvar_apontamento($_POST);
 			$this->session->set_flashdata('message', show_alert_success("Apontamento editado."));
-		} else {
-			if (!checkdate($data[1], $data[0], $data[2]))
-				$this->session->set_flashdata('message', show_alert_error("Data inválida."));
-			else
-				$this->session->set_flashdata('message', show_alert_error("Houve um problema, tente novamente."));
 		}
-		redirect('chamados/apontamentos', 'refresh');
+		$this->redirect_apontamentos();
 	}
 
 	public function apontamento_excluir()
 	{
-		if ($_POST["apontamento_id_excluir"]) {
-			$apontamento = $this->db->select('c.unidade_id')
-				->join('chamado c', 'c.id = a.chamado_id')
-				->where('a.id', (int) $_POST["apontamento_id_excluir"])
-				->get('chamado_apontamento a')
-				->row();
-			if (!$apontamento || !$this->tem_acesso_unidade($apontamento->unidade_id)) {
-				$this->session->set_flashdata('message', show_alert_error("Você não tem permissão para excluir este apontamento."));
-				redirect('chamados/apontamentos', 'refresh');
-			}
-
-			if ($this->chamados_model->excluir_apontamento($_POST["apontamento_id_excluir"]))
-				$this->session->set_flashdata('message', show_alert_success("Apontamento excluído."));
-			else
-				$this->session->set_flashdata('message', show_alert_error("Houve um problema, tente novamente."));
+		if (!$this->ion_auth->logged_in() || !$this->ion_auth->has_permissao("chamados", "apontamento_excluir")) {
+			redirect('auth/login', 'refresh');
+			return;
 		}
-		redirect('chamados/apontamentos', 'refresh');
+		$apontamento_id = (int) $this->input->post('apontamento_id_excluir');
+		if ($apontamento_id && $this->chamados_model->apontamento_da_empresa($apontamento_id) && $this->chamados_model->excluir_apontamento($apontamento_id)) {
+			$this->session->set_flashdata('message', show_alert_success("Apontamento excluído."));
+		} else {
+			$this->session->set_flashdata('message', show_alert_error("Não foi possível excluir o apontamento."));
+		}
+		$this->redirect_apontamentos();
 	}
 
 	public function apontamentos()
 	{
 		if (! $this->ion_auth->logged_in() or ! $this->ion_auth->has_permissao("chamados", "apontamentos")) {
 			redirect('auth/login', 'refresh');
-		} else {
-			$this->page_title->clear();
-			$this->page_title->push(lang('menu_chamados_apontamentos'));
-			$this->data['pagetitle'] = $this->page_title->show();
-			/* Breadcrumbs */
-			$this->breadcrumbs->unshift(2, lang('menu_chamados_apontamentos'), 'chamados/apontamentos');
-			$this->data['breadcrumb'] = $this->breadcrumbs->show();
-
-			$unidades_permitidas_usuario = $this->chamados_model->get_unidades_permitidas($this->session->userdata('user_id'), $this->session->userdata('empresa_id'))->result();
-			$unidade_in_where = array(0);
-			$unidade_options = array();
-			foreach ($unidades_permitidas_usuario as $unid) {
-				$unidade_in_where[] = (int) $unid->unidade_id;
-				$unidade_options[$unid->unidade_id] = $unid->unidade . " - " . $unid->razao_social;
-			}
-
-			if (!empty($_POST["filial"])) {
-				$filiais_selecionadas = array_map('intval', (array) $_POST["filial"]);
-				$filiais_permitidas = array_values(array_intersect($filiais_selecionadas, $unidade_in_where));
-				if (empty($filiais_permitidas)) {
-					$filiais_permitidas = array(0);
-				}
-				$where = "c.unidade_id IN (" . implode(",", $filiais_permitidas) . ")";
-			} else {
-				$where = "c.unidade_id IN (" . implode(",", $unidade_in_where) . ")";
-			}
-
-			if ($_POST) {
-				if (!empty($_POST["usuarios"])) {
-					$usuarios_selecionados = array_map('intval', (array) $_POST["usuarios"]);
-					if (!empty($usuarios_selecionados)) {
-						$where .= " AND a.user_id IN (" . implode(",", $usuarios_selecionados) . ")";
-					}
-				}
-
-				$data_inicio = isset($_POST["data_inicio"]) ? trim($_POST["data_inicio"]) : "";
-				$data_fim = isset($_POST["data_fim"]) ? trim($_POST["data_fim"]) : "";
-			} else {
-				$data_inicio = date('01/m/Y');
-				$data_fim = date('d/m/Y');
-			}
-
-			if (!empty($data_inicio)) {
-				$where .= " AND a.data >= '" . convertDateBRToEU($data_inicio) . "'";
-				$this->data['data_inicio'] = convertDateBRToEU($data_inicio);
-			} else {
-				$this->data['data_inicio'] = "";
-			}
-
-			if (!empty($data_fim)) {
-				$where .= " AND a.data <= '" . convertDateBRToEU($data_fim) . "'";
-				$this->data['data_fim'] = convertDateBRToEU($data_fim);
-			} else {
-				$this->data['data_fim'] = "";
-			}
-
-			$this->data['filtro_data_inicio'] = $data_inicio;
-			$this->data['filtro_data_fim'] = $data_fim;
-
-			$this->data['apontamentos'] = $this->chamados_model->get_apontamentos(null, $where);
-
-			$times = array();
-			foreach ($this->data['apontamentos']->result() as $apontamento) {
-				$times[] = $apontamento->esforco;
-			}
-			$this->data['total_esforco'] = AddPlayTime($times);
-
-			$this->data['message'] = $this->session->flashdata('message');
-			$this->data['can_apontamento_editar'] = $this->ion_auth->has_permissao("chamados", "apontamento_editar");
-			$this->data['can_apontamento_excluir'] = $this->ion_auth->has_permissao("chamados", "apontamento_excluir");
-
-			$usuarios = $this->chamados_model->get_usuarios()->result();
-			$usuarios_array = array();
-			foreach ($usuarios as $usu) {
-				$usuarios_array[$usu->id] = $usu->nome;
-			}
-			$this->data['usuarios'] = array(
-				'name'  => 'usuarios[]',
-				'id'    => 'usuarios',
-				'class' => 'multipleSelect form-control',
-				'multiple' => 'multiple',
-				'options' => $usuarios_array,
-				'selected' => $this->input->post('usuarios')
-			);
-
-			$this->data['filial'] = array(
-				'name'  => 'filial[]',
-				'id'    => 'filial',
-				'class' => 'multipleSelect form-control',
-				'multiple' => 'multiple',
-				'options' => $unidade_options,
-				'selected' => $this->input->post('filial')
-			);
-
-			$this->data['tipos_apontamento'] = $this->db->get('chamado_apontamento_tipo')->result();
-
-			/* Load Template */
-			$this->template->admin_render('admin/chamados/apontamentos', $this->data);
+			return;
 		}
+		$this->page_title->clear();
+		$this->page_title->push(lang('menu_chamados_apontamentos'));
+		$this->data['pagetitle'] = $this->page_title->show();
+		$this->breadcrumbs->unshift(2, lang('menu_chamados_apontamentos'), 'chamados/apontamentos');
+		$this->data['breadcrumb'] = $this->breadcrumbs->show();
+
+		$data_valida = function ($valor) {
+			$data = DateTime::createFromFormat('!Y-m-d', (string) $valor);
+			return ($data && $data->format('Y-m-d') === $valor) ? $valor : null;
+		};
+		$inteiros = function ($valores) {
+			return is_array($valores) ? array_values(array_unique(array_filter(array_map('intval', $valores)))) : array();
+		};
+
+		// Unidades que o usuário pode ver: limitam a consulta e as opções do filtro de clientes.
+		$unidade_options = array();
+		foreach ($this->chamados_model->get_unidades_permitidas($this->session->userdata('user_id'), $this->session->userdata('empresa_id'))->result() as $unid) {
+			$unidade_options[(int) $unid->unidade_id] = $unid->unidade;
+		}
+		$usuarios_options = array();
+		foreach ($this->chamados_model->get_usuarios()->result() as $usu) {
+			$usuarios_options[(int) $usu->id] = $usu->nome;
+		}
+
+		$inicio = $data_valida($this->input->get('inicio', true)) ?: date('Y-m-01');
+		$fim = $data_valida($this->input->get('fim', true)) ?: date('Y-m-d');
+		if ($inicio > $fim) {
+			list($inicio, $fim) = array($fim, $inicio);
+		}
+		$filtros = array(
+			'inicio' => $inicio,
+			'fim' => $fim,
+			'usuarios' => array_values(array_intersect($inteiros($this->input->get('usuarios')), array_keys($usuarios_options))),
+			'clientes' => array_values(array_intersect($inteiros($this->input->get('clientes')), array_keys($unidade_options))),
+			'chamado' => (int) $this->input->get('chamado'),
+			'unidades_permitidas' => array_keys($unidade_options),
+		);
+
+		$apontamentos = $this->chamados_model->get_apontamentos_relatorio($filtros);
+
+		// Resumos do período (total, por usuário e por cliente) usados na tela e no PDF.
+		$resumo = array('segundos' => 0, 'registros' => count($apontamentos), 'chamados' => array(), 'usuarios' => array(), 'clientes' => array());
+		foreach ($apontamentos as $apontamento) {
+			$segundos = (int) $apontamento->segundos;
+			$resumo['segundos'] += $segundos;
+			$resumo['chamados'][(int) $apontamento->chamado_id] = true;
+			foreach (array('usuarios' => array($apontamento->user_id, $apontamento->nome_usuario), 'clientes' => array($apontamento->unidade_id, $apontamento->cliente)) as $grupo => $item) {
+				if (!isset($resumo[$grupo][$item[0]])) {
+					$resumo[$grupo][$item[0]] = array('nome' => $item[1], 'segundos' => 0, 'registros' => 0, 'chamados' => array());
+				}
+				$resumo[$grupo][$item[0]]['segundos'] += $segundos;
+				$resumo[$grupo][$item[0]]['registros']++;
+				$resumo[$grupo][$item[0]]['chamados'][(int) $apontamento->chamado_id] = true;
+			}
+		}
+		foreach (array('usuarios', 'clientes') as $grupo) {
+			usort($resumo[$grupo], function ($x, $y) {
+				return $y['segundos'] - $x['segundos'];
+			});
+		}
+
+		$this->data['apontamentos'] = $apontamentos;
+		$this->data['resumo'] = $resumo;
+		$this->data['filtros'] = $filtros;
+		$this->data['usuarios_options'] = $usuarios_options;
+		$this->data['unidade_options'] = $unidade_options;
+		$this->data['query_atual'] = (string) $this->input->server('QUERY_STRING');
+		$this->data['message'] = $this->session->flashdata('message');
+		$this->data['can_apontamento_editar'] = $this->ion_auth->has_permissao("chamados", "apontamento_editar");
+		$this->data['can_apontamento_excluir'] = $this->ion_auth->has_permissao("chamados", "apontamento_excluir");
+
+		$this->template->admin_render('admin/chamados/apontamentos', $this->data);
+	}
+
+	// Volta para a tela de apontamentos com os filtros que estavam aplicados.
+	private function redirect_apontamentos()
+	{
+		$query = (string) $this->input->post('voltar_query');
+		redirect('chamados/apontamentos' . (preg_match('/^[A-Za-z0-9_\-\[\]%=&.]*$/', $query) && $query !== '' ? '?' . $query : ''), 'refresh');
 	}
 
 	private function atualizar_plano_acao($id)
@@ -3949,6 +4133,9 @@ class Chamados extends Admin_Controller
 		}
 	}
 
+	/**
+	 * Gera um diálogo no chamado com as alterações realizadas na etapa
+	 */
 	public function atualizar_todas_etapas_checklist()
 	{
 		$this->output->set_content_type('application/json');
@@ -4139,6 +4326,7 @@ class Chamados extends Admin_Controller
 	/**
 	 * Gera um diálogo no chamado com as alterações realizadas na etapa
 	 */
+	
 	private function gerar_dialogo_alteracao_etapa($chamado_id, $etapa_atual, $checklist_pai, $alteracoes, $status_alterado = false)
 	{
 		// Nome da etapa
@@ -4487,24 +4675,54 @@ class Chamados extends Admin_Controller
 		}
 	}
 
-	protected function _assync_finish_request($redirect_url) {
-		if (function_exists('fastcgi_finish_request')) {
-			header('Refresh:0;url='.$redirect_url);
-			session_write_close();
-			fastcgi_finish_request();
-		} else {
-			ignore_user_abort(true);
-			while (ob_get_level() > 0) ob_end_clean();
-			header('Connection: close');
-			header('Refresh:0;url='.$redirect_url);
-			ob_start();
-			echo '<html><head><meta http-equiv="refresh" content="0;url='.$redirect_url.'"></head><body>Processando em background...</body></html>';
-			$size = ob_get_length();
-			header("Content-Length: $size");
-			ob_end_flush();
-			@ob_flush();
-			flush();
-			if(session_id()) session_write_close();
+	/**
+	 * Retorna JSON com os chamados pendentes (status Aberto = 1) do usuário logado
+	 */
+	public function ajax_pendentes()
+	{
+		if (!$this->ion_auth->logged_in()) {
+			$this->output
+				->set_status_header(401)
+				->set_content_type('application/json')
+				->set_output(json_encode(array('status' => 'error', 'message' => 'Não autenticado')));
+			return;
 		}
+
+		$user_id = $this->session->userdata('user_id');
+		$empresa_id = $this->session->userdata('empresa_id');
+
+		$this->load->model('chamados_model');
+		$chamados = $this->chamados_model->get_chamados_pendentes_user($user_id, $empresa_id);
+
+		$formatted = array();
+		foreach ($chamados as $c) {
+			$descricao_limpa = trim(strip_tags($c->descricao));
+			if (mb_strlen($descricao_limpa, 'UTF-8') > 110) {
+				$descricao_curta = mb_substr($descricao_limpa, 0, 110, 'UTF-8') . '...';
+			} else {
+				$descricao_curta = $descricao_limpa ?: ($c->titulo ?: 'Sem descrição informada');
+			}
+
+			$formatted[] = array(
+				'id' => (int) $c->id,
+				'protocolo' => $c->protocolo,
+				'titulo' => htmlspecialchars($c->titulo, ENT_QUOTES, 'UTF-8'),
+				'descricao' => htmlspecialchars($descricao_curta, ENT_QUOTES, 'UTF-8'),
+				'cliente' => $c->cliente ? htmlspecialchars($c->cliente, ENT_QUOTES, 'UTF-8') : '',
+				'prioridade' => $c->prioridade_desc ?: 'Normal',
+				'created' => $c->created ? date('d/m/Y H:i', strtotime($c->created)) : '',
+				'prazo' => $c->data_prazo ? date('d/m/Y H:i', strtotime($c->data_prazo)) : null,
+				'atrasado' => ($c->data_prazo && strtotime($c->data_prazo) < time()),
+				'url' => site_url('chamados/details/' . $c->id)
+			);
+		}
+
+		$this->output
+			->set_content_type('application/json')
+			->set_output(json_encode(array(
+				'status' => 'success',
+				'count' => count($formatted),
+				'chamados' => $formatted
+			)));
 	}
 }

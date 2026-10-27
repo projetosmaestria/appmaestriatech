@@ -17,7 +17,16 @@ class MY_Controller extends CI_Controller
         $this->load->helper(array('array', 'language', 'url'));
         $this->load->model('common/prefs_model');
 
-        /* Data */
+                    // Chamados Pendentes do usuário logado
+            $this->load->model('chamados_model');
+            $chamados_pendentes_init = $this->chamados_model->get_chamados_pendentes_user(
+                $this->session->userdata('user_id'),
+                $this->session->userdata('empresa_id')
+            );
+            $this->data['chamados_pendentes_user'] = $chamados_pendentes_init;
+            $this->data['chamados_pendentes_count'] = count($chamados_pendentes_init);
+
+/* Data */
         $this->data['lang']           = element($this->config->item('language'), $this->config->item('language_abbr'));
         $this->data['charset']        = $this->config->item('charset');
         $this->data['frameworks_dir'] = $this->config->item('frameworks_dir');

@@ -90,3 +90,6 @@ $route['treinamentos_admin/relatorios']         = 'treinamentos_admin/relatorios
 $route['menu']                                  = 'menus';
 $route['menu/(:any)']                           = 'menus/$1';
 
+// Rotas V2 para Groups
+$route['v2/groups'] = 'groups/index';
+$route['v2/groups/(:any)'] = 'groups/$1';

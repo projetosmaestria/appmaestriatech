@@ -1400,3 +1400,50 @@ if (!function_exists('kanban_dono_chamado_sql')) {
             'ELSE (' . $responsavel . ' = ' . $user_id . ' OR ' . $desenvolvedor . ' = ' . $user_id . ') END)';
     }
 }
+
+if (! function_exists('email_layout_chamado')) {
+    /**
+     * Layout dos e-mails de chamado montados em views (avaliação e lembrete de avaliação), no mesmo padrão
+     * visual dos modelos da tabela email_padrao: versão XKEY para a empresa 1 e neutra para as demais.
+     *
+     * Opções: empresa_id, rotulo, titulo, texto, conteudo (HTML), botao_texto, botao_link.
+     */
+    function email_layout_chamado($opcoes)
+    {
+        $xkey = (int) $opcoes['empresa_id'] === 1;
+        $rotulo = $opcoes['rotulo'];
+        $titulo = $opcoes['titulo'];
+        $texto = isset($opcoes['texto']) ? $opcoes['texto'] : '';
+
+        if ($xkey) {
+            $cabecalho = '<tr><td align="center" style="padding:24px 28px 20px;border-radius:8px 8px 0 0;">' .
+                '<img src="' . base_url('assets/images/xkey-chamados.png') . '" width="220" alt="XKEY Chamados" style="display:block;width:220px;max-width:100%;height:auto;border:0;">' .
+                '</td></tr>' .
+                '<tr><td style="background:#2f4a5c;padding:22px 28px;">' .
+                '<p style="margin:0;font-size:12px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#a9c3d6;">' . $rotulo . ' &middot; XKEY</p>' .
+                '<p style="margin:6px 0 0;font-size:24px;font-weight:bold;color:#ffffff;">' . $titulo . '</p>' .
+                ($texto !== '' ? '<p style="margin:6px 0 0;font-size:14px;line-height:1.4;color:#dce6ee;">' . $texto . '</p>' : '') .
+                '</td></tr>';
+        } else {
+            $cabecalho = '<tr><td style="background:#3c8dbc;padding:22px 28px;border-radius:8px 8px 0 0;">' .
+                '<p style="margin:0;font-size:13px;color:#dcebf5;">' . $rotulo . '</p>' .
+                '<p style="margin:4px 0 0;font-size:24px;font-weight:bold;color:#ffffff;">' . $titulo . '</p>' .
+                '</td></tr>';
+        }
+
+        $botao = '';
+        if (!empty($opcoes['botao_link'])) {
+            $botao = '<table cellpadding="0" cellspacing="0" style="margin:20px 0 8px;"><tr><td style="background:#3c8dbc;border-radius:4px;">' .
+                '<a href="' . $opcoes['botao_link'] . '" style="display:inline-block;padding:11px 22px;font-size:14px;font-weight:bold;color:#ffffff;text-decoration:none;">' . $opcoes['botao_texto'] . '</a>' .
+                '</td></tr></table>';
+        }
+
+        return '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f2f4f7;"><tr><td align="center" style="padding:24px 12px;">' .
+            '<table width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border:1px solid #e3e7ec;border-radius:8px;font-family:Arial,Helvetica,sans-serif;color:#333333;">' .
+            $cabecalho .
+            '<tr><td style="padding:24px 28px 8px;font-size:14px;line-height:1.6;color:#444444;">' . $opcoes['conteudo'] . $botao . '</td></tr>' .
+            '<tr><td style="padding:20px 28px 24px;"><p style="margin:0;padding-top:16px;border-top:1px solid #eeeeee;font-size:12px;line-height:1.5;color:#999999;">' .
+            'Voc&ecirc; recebeu este e-mail porque &eacute; o solicitante deste atendimento' . ($xkey ? ' na XKEY' : '') . '.</p></td></tr>' .
+            '</table></td></tr></table>';
+    }
+}

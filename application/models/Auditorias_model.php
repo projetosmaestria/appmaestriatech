@@ -32,6 +32,86 @@ class Auditorias_model extends CI_Model {
     }
 
     /**
+     * Filtros da listagem paginada. $permissoes = null mostra tudo (administrador); senão, só registros
+     * de telas que o usuário acessa (index) ou de ações que ele pode executar.
+     */
+    private function filtros_lista($filtros, $permissoes)
+    {
+        $this->db->from($this->table . ' a');
+        $this->db->join('users u', 'u.id = a.user_id', 'left');
+        $this->db->where('a.empresa_id', (int) $this->session->userdata('empresa_id'));
+
+        if ($permissoes !== null) {
+            $condicoes = array();
+            foreach ($permissoes as $controlador => $metodos) {
+                if (!is_array($metodos) || !$metodos) {
+                    continue;
+                }
+                $controlador = $this->db->escape($controlador);
+                if (in_array('index', $metodos)) {
+                    $condicoes[] = 'a.controlador = ' . $controlador;
+                } else {
+                    $condicoes[] = '(a.controlador = ' . $controlador . ' AND a.metodo IN (' . implode(',', array_map(array($this->db, 'escape'), $metodos)) . '))';
+                }
+            }
+            $this->db->where($condicoes ? '(' . implode(' OR ', $condicoes) . ')' : '1 = 0', null, false);
+        }
+
+        if (!empty($filtros['inicio'])) {
+            $this->db->where('a.created_at >=', $filtros['inicio'] . ' 00:00:00');
+        }
+        if (!empty($filtros['fim'])) {
+            $this->db->where('a.created_at <=', $filtros['fim'] . ' 23:59:59');
+        }
+        if (!empty($filtros['usuario'])) {
+            $this->db->where('a.user_id', (int) $filtros['usuario']);
+        }
+        if (!empty($filtros['controlador'])) {
+            $this->db->where('a.controlador', $filtros['controlador']);
+        }
+        if (!empty($filtros['metodo'])) {
+            $this->db->where('a.metodo', $filtros['metodo']);
+        }
+        if (!empty($filtros['q'])) {
+            $this->db->like('a.obs', $filtros['q']);
+        }
+    }
+
+    public function lista($filtros, $permissoes, $inicio, $quantidade, $direcao)
+    {
+        $this->db->select("a.id, a.user_id, a.controlador, a.metodo, a.obs, a.created_at, CONCAT_WS(' ', u.first_name, u.last_name) AS usuario, u.email", false);
+        $this->filtros_lista($filtros, $permissoes);
+        $this->db->order_by('a.id', $direcao === 'asc' ? 'ASC' : 'DESC');
+        $this->db->limit((int) $quantidade, (int) $inicio);
+        return $this->db->get()->result();
+    }
+
+    public function total($filtros, $permissoes)
+    {
+        $this->filtros_lista($filtros, $permissoes);
+        return (int) $this->db->count_all_results();
+    }
+
+    public function resumo($filtros, $permissoes)
+    {
+        $this->db->select('COUNT(*) AS registros, COUNT(DISTINCT a.user_id) AS usuarios, COUNT(DISTINCT a.controlador) AS telas', false);
+        $this->filtros_lista($filtros, $permissoes);
+        return $this->db->get()->row();
+    }
+
+    // Opções dos filtros: usuários, telas e ações que aparecem nos registros da empresa.
+    public function opcoes_filtro()
+    {
+        $empresa_id = (int) $this->session->userdata('empresa_id');
+        return array(
+            'usuarios' => $this->db->query("SELECT DISTINCT a.user_id AS id, CONCAT_WS(' ', u.first_name, u.last_name) AS nome
+                FROM auditorias a JOIN users u ON u.id = a.user_id WHERE a.empresa_id = ? ORDER BY nome", array($empresa_id))->result(),
+            'acoes' => $this->db->query("SELECT a.controlador, a.metodo, COUNT(*) AS total FROM auditorias a
+                WHERE a.empresa_id = ? AND a.controlador IS NOT NULL GROUP BY a.controlador, a.metodo ORDER BY a.controlador, a.metodo", array($empresa_id))->result(),
+        );
+    }
+
+    /**
      * create
      *
      * @author Ellan Garbelini

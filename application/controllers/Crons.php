@@ -1586,7 +1586,156 @@ class Crons extends CI_Controller {
         }
     }
 
-    private function get_total_esforco($user) {
+    /**
+     * Envia por mensagem direta no Discord os chamados atrasados e programados para o dia
+     * de cada colaborador com Discord cadastrado no planejamento do Kanban.
+     *
+     * Uso (dias úteis às 08h): CI_ENV=production php index.php crons kanban_discord
+     * Teste sem enviar:        php index.php crons kanban_discord teste
+     */
+    public function kanban_discord($mode = '') {
+        if (!is_cli()) {
+            show_404();
+            return;
+        }
+        $dry_run = $mode === 'teste';
+        $this->load->model('kanban_model');
+        $this->load->model('kanban_dashboard_model');
+        $this->load->library('discord_notifier');
+
+        $today = date('Y-m-d');
+        if ((int) date('N') > 5) {
+            echo "Fim de semana: nenhuma mensagem enviada.\n";
+            return;
+        }
+        if (!$this->kanban_dashboard_model->has_discord_tables()) {
+            echo "Tabelas do Discord não encontradas. Execute install/sql/kanban_discord.sql.\n";
+            return;
+        }
+        if (!$dry_run && !$this->discord_notifier->is_configured()) {
+            echo "DISCORD_BOT_TOKEN não configurado.\n";
+            return;
+        }
+
+        $status_names = array('aberto', 'fazendo', 'em andamento', 'aguardando testes com o cliente', 'aguardando teste com o cliente');
+        $status_ids = array();
+        foreach ($this->db->select('id, descricao')->get('chamado_status')->result() as $status) {
+            if (in_array(mb_strtolower(trim($status->descricao), 'UTF-8'), $status_names, true)) {
+                $status_ids[] = (int) $status->id;
+            }
+        }
+
+        $sent = 0;
+        foreach ($this->kanban_dashboard_model->get_discord_companies() as $company_id) {
+            $discord_ids = $this->kanban_dashboard_model->get_discord_ids($company_id);
+            foreach ($this->kanban_dashboard_model->get_company_users($company_id) as $collaborator) {
+                $collaborator_id = (int) $collaborator->id;
+                if (empty($discord_ids[$collaborator_id]) ||
+                    $this->kanban_dashboard_model->was_discord_sent($company_id, $collaborator_id, $today) ||
+                    $this->kanban_dashboard_model->is_date_unavailable($company_id, $collaborator_id, $today)) {
+                    continue;
+                }
+
+                $overdue = $this->kanban_model->get_chamados_atrasados($collaborator_id, $company_id, $status_ids);
+                $dashboard = $this->kanban_dashboard_model->get_dashboard(
+                    $company_id, array($collaborator_id), $collaborator_id, $today, $today, $status_ids
+                );
+                $day = isset($dashboard['days'][$today]) ? $dashboard['days'][$today] : null;
+                $today_tasks = $day ? $day['tasks'] : array();
+                if (!$overdue && !$today_tasks) {
+                    continue;
+                }
+
+                $message = $this->build_kanban_discord_message($collaborator->nome, $overdue, $today_tasks, $day);
+                if ($dry_run) {
+                    echo "----- " . $collaborator->nome . " (" . $discord_ids[$collaborator_id] . ")\n" . $message . "\n";
+                    continue;
+                }
+                if ($this->discord_notifier->send_direct_message($discord_ids[$collaborator_id], $message)) {
+                    $this->kanban_dashboard_model->mark_discord_sent($company_id, $collaborator_id, $today);
+                    $sent++;
+                } else {
+                    log_message('error', 'Kanban Discord: falha ao enviar para o colaborador ' . $collaborator_id . ' — ' . $this->discord_notifier->last_error());
+                    echo "Falha ao enviar para " . $collaborator->nome . ": " . $this->discord_notifier->last_error() . "\n";
+                }
+            }
+        }
+        if (!$dry_run) {
+            echo $sent . " mensagem(ns) enviada(s).\n";
+        }
+    }
+
+    private function build_kanban_discord_message($name, $overdue, $today_tasks, $day) {
+        $escape = function ($text) {
+            return addcslashes((string) $text, '\\*_~`|>[]');
+        };
+        $ticket_link = function ($id) {
+            return '[#' . (int) $id . '](<' . base_url('chamados/details/' . (int) $id) . '>)';
+        };
+        $hours = function ($value) {
+            return number_format($value, 1, ',', '.') . ' h';
+        };
+        $name_parts = explode(' ', trim($name));
+        $footer = "\n🔗 Abrir planejamento: <" . base_url('kanban/planejamento') . ">";
+
+        $title = function ($text) use ($escape) {
+            $text = trim((string) $text);
+            return $escape(mb_strlen($text, 'UTF-8') > 70 ? rtrim(mb_substr($text, 0, 67, 'UTF-8')) . '...' : $text);
+        };
+        $overdue_ids = array();
+        foreach ($overdue as $ticket) {
+            $overdue_ids[(int) $ticket->id] = true;
+        }
+
+        // Os programados para hoje vêm primeiro; cada seção tem limite de itens para caber em uma mensagem.
+        $sections = array();
+        if ($today_tasks) {
+            $items = array();
+            foreach ($today_tasks as $task) {
+                $items[] = '• ' . $ticket_link($task->chamado_id) . ' ' . $title($task->titulo) .
+                    ($task->prioridade ? ' [' . $escape($task->prioridade) . ']' : '') .
+                    (isset($overdue_ids[(int) $task->chamado_id]) ? ' ⚠️ atrasado' : '');
+            }
+            $sections[] = array(
+                'header' => '📅 **Programados para hoje (' . count($today_tasks) . ')** — ' .
+                    $hours($day['planned_hours']) . ' estimadas / meta ' . $hours($day['goal_hours']),
+                'items' => $items,
+                'limit' => 12,
+            );
+        }
+        if ($overdue) {
+            $items = array();
+            foreach ($overdue as $ticket) {
+                $items[] = '• ' . $ticket_link($ticket->id) . ' ' . $title($ticket->titulo) .
+                    ' — prazo ' . date('d/m/Y', strtotime($ticket->data_prazo));
+            }
+            $sections[] = array(
+                'header' => '⚠️ **Atrasados (' . count($overdue) . ')**',
+                'items' => $items,
+                'limit' => 8,
+            );
+        }
+
+        $message = '📋 **Bom dia, ' . $escape($name_parts[0]) . '** — pendências de ' . date('d/m/Y');
+        foreach ($sections as $section) {
+            $message .= "\n\n" . $section['header'];
+            $shown = 0;
+            foreach ($section['items'] as $item) {
+                $more = "\n… e mais " . (count($section['items']) - $shown) . ' no planejamento.';
+                if ($shown >= $section['limit'] ||
+                    mb_strlen($message . "\n" . $item . $more . "\n" . $footer, 'UTF-8') > Discord_notifier::MAX_MESSAGE_LENGTH - 200) {
+                    $message .= $more;
+                    break;
+                }
+                $message .= "\n" . $item;
+                $shown++;
+            }
+        }
+        return $message . "\n" . $footer;
+    }
+
+
+        private function get_total_esforco($user) {
         $times = array();
         $apontamentos = $this->crons_model->get_apontamento("user_id = ".$user." AND (data BETWEEN '".date('Y-m-d', strtotime("-7 days"))."' AND '".date('Y-m-d')."')");
         

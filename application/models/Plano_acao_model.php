@@ -197,4 +197,116 @@ class Plano_acao_model extends CI_Model {
         }
         return $query->get($this->table." p");
     }
+
+    public function get_chamados_gantt($plano_ids)
+    {
+        if (!$plano_ids) {
+            return array();
+        }
+        return $this->db->select(
+            'c.id, c.plano_acao, c.titulo, c.status_id, c.created, c.data_inicio, c.data_prazo, c.data_finalizacao, ' .
+            'c.horas_prevista, st.descricao AS status, n.descricao AS nivel, un.unidade, ' .
+            'CONCAT(u.first_name, " ", u.last_name) AS responsavel'
+        )
+            ->from('chamado c')
+            ->join('unidades un', 'un.id = c.unidade_id')
+            ->join('chamado_status st', 'st.id = c.status_id', 'left')
+            ->join('nivel n', 'n.id = c.nivel_id', 'left')
+            ->join('users u', 'u.id = c.responsavel_id', 'left')
+            ->where('un.empresa_id', $this->session->userdata('empresa_id'))
+            ->where_in('c.plano_acao', array_map('intval', $plano_ids))
+            ->order_by('c.data_inicio IS NULL', 'asc', false)
+            ->order_by('COALESCE(c.data_inicio, c.created)', 'asc', false)
+            ->order_by('c.id', 'asc')
+            ->get()
+            ->result();
+    }
+
+    /**
+     * Lista de projetos com filtros. $filters aceita: status (array de AI/EA/FI), q, responsavel,
+     * unidade, tipo, inicio_de, inicio_ate, termino_de, termino_ate, atrasados.
+     */
+    public function get_lista($filters, $limit = null, $offset = 0)
+    {
+        $this->apply_lista_filters($filters);
+        $this->db->select('p.*, p.status AS status_codigo, CONCAT(u.first_name, " ", u.last_name) AS nome_resp, un.unidade', false)
+            ->order_by('FIELD(p.status, "EA", "AI", "FI")', '', false)
+            ->order_by('p.termino_estimado', 'asc')
+            ->order_by('p.id', 'desc');
+        if ($limit) {
+            $this->db->limit($limit, $offset);
+        }
+        return $this->db->get()->result();
+    }
+
+    public function count_lista($filters)
+    {
+        $this->apply_lista_filters($filters);
+        return $this->db->count_all_results();
+    }
+
+    private function apply_lista_filters($filters)
+    {
+        $this->db->from($this->table . ' p')
+            ->join('users u', 'u.id = p.responsavel', 'left')
+            ->join('unidades un', 'un.id = p.unidade_id', 'left')
+            ->where('p.empresa_id', $this->session->userdata('empresa_id'));
+        if (!empty($filters['status'])) {
+            $this->db->where_in('p.status', $filters['status']);
+        }
+        if (!empty($filters['q'])) {
+            $this->db->group_start()
+                ->like('p.desc', $filters['q'])
+                ->or_like('p.txt', $filters['q'])
+                ->or_like('CONCAT(u.first_name, " ", u.last_name)', $filters['q'], 'both', false)
+                ->or_like('un.unidade', $filters['q']);
+            if (ctype_digit($filters['q'])) {
+                $this->db->or_where('p.id', (int) $filters['q']);
+            }
+            $this->db->group_end();
+        }
+        if (!empty($filters['responsavel'])) {
+            $this->db->where('p.responsavel', (int) $filters['responsavel']);
+        }
+        if (!empty($filters['unidade'])) {
+            $this->db->where('p.unidade_id', (int) $filters['unidade']);
+        }
+        if (!empty($filters['tipo'])) {
+            $this->db->where('p.tipo', $filters['tipo']);
+        }
+        foreach (array('inicio_de' => array('p.inicio_estimado >=', ' 00:00:00'), 'inicio_ate' => array('p.inicio_estimado <=', ' 23:59:59'),
+            'termino_de' => array('p.termino_estimado >=', ' 00:00:00'), 'termino_ate' => array('p.termino_estimado <=', ' 23:59:59')) as $key => $rule) {
+            if (!empty($filters[$key])) {
+                $this->db->where($rule[0], $filters[$key] . $rule[1]);
+            }
+        }
+        if (!empty($filters['atrasados'])) {
+            $this->db->where('p.status !=', 'FI')->where('p.termino_estimado <', date('Y-m-d H:i:s'));
+        }
+    }
+
+    public function get_resumo_chamados($plano_ids)
+    {
+        if (!$plano_ids) {
+            return array();
+        }
+        $rows = $this->db->select(
+            'c.plano_acao, COUNT(*) AS total, ' .
+            'SUM(CASE WHEN c.status_id IN (3, 5) OR c.data_finalizacao IS NOT NULL THEN 1 ELSE 0 END) AS concluidos, ' .
+            'SUM(CASE WHEN c.status_id NOT IN (3, 5) AND c.data_finalizacao IS NULL AND c.data_prazo < NOW() THEN 1 ELSE 0 END) AS atrasados',
+            false
+        )
+            ->from('chamado c')
+            ->join('unidades un', 'un.id = c.unidade_id')
+            ->where('un.empresa_id', $this->session->userdata('empresa_id'))
+            ->where_in('c.plano_acao', array_map('intval', $plano_ids))
+            ->group_by('c.plano_acao')
+            ->get()
+            ->result();
+        $result = array();
+        foreach ($rows as $row) {
+            $result[(int) $row->plano_acao] = $row;
+        }
+        return $result;
+    }
 }

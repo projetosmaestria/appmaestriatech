@@ -45,6 +45,7 @@ class Empresas_model extends CI_Model {
     public function create($nome = '')
     {
         $this->load->helper('functions_helper');
+        $this->load->model('permissoes_model');
 
         if($nome == "")
         {
@@ -66,7 +67,7 @@ class Empresas_model extends CI_Model {
             $id = $this->db->insert_id();
 
             $this->db->insert('empresas_users', array("empresa_id"=>$id, "user_id"=>$this->session->userdata('user_id')));
-            $this->db->insert('groups', array("empresa_id"=>$id, "name"=>"admin", "description"=>"Administrador","bgcolor"=>"#f44336","permissoes"=>serialize(get_all_permissoes())));
+            $this->db->insert('groups', array("empresa_id"=>$id, "name"=>"admin", "description"=>"Administrador","bgcolor"=>"#f44336","permissoes"=>serialize($this->permissoes_model->todas())));
             $id_group = $this->db->insert_id();
             $this->db->insert('users_groups', array("group_id"=>$id_group, "user_id"=>$this->session->userdata('user_id')));
             $this->db->insert('admin_preferences', array("grupo_admin"=>$id_group, "empresa_id"=>$id, "empresa_sidebar"=>1, "sidebar_form"=>1, "messages_menu"=>1, "notifications_menu"=>1, "tasks_menu"=>1, "ctrl_sidebar"=>1));

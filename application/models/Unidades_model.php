@@ -96,14 +96,14 @@ class Unidades_model extends CI_Model {
         if (empty($id)) return FALSE;
 
         if(@$data["tipo"] == "J") {
-            $existing_unidade_by_cnpj = $this->db->get_where($this->table, "id != '".$id."' AND cnpj = '".$data["cnpj"]."' AND empresa_id = '".$data["empresa_id"]."'")->num_rows();
+            $existing_unidade_by_cnpj = $this->db->where('id !=', (int) $id)->where('cnpj', $data["cnpj"])->where('empresa_id', (int) $data["empresa_id"])->count_all_results($this->table);
             if($existing_unidade_by_cnpj > 0)
             {
                 $this->set_error('unit_yeat_exist');
                 return FALSE;
             }
         } elseif(@$data["tipo"] == "F") {
-            $existing_unidade_by_cpf = $this->db->get_where($this->table, "id != '".$id."' AND cpf = '".$data["cpf"]."' AND empresa_id = '".$data["empresa_id"]."'")->num_rows();
+            $existing_unidade_by_cpf = $this->db->where('id !=', (int) $id)->where('cpf', $data["cpf"])->where('empresa_id', (int) $data["empresa_id"])->count_all_results($this->table);
             if($existing_unidade_by_cpf > 0)
             {
                 $this->set_error('unit_yeat_exist');

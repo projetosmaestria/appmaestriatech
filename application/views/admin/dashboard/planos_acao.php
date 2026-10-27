@@ -9,7 +9,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 	      <div class="box box-danger">
 	        <div class="box-header with-border">
               <i class="fa fa-users"></i>
-	          <h3 class="box-title">Planos de Ação</h3>
+	          <h3 class="box-title">Projetos</h3>
 
 	          <div class="box-tools pull-right">
 	            <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i>

@@ -25,16 +25,23 @@ class Setores extends Admin_Controller {
         {
             redirect('auth/login', 'refresh');
         }
-        else
-        {
-            /* Breadcrumbs */
-            $this->data['breadcrumb'] = $this->breadcrumbs->show();
-            $this->data['setores'] = $this->setores_model->get(array('select'=>'setores.*', 'where'=>'empresa_id = "'.$this->session->userdata('empresa_id').'"' , 'order_by'=>array('setores.id', 'desc')))->result();
-            $this->data['message'] = $this->session->flashdata('message');
 
-            /* Load Template */
-            $this->template->admin_render('admin/setores/index', $this->data);
-        }
+        $this->data['setores'] = $this->db->select('s.id, s.descricao, s.actived, COUNT(DISTINCT CASE WHEN u.active = 1 THEN u.id END) AS usuarios', false)
+            ->from('setores s')
+            ->join('users_setores us', 'us.setor_id = s.id', 'left')
+            ->join('users u', 'u.id = us.user_id', 'left')
+            ->where('s.empresa_id', (int) $this->session->userdata('empresa_id'))
+            ->group_by('s.id, s.descricao, s.actived')
+            ->order_by('s.actived', 'DESC')
+            ->order_by('s.descricao', 'ASC')
+            ->get()->result();
+        $this->data['breadcrumb'] = $this->breadcrumbs->show();
+        $this->data['message'] = $this->session->flashdata('message');
+        $this->data['can_create'] = $this->ion_auth->has_permissao('setores', 'create');
+        $this->data['can_edit'] = $this->ion_auth->has_permissao('setores', 'edit');
+        $this->data['can_status'] = $this->ion_auth->has_permissao('setores', 'deactivate') || $this->ion_auth->has_permissao('setores', 'activate');
+
+        $this->template->admin_render('admin/setores/index', $this->data);
     }
 
 	public function create()
@@ -43,53 +50,21 @@ class Setores extends Admin_Controller {
 		{
 			redirect('auth', 'refresh');
 		}
+        $this->formulario(null);
+	}
 
-        /* Breadcrumbs */
-        $this->breadcrumbs->unshift(2, lang('menu_setores_create'), 'setores/create');
-        $this->data['breadcrumb'] = $this->breadcrumbs->show();
-
-		/* Validate form input */
-		$this->form_validation->set_rules('descricao', 'lang:setor_validation_descricao_label', 'trim|required');
-		//$this->form_validation->set_rules('empresa', 'lang:setor_validation_empresa_label', 'required');
-		$this->form_validation->set_rules('status', 'lang:setor_validation_status_label', 'required');
-
-		$dados = array(
-			"empresa_id" => $this->session->userdata("empresa_id"),
-			"descricao" => $this->input->post("descricao"),
-			"actived" => $this->input->post("status")
-		);
-
-		if ($this->form_validation->run() == TRUE && $id = $this->setores_model->create($dados))
+	public function edit($id = null)
+	{
+		if ( ! $this->ion_auth->logged_in() OR ! $this->ion_auth->has_permissao("setores", "edit"))
 		{
-			$this->session->set_flashdata('message', show_alert_success($this->setores_model->messages()));
-			redirect('setores', 'refresh');
-		} else {
-			if($_POST)
-            	$this->data['message'] = (validation_errors() ? show_alert_error(validation_errors()) : ($this->setores_model->errors() ? show_alert_error($this->setores_model->errors()) : show_alert_error($this->session->flashdata('message'))));
-
-            /*$empresa_options = array(""=>"Selecione");
-			foreach ($this->setores_model->get_empresas()->result() as $emp) {
-				$empresa_options[$emp->id] = $emp->nome;
-			}
-			$this->data['empresa'] = array(
-				'name'  => 'empresa',
-				'id'    => 'empresa',
-	            'class' => 'form-control',
-	            'options' => $empresa_options,
-				'selected' => $this->form_validation->set_value('empresa'),
-			);*/
-            $this->data['status'] = $this->form_validation->set_value('status');
-			$this->data['descricao'] = array(
-				'name'  => 'descricao',
-				'id'    => 'descricao',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('descricao')
-			);
-
-            /* Load Template */
-            $this->template->admin_render('admin/setores/create', $this->data);
+			redirect('auth', 'refresh');
 		}
+        $setor = $this->setor_da_empresa($id);
+        if (!$setor) {
+            $this->session->set_flashdata('message', show_alert_error('Setor não encontrado.'));
+            redirect('setores', 'refresh');
+        }
+        $this->formulario($setor);
 	}
 
 	public function delete()
@@ -108,103 +83,78 @@ class Setores extends Admin_Controller {
         }
 	}
 
-	public function edit($id)
+	public function activate($id = NULL)
 	{
-		if ( ! $this->ion_auth->logged_in() OR ! $id OR empty($id) OR ! $this->ion_auth->has_permissao("setores", "edit"))
-		{
-			redirect('auth', 'refresh');
-		}
-
-        /* Breadcrumbs */
-        $this->breadcrumbs->unshift(2, lang('menu_setores_edit'), 'setores/edit');
-        $this->data['breadcrumb'] = $this->breadcrumbs->show();
-
-        /* Variables */
-		$setor = $this->setores_model->get(array('select'=>'*', 'where'=>'id = '.$id, 'order_by'=>array('id','desc')))->row();
-
-		/* Validate form input */
-        $this->form_validation->set_rules('descricao', $this->lang->line('setor_validation_descricao_label'), 'required');
-		//$this->form_validation->set_rules('empresa', 'lang:setor_validation_empresa_label', 'required');
-        $this->form_validation->set_rules('status', $this->lang->line('setor_validation_status_label'), 'required');
-
-		if (isset($_POST) && ! empty($_POST))
-		{	
-			$dados = array(
-				"empresa_id" => $this->session->userdata("empresa_id"),
-				"descricao" => $this->input->post("descricao"),
-				"actived" => $this->input->post("status")
-			);
-			if ($this->form_validation->run() == TRUE)
-			{
-				$setor_update = $this->setores_model->update($id, $dados);
-
-				if ($setor_update)
-				{
-					$this->session->set_flashdata('message', show_alert_success($this->lang->line('edit_setor_saved')));
-				}
-				else
-				{
-					$this->session->set_flashdata('message', show_alert_error($this->setores_model->errors()));
-				}
-
-				redirect('setores', 'refresh');
-			} else {
-        		$this->data['message'] = (validation_errors() ? show_alert_error(validation_errors()) : ($this->setores_model->errors() ? show_alert_error($this->setores_model->errors()) : show_alert_error($this->session->flashdata('message'))));
-			}
-		}
-
-        $this->data['setor']   = $setor;
-
-        /*$empresa_options = array(""=>"Selecione");
-		foreach ($this->setores_model->get_empresas()->result() as $emp) {
-			$empresa_options[$emp->id] = $emp->nome;
-		}
-		$this->data['empresa'] = array(
-			'name'  => 'empresa',
-			'id'    => 'empresa',
-            'class' => 'form-control',
-            'options' => $empresa_options,
-			'selected' => $this->form_validation->set_value('empresa', $unidade->empresa_id),
-		);*/
-		$this->data['status'] = $this->form_validation->set_value('status', $setor->actived);
-		$this->data['descricao'] = array(
-			'type'    => 'text',
-			'name'    => 'descricao',
-			'id'      => 'descricao',
-			'value'   => $this->form_validation->set_value('descricao', $setor->descricao),
-            'class'   => 'form-control'
-		);
-
-        /* Load Template */
-        $this->template->admin_render('admin/setores/edit', $this->data);
+        $this->alterar_status($id, 'activate');
 	}
-
-	function activate($id)
-	{
-        $id = (int) $id;
-		if ($this->ion_auth->has_permissao("setores", "activate"))
-		{
-			$activation = $this->setores_model->activate($id);
-		}
-		if($activation)
-        	$this->session->set_flashdata('message', show_alert_success($this->setores_model->messages()));
-        else
-        	$this->session->set_flashdata('message', show_alert_error($this->setores_model->messages()));
-		redirect('setores', 'refresh');
-	}
-
 
 	public function deactivate($id = NULL)
 	{
-		$id = (int) $id;
-		if ($this->ion_auth->has_permissao("setores", "deactivate"))
-		{
-			$deactivation = $this->setores_model->deactivate($id);
-		}
-		if($deactivation)
-        	$this->session->set_flashdata('message', show_alert_success($this->setores_model->messages()));
-        else
-        	$this->session->set_flashdata('message', show_alert_error($this->setores_model->messages()));
-		redirect('setores', 'refresh');
+        $this->alterar_status($id, 'deactivate');
 	}
+
+    private function alterar_status($id, $acao)
+    {
+        if (!$this->ion_auth->logged_in() || !$this->ion_auth->has_permissao('setores', $acao)) {
+            redirect('auth/login', 'refresh');
+        }
+        $setor = $this->setor_da_empresa($id);
+        $ok = $setor && ($acao === 'activate' ? $this->setores_model->activate($setor->id) : $this->setores_model->deactivate($setor->id));
+        if ($ok) {
+            $this->session->set_flashdata('message', show_alert_success('Setor "' . html_escape($setor->descricao) . '" ' . ($acao === 'activate' ? 'ativado.' : 'desativado.')));
+        } else {
+            $this->session->set_flashdata('message', show_alert_error('Não foi possível alterar o setor.'));
+        }
+        redirect('setores', 'refresh');
+    }
+
+    private function setor_da_empresa($id)
+    {
+        return $this->db->where('id', (int) $id)
+            ->where('empresa_id', (int) $this->session->userdata('empresa_id'))
+            ->get('setores')->row();
+    }
+
+    // Criação ($setor = null) e edição compartilham o formulário admin/setores/_form.
+    private function formulario($setor)
+    {
+        $editando = $setor !== null;
+        $this->breadcrumbs->unshift(2, lang($editando ? 'menu_setores_edit' : 'menu_setores_create'), $editando ? 'setores/edit/' . (int) $setor->id : 'setores/create');
+        $this->data['breadcrumb'] = $this->breadcrumbs->show();
+
+        $this->form_validation->set_rules('descricao', 'Nome do setor', 'trim|required|max_length[255]');
+        $this->form_validation->set_rules('status', 'Status', 'required|in_list[0,1]');
+
+        if ($this->input->post() && $this->form_validation->run() == TRUE) {
+            $dados = array(
+                'empresa_id' => (int) $this->session->userdata('empresa_id'),
+                'descricao' => $this->input->post('descricao'),
+                'actived' => (int) $this->input->post('status'),
+            );
+            $ok = $editando ? $this->setores_model->update($setor->id, $dados) : $this->setores_model->create($dados);
+            if ($ok) {
+                $this->session->set_flashdata('message', show_alert_success('Setor "' . html_escape($dados['descricao']) . '" ' . ($editando ? 'atualizado.' : 'criado.')));
+                redirect('setores', 'refresh');
+            }
+            $this->data['message'] = show_alert_error($this->setores_model->errors() ? $this->setores_model->errors() : 'Não foi possível salvar o setor.');
+        } elseif ($this->input->post()) {
+            $this->data['message'] = show_alert_error(validation_errors());
+        }
+
+        $usuarios = 0;
+        if ($editando) {
+            $usuarios = (int) $this->db->from('users_setores us')->join('users u', 'u.id = us.user_id')
+                ->where('us.setor_id', (int) $setor->id)->where('u.active', 1)->count_all_results();
+        }
+
+        $this->data['modo'] = $editando ? 'edit' : 'create';
+        $this->data['setor'] = $setor;
+        $this->data['usuarios'] = $usuarios;
+        $this->data['valores'] = array(
+            'descricao' => $this->input->post() ? $this->input->post('descricao') : ($editando ? $setor->descricao : ''),
+            'status' => $this->input->post() ? (string) $this->input->post('status') : ($editando ? (string) (int) $setor->actived : '1'),
+        );
+
+        $this->template->admin_render('admin/setores/_form', $this->data);
+    }
 }

@@ -117,6 +117,9 @@ $weekdays = array(1 => 'Segunda', 2 => 'Terça', 3 => 'Quarta', 4 => 'Quinta', 5
           <a href="#tab_planejamento_chamados" data-toggle="tab"><i class="fa fa-calendar"></i> Agenda</a>
         </li>
         <li>
+          <a href="#tab_calendario" data-toggle="tab"><i class="fa fa-th"></i> Calendário</a>
+        </li>
+        <li>
           <a href="#tab_resumo" data-toggle="tab"><i class="fa fa-bar-chart"></i> Resumo</a>
         </li>
         <?php if ($is_admin && isset($users)) { ?>
@@ -220,6 +223,16 @@ $weekdays = array(1 => 'Segunda', 2 => 'Terça', 3 => 'Quarta', 4 => 'Quinta', 5
                     <p class="text-muted planning-empty">Nenhuma atividade programada para este dia.</p>
                   <?php } else { ?>
                     <table class="table table-hover planning-tasks">
+                      <?php // Larguras fixas: as colunas ficam alinhadas entre os dias; o título usa o espaço restante. ?>
+                      <colgroup>
+                        <col>
+                        <col class="planning-col-prioridade">
+                        <col class="planning-col-responsavel">
+                        <col class="planning-col-prazo">
+                        <col class="planning-col-horas">
+                        <col class="planning-col-horas">
+                        <?php if ($is_admin) { ?><col class="planning-col-acao"><?php } ?>
+                      </colgroup>
                       <thead>
                         <tr>
                           <th>Chamado</th><th>Prioridade / Nível</th><th>Responsável</th><th>Prazo</th>
@@ -284,6 +297,90 @@ $weekdays = array(1 => 'Segunda', 2 => 'Terça', 3 => 'Quarta', 4 => 'Quinta', 5
                   'status_filter_query' => $status_filter_query,
               )); ?>
             <?php } ?>
+          <?php } ?>
+        </div>
+
+        <div class="tab-pane" id="tab_calendario">
+          <?php if (!$selected_collaborator) { ?>
+            <p class="text-muted">Selecione um colaborador para visualizar o calendário.</p>
+          <?php } else {
+              // Grade de segunda a sexta, da semana do início até a semana do fim do período filtrado.
+              $calendar_start = strtotime('monday this week', strtotime($start_date));
+              $calendar_end = strtotime('friday this week', strtotime($end_date));
+              $calendar_weeks = array();
+              for ($week = $calendar_start; $week <= $calendar_end; $week = strtotime('+1 week', $week)) {
+                  $days_of_week = array();
+                  for ($offset = 0; $offset < 5; $offset++) {
+                      $days_of_week[] = date('Y-m-d', strtotime('+' . $offset . ' day', $week));
+                  }
+                  $calendar_weeks[] = $days_of_week;
+              }
+          ?>
+            <h4 class="planning-section-title">
+              Calendário de <?php echo html_escape($selected_collaborator->nome); ?>
+              <small><?php echo $format_hours($dashboard['summary']['planned_hours']); ?> previstas no período · meta <?php echo $format_hours($dashboard['goal_hours']); ?>/dia</small>
+            </h4>
+            <div class="planning-calendar-legend">
+              <span><i class="planning-calendar-swatch is-planned"></i> horas previstas do chamado (pelo nível)</span>
+              <span><i class="fa fa-clock-o"></i> horas já apontadas no dia</span>
+              <span><i class="planning-calendar-swatch is-over"></i> previsto acima da meta</span>
+            </div>
+            <div class="table-responsive">
+              <table class="planning-calendar">
+                <thead>
+                  <tr><th>Segunda</th><th>Terça</th><th>Quarta</th><th>Quinta</th><th>Sexta</th></tr>
+                </thead>
+                <tbody>
+                  <?php foreach ($calendar_weeks as $days_of_week) { ?>
+                    <tr>
+                      <?php foreach ($days_of_week as $date) {
+                          $in_period = isset($dashboard['days'][$date]);
+                          $day = $in_period ? $dashboard['days'][$date] : null;
+                          $is_unavailable = $day && !empty($day['unavailability']);
+                          $overloaded = $day && $day['planned_hours'] > $day['goal_hours'];
+                          $cell_classes = array();
+                          if (!$in_period) { $cell_classes[] = 'is-outside'; }
+                          if ($date === $today) { $cell_classes[] = 'is-today'; }
+                          if ($is_unavailable) { $cell_classes[] = 'is-unavailable'; }
+                      ?>
+                        <td class="<?php echo implode(' ', $cell_classes); ?>">
+                          <div class="planning-calendar-date">
+                            <span><?php echo date('d/m', strtotime($date)); ?></span>
+                            <?php if ($date === $today) { ?><span class="label label-primary">Hoje</span><?php } ?>
+                          </div>
+                          <?php if ($in_period) { ?>
+                            <?php if ($is_unavailable) { ?>
+                              <div class="planning-calendar-off" title="<?php echo html_escape(implode('; ', array_map(function ($a) { return $a->titulo; }, $day['unavailability']))); ?>">
+                                <i class="fa fa-ban"></i> <?php echo html_escape($day['unavailability'][0]->titulo); ?>
+                              </div>
+                            <?php } ?>
+                            <?php if ($day['tasks']) { ?>
+                              <ul class="planning-calendar-tasks">
+                                <?php foreach ($day['tasks'] as $task) { ?>
+                                  <li class="<?php echo $priority_label_class($task->prioridade) === 'label-danger' ? 'is-high' : ''; ?>">
+                                    <a href="<?php echo base_url('chamados/details/' . (int) $task->chamado_id); ?>" target="_blank" title="<?php echo html_escape($task->titulo . ($task->prioridade ? ' · Prioridade ' . $task->prioridade : '')); ?>">#<?php echo (int) $task->chamado_id; ?></a>
+                                    <span class="planning-calendar-hours"><?php echo $format_hours($task->estimated_hours); ?></span>
+                                    <?php if ($task->hours_logged > 0) { ?>
+                                      <span class="planning-calendar-logged" title="Apontado neste dia"><i class="fa fa-clock-o"></i> <?php echo $format_hours($task->hours_logged); ?></span>
+                                    <?php } ?>
+                                  </li>
+                                <?php } ?>
+                              </ul>
+                            <?php } elseif (!$is_unavailable) { ?>
+                              <div class="planning-calendar-empty">Sem chamados</div>
+                            <?php } ?>
+                            <div class="planning-calendar-total <?php echo $overloaded ? 'is-over' : ''; ?>">
+                              <div><strong><?php echo $format_hours($day['planned_hours']); ?></strong> <span>de <?php echo $format_hours($day['goal_hours']); ?></span></div>
+                              <div class="planning-calendar-total-logged" title="Total apontado no dia (todos os chamados)"><i class="fa fa-clock-o"></i> <?php echo $format_hours($day['goal_logged_hours']); ?></div>
+                            </div>
+                          <?php } ?>
+                        </td>
+                      <?php } ?>
+                    </tr>
+                  <?php } ?>
+                </tbody>
+              </table>
+            </div>
           <?php } ?>
         </div>
 
@@ -468,6 +565,46 @@ $weekdays = array(1 => 'Segunda', 2 => 'Terça', 3 => 'Quarta', 4 => 'Quinta', 5
                   <?php echo form_close(); ?>
                 </div>
               </div>
+            </div>
+
+            <div class="box box-default">
+              <div class="box-header with-border"><h3 class="box-title"><i class="fa fa-bell-o"></i> Aviso diário no Discord</h3></div>
+              <?php if (!$has_discord_tables) { ?>
+                <div class="box-body">
+                  <p class="text-muted">Execute o script <code>install/sql/kanban_discord.sql</code> no banco de dados para habilitar o aviso diário.</p>
+                </div>
+              <?php } else { ?>
+                <?php echo form_open('kanban/planejamento', array('method' => 'post')); ?>
+                  <div class="box-body">
+                    <input type="hidden" name="action" value="save_discord">
+                    <p class="text-muted">
+                      Nos dias úteis, às 08h, cada colaborador com ID do Discord recebe por mensagem direta os chamados atrasados e os programados para o dia
+                      (status Aberto, Fazendo, Em andamento e Aguardando Testes com o Cliente). Para obter o ID, ative o Modo desenvolvedor no Discord e use
+                      "Copiar ID do usuário" no perfil do colaborador. O colaborador precisa estar em um servidor em comum com o bot.
+                    </p>
+                    <div class="discord-list">
+                      <table class="table table-condensed">
+                        <thead><tr><th>Colaborador</th><th>ID do Discord</th></tr></thead>
+                        <tbody>
+                          <?php foreach ($users as $user) { ?>
+                            <tr>
+                              <td><?php echo html_escape($user->nome); ?></td>
+                              <td>
+                                <input type="text" class="form-control input-sm" name="discord_ids[<?php echo (int) $user->id; ?>]"
+                                  value="<?php echo isset($discord_ids[(int) $user->id]) ? html_escape($discord_ids[(int) $user->id]) : ''; ?>"
+                                  pattern="\d{17,20}" inputmode="numeric" maxlength="20" placeholder="Não recebe aviso">
+                              </td>
+                            </tr>
+                          <?php } ?>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <div class="box-footer">
+                    <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> Salvar Discord</button>
+                  </div>
+                <?php echo form_close(); ?>
+              <?php } ?>
             </div>
 
             <div class="box box-default">
@@ -709,6 +846,128 @@ $weekdays = array(1 => 'Segunda', 2 => 'Terça', 3 => 'Quarta', 4 => 'Quinta', 5
   .planning-section-title {
     margin: 4px 0 12px;
   }
+  .planning-calendar-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin: -4px 0 10px;
+    font-size: 12px;
+    color: #777;
+  }
+  .planning-calendar-swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    vertical-align: middle;
+  }
+  .planning-calendar-swatch.is-planned { background: #eaf2f8; border: 1px solid #3c8dbc; }
+  .planning-calendar-swatch.is-over { background: #fdecea; border: 1px solid #dd4b39; }
+  .planning-calendar {
+    width: 100%;
+    min-width: 760px;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 6px;
+  }
+  .planning-calendar th {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #777;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+  .planning-calendar td {
+    vertical-align: top;
+    height: 130px;
+    padding: 8px;
+    background: #fff;
+    border: 1px solid #d2d6de;
+    border-radius: 6px;
+  }
+  .planning-calendar td.is-outside {
+    background: #f4f6f8;
+    border-style: dashed;
+    color: #bbb;
+  }
+  .planning-calendar td.is-today {
+    border: 2px solid #3c8dbc;
+  }
+  .planning-calendar td.is-unavailable {
+    background: #fdf3f3;
+  }
+  .planning-calendar-date {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .planning-calendar-off {
+    font-size: 11px;
+    color: #dd4b39;
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .planning-calendar-tasks {
+    list-style: none;
+    margin: 0 0 6px;
+    padding: 0;
+  }
+  .planning-calendar-tasks li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 6px;
+    margin-bottom: 3px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    background: #eaf2f8;
+    border-left: 3px solid #3c8dbc;
+    font-size: 12px;
+  }
+  .planning-calendar-tasks li.is-high {
+    border-left-color: #dd4b39;
+  }
+  .planning-calendar-tasks a {
+    font-weight: 700;
+  }
+  .planning-calendar-hours {
+    margin-left: auto;
+    font-weight: 600;
+  }
+  .planning-calendar-logged {
+    width: 100%;
+    text-align: right;
+    font-size: 11px;
+    color: #777;
+  }
+  .planning-calendar-empty {
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 6px;
+  }
+  .planning-calendar-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-top: 6px;
+    border-top: 1px solid #eee;
+    font-size: 12px;
+  }
+  .planning-calendar-total strong {
+    font-size: 14px;
+  }
+  .planning-calendar-total span,
+  .planning-calendar-total-logged {
+    color: #777;
+  }
+  .planning-calendar-total.is-over strong {
+    color: #dd4b39;
+  }
   .planning-day {
     margin-bottom: 10px;
   }
@@ -739,6 +998,26 @@ $weekdays = array(1 => 'Segunda', 2 => 'Terça', 3 => 'Quarta', 4 => 'Quinta', 5
   }
   .planning-tasks td {
     vertical-align: middle !important;
+  }
+  .planning-tasks {
+    table-layout: fixed;
+  }
+  .planning-tasks td,
+  .planning-tasks th {
+    overflow-wrap: break-word;
+  }
+  .planning-tasks .planning-col-prioridade { width: 140px; }
+  .planning-tasks .planning-col-responsavel { width: 180px; }
+  .planning-tasks .planning-col-prazo { width: 140px; }
+  .planning-tasks .planning-col-horas { width: 90px; }
+  .planning-tasks .planning-col-acao { width: 140px; }
+  @media (max-width: 991px) {
+    /* Em telas estreitas, as larguras fixas apertariam o título: volta ao cálculo automático. */
+    .planning-tasks { table-layout: auto; }
+  }
+  .discord-list {
+    max-height: 320px;
+    overflow-y: auto;
   }
   .access-list {
     max-height: 260px;

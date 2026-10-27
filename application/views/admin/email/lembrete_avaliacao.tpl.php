@@ -1,28 +1,25 @@
-<html>
-<body>
-	<h1>Olá <?php echo $dono ?>,</h1>
-	<p>Existem alguns atendimentos concluídos que ainda não sabemos sua opinião.</p>
-	<p>Nós adoraríamos saber mais sobre sua experiência em relação ao trabalho prestado pela nossa equipe.</p>
-	<p>Poderia nos dar seu feedback? Prometemos que é rápido e ajudará a melhorar nossa qualidade e as experiências dos clientes no futuro.</p>
-	<p>Sabemos que seu tempo é valioso e agradecemos sua colaboração.</p>
-	
-	<table width="100%" border="1">
-    	<tr>
-   			<td width="15%"><b>Atendimento</b></td>
-   			<td width="30%"><b>Descrição</b></td>
-   			<td width="15%"><b>Serviço</b></td>
-   			<td width="25%"><b>Unidade</b></td>
-   			<td width="15%"><b>Finalizado em</b></td>
-   		</tr>
-   		<?php foreach ($chamados as $value) { ?>
-   			<tr>
-   				<td align="center"><?php echo '<a href="'.base_url('auth/avaliacao_chamado/'.$value->dono_id.'/'.sha1($value->id.$value->dono_id)).'">'.$value->id.'</a>' ?></td>
-   				<td><?php echo $value->titulo ?></td>
-   				<td><?php echo $value->catalogo_desc ?></td>
-   				<td><?php echo $value->unidade ?></td>
-   				<td><?php echo date("d/m/Y H:i", strtotime($value->data_finalizacao)) ?></td>
-   			</tr>
-   		<?php } ?>
-	</table>
-</body>
-</html>
+<?php
+$linhas = '';
+foreach ($chamados as $value) {
+    $link_avaliacao = base_url('auth/avaliacao_chamado/' . $value->dono_id . '/' . sha1($value->id . $value->dono_id));
+    $linhas .= '<tr>' .
+        '<td style="padding:10px 12px;border-bottom:1px solid #eeeeee;">' .
+            '<div style="font-size:12px;color:#888888;">Chamado #' . (int) $value->id . ' &middot; ' . html_escape($value->unidade) . ' &middot; finalizado em ' . date('d/m/Y', strtotime($value->data_finalizacao)) . '</div>' .
+            '<div style="margin-top:2px;font-size:14px;font-weight:bold;color:#222222;">' . html_escape($value->titulo) . '</div>' .
+            '<div style="font-size:12px;color:#888888;">' . html_escape($value->catalogo_desc) . '</div>' .
+        '</td>' .
+        '<td align="right" style="padding:10px 12px;border-bottom:1px solid #eeeeee;white-space:nowrap;">' .
+            '<a href="' . $link_avaliacao . '" style="display:inline-block;padding:7px 14px;border-radius:4px;background:#3c8dbc;color:#ffffff;font-size:13px;font-weight:bold;text-decoration:none;">Avaliar</a>' .
+        '</td>' .
+    '</tr>';
+}
+$conteudo = '<p style="margin:0 0 12px;font-size:16px;color:#222222;">Ol&aacute;, <b>' . html_escape($dono) . '</b>.</p>' .
+    '<p style="margin:0 0 16px;">Estes atendimentos foram conclu&iacute;dos e ainda n&atilde;o recebemos sua opini&atilde;o. A avalia&ccedil;&atilde;o &eacute; r&aacute;pida e nos ajuda a melhorar a qualidade do atendimento.</p>' .
+    '<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eeeeee;border-radius:4px;border-collapse:separate;">' . $linhas . '</table>' .
+    '<p style="margin:16px 0 0;font-size:13px;color:#777777;">Sabemos que seu tempo &eacute; valioso e agradecemos sua colabora&ccedil;&atilde;o.</p>';
+echo email_layout_chamado(array(
+    'empresa_id' => isset($empresa_id) ? $empresa_id : 0,
+    'rotulo' => 'Avalia&ccedil;&atilde;o pendente',
+    'titulo' => count($chamados) . ' atendimento' . (count($chamados) === 1 ? '' : 's') . ' aguardando sua avalia&ccedil;&atilde;o',
+    'conteudo' => $conteudo,
+));

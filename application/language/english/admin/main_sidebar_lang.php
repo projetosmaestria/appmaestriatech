@@ -11,6 +11,7 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 
+$lang['app_name']    = 'XKey Chamados';
 $lang['menu_online'] = 'Online';
 $lang['menu_search'] = 'Search';
 

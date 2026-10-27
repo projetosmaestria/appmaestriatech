@@ -501,6 +501,8 @@ class Contratos extends Admin_Controller {
 		{
 			redirect('auth', 'refresh');
 		}
+		// Cópia antiga da edição de produto: a tela agora fica em produtos/edit.
+		redirect('produtos/edit/' . (int) $id, 'refresh');
 
         /* Breadcrumbs */
         $this->breadcrumbs->unshift(2, lang('menu_produtos_edit'), 'produtos/edit');

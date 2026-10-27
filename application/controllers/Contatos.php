@@ -139,8 +139,11 @@ class Contatos extends Admin_Controller {
                 'value'=>($this->input->post('idade_ate')) ? $this->input->post('idade_ate') : ''
             );
 
+            $this->data['can_create'] = $this->ion_auth->has_permissao("contatos", "create");
+            $this->data['can_create_oportunidade'] = $this->ion_auth->has_permissao("oportunidades", "create");
             $this->data['has_exportar'] = false;
             $this->data['has_alterar_unidade'] = false;
+            $this->data['select_unidades_acoes'] = array();
             $this->data['select_acoes'] = '<select name="acoes" id="acoes" class="form-control"><option value="">Selecione</option>';
             if($this->ion_auth->has_permissao("contatos", "exportar")) {
                 $this->data['has_exportar'] = true;

@@ -11,6 +11,7 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 
+$lang['app_name']    = 'XKey Chamados';
 $lang['menu_online'] = 'Online';
 $lang['menu_search'] = 'Pesquisa';
 
@@ -267,7 +268,7 @@ $lang['menu_search'] = 'Pesquisa';
 
 /* ****** */$lang['menu_agenda']       				= 'Agenda';
 
-/* ****** */$lang['menu_plano_acao']       			= 'Plano de Ação';
+/* ****** */$lang['menu_plano_acao']       			= 'Projetos';
 /* *********** */$lang['menu_plano_acao_create'] 	= 'Criar';
 /* *********** */$lang['menu_plano_acao_edit'] 		= 'Editar';
 /* *********** */$lang['menu_plano_acao_view'] 		= 'Ver';
@@ -320,4 +321,4 @@ $lang['menu_search'] = 'Pesquisa';
 
 $lang['menu_kanban'] = 'Kanban';
 $lang['menu_kanban_board'] = 'Quadro Kanban';
-$lang['menu_kanban_planejamento'] = 'Planejamento da equipe';
+$lang['menu_kanban_planejamento'] = 'Planejamento da equipe';

@@ -95,6 +95,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
                                     <div class="btn-group">
                                         <?php echo anchor('plano_acao', lang('actions_cancel'), array('class' => 'btn btn-default btn-flat')); ?>
                                     </div>
+                                    <?php echo anchor('plano_acao/gantt/' . (int) $this->uri->segment(3), '<i class="fa fa-tasks"></i> Ver cronograma', array('class' => 'btn btn-primary btn-flat')); ?>
                                 </div>
                             </div>
                         <?php echo form_close();?>

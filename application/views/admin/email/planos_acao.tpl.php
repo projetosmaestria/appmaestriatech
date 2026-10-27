@@ -23,7 +23,7 @@
           <div class="row">
             <div class="col-xs-12">
               <h2 class="page-header">
-                <i class="fa fa-list"></i> Planos de Ação
+                <i class="fa fa-list"></i> Projetos
               </h2>
             </div>
             <!-- /.col -->
@@ -76,7 +76,7 @@
                     $ult_tipo = $plano->tipo;
                   }
                 } else {
-                  echo "<p>Não existe(m) plano(s) de ação.</p>";
+                  echo "<p>Não existem projetos.</p>";
                 }
 
               ?>

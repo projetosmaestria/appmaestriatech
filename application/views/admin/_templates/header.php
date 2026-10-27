@@ -109,24 +109,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
             <script src="<?php echo base_url($plugins_dir . '/respond/respond.min.js'); ?>"></script>
         <![endif]-->
         <?php endif; ?>
-        <?php if ($this->router->fetch_class() == 'chamados' && $this->router->fetch_method() == 'apontamentos'): ?>
-                <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/1.4.0/css/buttons.dataTables.css">
-                <style>
-                        .dt-button {
-                                background-color: #f4f4f4 !important;
-                                color: #444 !important;
-                                border: 1px solid #ddd !important;
-                                background-image: none !important;
-                                font-size: 12px !important;
-                        }
-
-                        .dt-button:hover {
-                                background-image: none !important;
-                                border: 1px solid #adadad !important;
-                                font-size: 12px !important;
-                        }
-                </style>
-        <?php endif; ?>
+        
 </head>
 
 <body class="hold-transition skin-blue fixed sidebar-mini">

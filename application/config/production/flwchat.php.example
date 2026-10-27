@@ -1,0 +1,15 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+/*
+| Configuração do WhatsApp (FLW Chat) para a hospedagem, que não usa o .env.
+| Copie este arquivo para application/config/production/flwchat.php no servidor
+| e preencha o token. O CodeIgniter carrega este arquivo depois de config/flwchat.php,
+| sobrescrevendo os valores. O flwchat.php desta pasta não é versionado.
+*/
+$config['flwchat_url'] = 'https://api.painel.xkeysti.com.br/chat';
+$config['flwchat_token'] = '';
+$config['flwchat_canal'] = '554431234652';
+$config['flwchat_modelo_abertura'] = 'd2a91070-02a7-4d0a-845e-10d074dd87f5';
+$config['flwchat_modelo_encerramento'] = 'e0bbe91c-3c5e-4833-b870-6f3b1a0c10bd';
+$config['flwchat_empresa_id'] = 1;

@@ -1,0 +1,10 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+/*
+| Token do bot do Discord para a hospedagem, que não usa o .env.
+| Copie este arquivo para application/config/production/discord.php no servidor
+| e preencha o token. O CodeIgniter carrega este arquivo depois de config/discord.php,
+| sobrescrevendo os valores. O discord.php desta pasta não é versionado.
+*/
+$config['discord_bot_token'] = '';

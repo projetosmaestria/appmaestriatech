@@ -12,7 +12,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
         <div class="row">
             <div class="col-md-12">
                  <div class="box">
-                  <?php if($can_create) { ?>
+                  <?php if(!empty($can_create)) { ?>
                     <div class="box-header with-border">
                         <h3 class="box-title"><?php echo anchor('contatos/create', '<i class="fa fa-plus"></i> '. lang('contatos_create'), array('class' => 'btn btn-block btn-primary btn-flat')); ?></h3>
                     </div>
@@ -163,7 +163,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
                                               <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="true"><i class="fa fa-ellipsis-v" aria-hidden="true"></i></i></button>
                                               <ul class="dropdown-menu" role="menu">
                                                   <?php echo '<li><a href="javascript:void(0);" class="btn_view_contato" data-id="'.$values->id.'"><i class="fa fa-eye"></i> '.lang('actions_see').'</a></li>'; ?>
-                                                  <?php echo ($can_create_oportunidade) ? '<li>'.anchor("oportunidades/create/".$values->id, '<i class="fa fa-plus-square"></i>'.lang('criar_oportunidade'), array()).'</li>' : ''; ?>
+                                                  <?php echo (!empty($can_create_oportunidade)) ? '<li>'.anchor("oportunidades/create/".$values->id, '<i class="fa fa-plus-square"></i>'.lang('criar_oportunidade'), array()).'</li>' : ''; ?>
                                               </ul>
                                             </div>
                                         </td>
@@ -181,10 +181,12 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 <div style="display:none;">
 <?php 
-  foreach ($select_unidades_acoes as $key => $value) {
-    echo "<div id='select_unidades_acoes_".$key."'>";
-    echo $value;
-    echo "</div>";
+  if (!empty($select_unidades_acoes) && is_array($select_unidades_acoes)) {
+    foreach ($select_unidades_acoes as $key => $value) {
+      echo "<div id='select_unidades_acoes_".$key."'>";
+      echo $value;
+      echo "</div>";
+    }
   }
 ?>
 </div>

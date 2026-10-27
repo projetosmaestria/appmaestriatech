@@ -535,6 +535,20 @@ class Kanban extends Admin_Controller {
             return;
         }
 
+        if ($this->input->post('action') === 'save_discord') {
+            if (!$is_admin) {
+                show_error('Somente administradores podem configurar o Discord dos colaboradores.', 403);
+                return;
+            }
+            if (!$this->kanban_dashboard_model->save_discord_ids($company_id, $this->input->post('discord_ids'), $user_id)) {
+                show_error('Não foi possível salvar. O ID do Discord deve conter somente números (17 a 20 dígitos).', 400);
+                return;
+            }
+            $this->session->set_flashdata('message', show_alert_success('Discord dos colaboradores atualizado.'));
+            redirect('kanban/planejamento?config=1', 'refresh');
+            return;
+        }
+
         if ($this->input->post('action') === 'save_unavailability') {
             if (!$is_admin) {
                 show_error('Somente administradores podem cadastrar indisponibilidades.', 403);

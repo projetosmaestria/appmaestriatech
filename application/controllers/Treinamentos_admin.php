@@ -131,28 +131,22 @@ class Treinamentos_admin extends Admin_Controller {
             );
 
             // Upload de Capa se fornecida
+            $erro_imagem = '';
             if (!empty($_FILES['imagem_capa']['name'])) {
-                $uploadPath = './upload/treinamentos/capas/';
-                $config['upload_path']   = $uploadPath;
-                $config['allowed_types'] = 'gif|jpg|jpeg|png|svg|webp';
-                $config['max_size']      = 5120;
-                $config['encrypt_name']  = TRUE;
-
-                $this->upload->initialize($config);
-                if ($this->upload->do_upload('imagem_capa')) {
-                    $uploadData = $this->upload->data();
-                    $data['imagem_capa'] = 'upload/treinamentos/capas/' . $uploadData['file_name'];
+                $imagem = $this->enviar_imagem_treinamento('imagem_capa', 'capas', $erro_imagem);
+                if ($imagem) {
+                    $data['imagem_capa'] = $imagem;
                 }
             } else {
                 $data['imagem_capa'] = 'assets/images/treinamentos/curso_financeiro_1.svg';
             }
 
-            $novoId = $this->treinamentos_model->create($data);
+            $novoId = $erro_imagem === '' ? $this->treinamentos_model->create($data) : false;
             if ($novoId) {
                 $this->session->set_flashdata('message', show_alert_success('Treinamento cadastrado com sucesso! Agora adicione as etapas.'));
                 redirect('treinamentos_admin/etapas/' . $novoId);
             } else {
-                $this->data['message'] = show_alert_error('Erro ao cadastrar treinamento no banco de dados.');
+                $this->data['message'] = show_alert_error($erro_imagem !== '' ? 'A imagem de capa não foi enviada: ' . $erro_imagem : 'Erro ao cadastrar treinamento no banco de dados.');
             }
         }
 
@@ -222,25 +216,19 @@ class Treinamentos_admin extends Admin_Controller {
                 'ativo'                 => $this->input->post('ativo') ? 1 : 0
             );
 
+            $erro_imagem = '';
             if (!empty($_FILES['imagem_capa']['name'])) {
-                $uploadPath = './upload/treinamentos/capas/';
-                $config['upload_path']   = $uploadPath;
-                $config['allowed_types'] = 'gif|jpg|jpeg|png|svg|webp';
-                $config['max_size']      = 5120;
-                $config['encrypt_name']  = TRUE;
-
-                $this->upload->initialize($config);
-                if ($this->upload->do_upload('imagem_capa')) {
-                    $uploadData = $this->upload->data();
-                    $data['imagem_capa'] = 'upload/treinamentos/capas/' . $uploadData['file_name'];
+                $imagem = $this->enviar_imagem_treinamento('imagem_capa', 'capas', $erro_imagem);
+                if ($imagem) {
+                    $data['imagem_capa'] = $imagem;
                 }
             }
 
-            if ($this->treinamentos_model->update($id, $data)) {
+            if ($erro_imagem === '' && $this->treinamentos_model->update($id, $data)) {
                 $this->session->set_flashdata('message', show_alert_success('Treinamento atualizado com sucesso!'));
                 redirect('treinamentos_admin');
             } else {
-                $this->data['message'] = show_alert_error('Erro ao atualizar treinamento.');
+                $this->data['message'] = show_alert_error($erro_imagem !== '' ? 'A imagem de capa não foi enviada: ' . $erro_imagem : 'Erro ao atualizar treinamento.');
             }
         }
 
@@ -577,6 +565,9 @@ class Treinamentos_admin extends Admin_Controller {
         }
 
         $uploadPath = './upload/treinamentos/materiais/';
+        if (!is_dir($uploadPath)) {
+            @mkdir($uploadPath, 0755, true);
+        }
         $config['upload_path']   = $uploadPath;
         $config['allowed_types'] = 'pdf|doc|docx|xls|xlsx|ppt|pptx|txt|zip|rar|jpg|jpeg|png';
         $config['max_size']      = 20480; // 20MB
@@ -768,27 +759,21 @@ class Treinamentos_admin extends Admin_Controller {
                 'cadastrado_por' => $userId
             );
 
+            $erro_imagem = '';
             if (!empty($_FILES['imagem']['name'])) {
-                $uploadPath = './upload/treinamentos/banners/';
-                $config['upload_path']   = $uploadPath;
-                $config['allowed_types'] = 'gif|jpg|jpeg|png|svg|webp';
-                $config['max_size']      = 5120;
-                $config['encrypt_name']  = TRUE;
-
-                $this->upload->initialize($config);
-                if ($this->upload->do_upload('imagem')) {
-                    $uploadData = $this->upload->data();
-                    $data['imagem'] = 'upload/treinamentos/banners/' . $uploadData['file_name'];
+                $imagem = $this->enviar_imagem_treinamento('imagem', 'banners', $erro_imagem);
+                if ($imagem) {
+                    $data['imagem'] = $imagem;
                 }
             } else {
                 $data['imagem'] = 'assets/images/treinamentos/banner_academy_1.svg';
             }
 
-            if ($this->treinamentos_banners_model->create($data)) {
+            if ($erro_imagem === '' && $this->treinamentos_banners_model->create($data)) {
                 $this->session->set_flashdata('message', show_alert_success('Banner cadastrado com sucesso!'));
                 redirect('treinamentos_admin/banners');
             } else {
-                $this->data['message'] = show_alert_error('Erro ao cadastrar banner.');
+                $this->data['message'] = show_alert_error($erro_imagem !== '' ? 'A imagem do banner não foi enviada: ' . $erro_imagem : 'Erro ao cadastrar banner.');
             }
         }
 
@@ -827,25 +812,19 @@ class Treinamentos_admin extends Admin_Controller {
                 'ativo'          => $this->input->post('ativo') ? 1 : 0
             );
 
+            $erro_imagem = '';
             if (!empty($_FILES['imagem']['name'])) {
-                $uploadPath = './upload/treinamentos/banners/';
-                $config['upload_path']   = $uploadPath;
-                $config['allowed_types'] = 'gif|jpg|jpeg|png|svg|webp';
-                $config['max_size']      = 5120;
-                $config['encrypt_name']  = TRUE;
-
-                $this->upload->initialize($config);
-                if ($this->upload->do_upload('imagem')) {
-                    $uploadData = $this->upload->data();
-                    $data['imagem'] = 'upload/treinamentos/banners/' . $uploadData['file_name'];
+                $imagem = $this->enviar_imagem_treinamento('imagem', 'banners', $erro_imagem);
+                if ($imagem) {
+                    $data['imagem'] = $imagem;
                 }
             }
 
-            if ($this->treinamentos_banners_model->update($id, $data)) {
+            if ($erro_imagem === '' && $this->treinamentos_banners_model->update($id, $data)) {
                 $this->session->set_flashdata('message', show_alert_success('Banner atualizado com sucesso!'));
                 redirect('treinamentos_admin/banners');
             } else {
-                $this->data['message'] = show_alert_error('Erro ao atualizar banner.');
+                $this->data['message'] = show_alert_error($erro_imagem !== '' ? 'A imagem do banner não foi enviada: ' . $erro_imagem : 'Erro ao atualizar banner.');
             }
         }
 
@@ -985,5 +964,38 @@ class Treinamentos_admin extends Admin_Controller {
         } else {
             echo json_encode(array('success' => false, 'message' => 'Não foi possível detectar a duração automaticamente'));
         }
+    }
+
+    /**
+     * Envia a imagem do campo $campo para upload/treinamentos/$pasta/, criando a pasta se ela não existir.
+     * Retorna o caminho relativo gravado no banco, ou FALSE com o motivo da falha em $erro.
+     */
+    private function enviar_imagem_treinamento($campo, $pasta, &$erro)
+    {
+        $relativo = 'upload/treinamentos/' . $pasta . '/';
+        $destino = FCPATH . $relativo;
+        if (!is_dir($destino) && !@mkdir($destino, 0755, true)) {
+            $erro = 'não foi possível criar a pasta ' . $relativo . ' no servidor. Verifique a permissão de escrita da pasta upload.';
+            return FALSE;
+        }
+        if (!is_writable($destino)) {
+            $erro = 'a pasta ' . $relativo . ' não tem permissão de escrita no servidor.';
+            return FALSE;
+        }
+        if (!is_file($destino . 'index.html')) {
+            @file_put_contents($destino . 'index.html', '<html><head><title>403 Forbidden</title></head><body><p>Directory access is forbidden.</p></body></html>');
+        }
+
+        $this->upload->initialize(array(
+            'upload_path'   => $destino,
+            'allowed_types' => 'gif|jpg|jpeg|png|svg|webp',
+            'max_size'      => 5120,
+            'encrypt_name'  => TRUE,
+        ));
+        if (!$this->upload->do_upload($campo)) {
+            $erro = trim(strip_tags($this->upload->display_errors('', ' ')));
+            return FALSE;
+        }
+        return $relativo . $this->upload->data('file_name');
     }
 }

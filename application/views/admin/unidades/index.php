@@ -1,5 +1,8 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+$numero = function ($valor) {
+    return number_format((int) $valor, 0, ',', '.');
+};
 ?>
 <div class="content-wrapper">
     <section class="content-header">
@@ -7,69 +10,123 @@ defined('BASEPATH') OR exit('No direct script access allowed');
         <?php echo $breadcrumb; ?>
     </section>
 
-    <section class="content">
-        <?php if(isset($message)) {echo $message;} ?>
+    <section class="content lista-page">
+        <?php if (isset($message)) { echo $message; } ?>
+
         <div class="row">
-            <div class="col-md-12">
-                 <div class="box">
-                    <div class="box-header with-border">
-                        <?php if($can_create) ?>
-                            <h3 class="box-title"><?php echo anchor('unidades/create', '<i class="fa fa-plus"></i> '. lang('unidades_create'), array('class' => 'btn btn-block btn-primary btn-flat')); ?></h3>
-                    </div>
-                    <div class="box-body">
-                        <table id="datatable" class="table table-striped table-hover">
-                            <thead>
-                                <tr>
-                                    <th><?php echo lang('fantasia');?></th>
-                                    <th><?php echo lang('razao_social');?></th>
-                                    <th><?php echo lang('unidades_administrador');?></th>
-                                    <th><?php echo lang('unidades_telefone');?></th>
-                                    <th><?php echo lang('unidades_cpf_cnpj');?></th>
-                                    <th><?php echo lang('unidades_condicoes');?></th>
-                                    <th><?php echo lang('unidades_action');?></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-<?php foreach ($unidades as $values):?>
-                                <tr>
-                                    <td><?php echo htmlspecialchars($values->unidade, ENT_QUOTES, 'UTF-8'); ?></td>
-                                    <td><?php echo htmlspecialchars($values->razao_social, ENT_QUOTES, 'UTF-8'); ?></td>
-                                    <td><?php echo isset($values->gestor)?htmlspecialchars($values->gestor, ENT_QUOTES, 'UTF-8'):''; ?></td>
-                                    <td><?php echo htmlspecialchars($values->telefone1, ENT_QUOTES, 'UTF-8'); ?></td>
-                                    <td><?php echo ($values->cnpj != "") ? $values->cnpj : $values->cpf; ?></td>
-                                    <td><?php echo ($values->actived == 's') ? anchor('unidades/deactivate/'.$values->id, '<span class="label label-success">'.lang('actions_ativar').'</span>') : anchor('unidades/activate/'. $values->id, '<span class="label label-default">'.lang('actions_desativar').'</span>'); ?></td>
-                                    <td>
-                                        <div class="btn-group btn-orders-all"><button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="true"><i class="fa fa-ellipsis-v" aria-hidden="true"></i></i></button>
-                                            <ul class="dropdown-menu" role="menu">
-                                                <?php if($can_edit){ ?>
-                                                    <li><?php echo anchor("unidades/edit/".$values->id, '<i class="fa fa-edit"></i>'.lang('actions_edit'), array()); ?></li>
-                                                <?php } ?>
-                                                <?php if($can_recursos_ws) { ?>
-                                                    <li><?php echo anchor("unidades/recursos_ws/".$values->id, '<i class="fa fa-server"></i>'.lang('actions_recursos_ws'), array()); ?></li>
-                                                <?php } ?>
-                                                <?php if($can_facebook_api){ ?>
-                                                    <li><?php echo anchor("unidades/facebook_api/".$values->id, '<i class="fa fa-facebook-square"></i>'.lang('actions_facebook_api'), array()); ?></li>
-                                                <?php } ?>
-                                                <?php if($can_rd_station) { ?>
-                                                    <li><?php echo anchor("unidades/rd_station/".$values->id, '<i class="fa fa-registered"></i>'.lang('actions_rd_station'), array()); ?></li>
-                                                <?php } ?>
-                                                <?php if($can_parametros_contrato) { ?>
-                                                    <li><?php echo anchor("unidades/parametros_contrato/".$values->id, '<i class="fa fa-cogs"></i>'.lang('actions_parametros_contrato'), array()); ?></li>
-                                                <?php } ?>
-                                                <?php if($can_iugu) { ?>
-                                                    <li><?php echo anchor("unidades/iugu/".$values->id, '<i class="fa fa-credit-card"></i>'.lang('unidades_iugu'), array()); ?></li>
-                                                <?php } ?>
-                                                <li><a href="cursos/<?=$values->id?>"><i class="fa fa-book"></i></i>Cursos</a></li>
-                                            </ul>
-                                        </div>
-                                    </td>
-                                </tr>
-<?php endforeach;?>
-                            </tbody>
-                        </table>
-                    </div>
+            <div class="col-md-3 col-sm-6"><a href="#" class="lista-kpi js-un-status" data-status=""><span>Filiais</span><strong><?php echo $numero($indicadores->total) ?></strong><small>cadastradas</small></a></div>
+            <div class="col-md-3 col-sm-6"><a href="#" class="lista-kpi js-un-status" data-status="s"><span>Ativas</span><strong class="text-green"><?php echo $numero($indicadores->ativas) ?></strong><small>em atendimento</small></a></div>
+            <div class="col-md-3 col-sm-6"><a href="#" class="lista-kpi js-un-status" data-status="n"><span>Inativas</span><strong class="text-muted"><?php echo $numero($indicadores->inativas) ?></strong><small>sem acesso</small></a></div>
+            <div class="col-md-3 col-sm-6"><div class="lista-kpi"><span>Com produto vigente</span><strong><?php echo $numero($indicadores->com_produto) ?></strong><small>filiais ativas habilitadas</small></div></div>
+        </div>
+
+        <div class="box">
+            <div class="box-header with-border lista-toolbar">
+                <?php if ($can_create) { echo anchor('unidades/create', '<i class="fa fa-plus"></i> ' . lang('unidades_create'), array('class' => 'btn btn-primary')); } ?>
+                <div class="input-group lista-busca">
+                    <input type="search" id="un-q" class="form-control" placeholder="Buscar por nome, CNPJ/CPF, gestor, e-mail ou cidade...">
+                    <span class="input-group-addon"><i class="fa fa-search"></i></span>
                 </div>
-             </div>
+                <select id="un-status" class="form-control lista-filtro un-filtro">
+                    <option value="s">Ativas</option>
+                    <option value="n">Inativas</option>
+                    <option value="">Todos os status</option>
+                </select>
+                <select id="un-tipo" class="form-control lista-filtro un-filtro">
+                    <option value="">Pessoa jurídica e física</option>
+                    <option value="J">Pessoa jurídica</option>
+                    <option value="F">Pessoa física</option>
+                </select>
+                <?php if (count($ufs) > 1) { ?>
+                    <select id="un-uf" class="form-control lista-filtro un-filtro" style="min-width:110px;">
+                        <option value="">Todas as UFs</option>
+                        <?php foreach ($ufs as $uf) { ?><option value="<?php echo html_escape($uf->uf) ?>"><?php echo html_escape($uf->uf) ?></option><?php } ?>
+                    </select>
+                <?php } ?>
+                <?php if ($caracteristicas) { ?>
+                    <select id="un-caracteristica" class="form-control lista-filtro un-filtro">
+                        <option value="">Todas as características</option>
+                        <?php foreach ($caracteristicas as $caracteristica) { ?><option value="<?php echo (int) $caracteristica->id ?>"><?php echo html_escape($caracteristica->descricao) ?></option><?php } ?>
+                    </select>
+                <?php } ?>
+                <button type="button" class="btn btn-link" id="un-limpar"><i class="fa fa-times"></i> Limpar</button>
+            </div>
+            <div class="box-body table-responsive no-padding">
+                <table id="un-tabela" class="table lista-tabela" style="width:100%;">
+                    <thead>
+                        <tr>
+                            <th>Filial</th>
+                            <th>Contato</th>
+                            <th>Cidade</th>
+                            <th>Produtos</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
         </div>
     </section>
 </div>
+
+<script type="text/javascript">
+    window.addEventListener('load', function() {
+        var tabela = $('#un-tabela').DataTable({
+            processing: true,
+            serverSide: true,
+            ajax: {
+                url: '<?php echo base_url('unidades/server_side') ?>',
+                type: 'post',
+                dataType: 'json',
+                data: function(d) {
+                    d.q = $('#un-q').val();
+                    d.status = $('#un-status').val();
+                    d.tipo = $('#un-tipo').val();
+                    d.uf = $('#un-uf').val() || '';
+                    d.caracteristica = $('#un-caracteristica').val() || '';
+                }
+            },
+            dom: 'rtip',
+            pageLength: 25,
+            autoWidth: false,
+            order: [[0, 'asc']],
+            columns: [
+                null,
+                {orderable: false},
+                {width: '150px'},
+                {orderable: false, width: '100px'},
+                {orderable: false, width: '80px'},
+                {orderable: false, className: 'lista-acoes', width: '130px'}
+            ],
+            oLanguage: {
+                sProcessing: '<i class="fa fa-spinner fa-spin"></i> Carregando...',
+                sZeroRecords: 'Nenhuma filial encontrada com os filtros atuais.',
+                sInfo: 'Mostrando _START_ a _END_ de _TOTAL_ filiais',
+                sInfoEmpty: 'Nenhuma filial',
+                sInfoFiltered: '(de _MAX_ cadastradas)',
+                oPaginate: {sFirst: 'Primeiro', sPrevious: 'Anterior', sNext: 'Próximo', sLast: 'Último'}
+            }
+        });
+
+        var espera;
+        $('#un-q').on('input', function() {
+            clearTimeout(espera);
+            espera = setTimeout(function() { tabela.ajax.reload(); }, 350);
+        });
+        $('.un-filtro').on('change', function() { tabela.ajax.reload(); });
+        $('#un-limpar').on('click', function() {
+            $('#un-q, #un-tipo, #un-uf, #un-caracteristica').val('');
+            $('#un-status').val('s');
+            tabela.ajax.reload();
+        });
+        $('.js-un-status').on('click', function(event) {
+            event.preventDefault();
+            $('#un-status').val(String($(this).data('status')));
+            tabela.ajax.reload();
+        });
+        $('#un-tabela').on('click', '.js-confirmar', function(event) {
+            if (!window.confirm($(this).data('confirmar'))) { event.preventDefault(); }
+        });
+    });
+</script>
+<?php $this->load->view('admin/_partials/lista_estilos'); ?>

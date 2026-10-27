@@ -1,0 +1,221 @@
+/* 
+    Dark Mode Custom Styles - Light Dark Edition
+    saxwebv2 - Maestria Tech
+*/
+
+/* Base layout colors */
+body.dark-mode {
+    background-color: #1a1a1a !important;
+    color: #cccccc !important;
+}
+
+body.dark-mode .content-wrapper, 
+body.dark-mode .main-footer {
+    background-color: #1a1a1a !important;
+    border-top: 1px solid #333333 !important;
+    color: #b0b0b0 !important;
+}
+
+/* Sidebar - High specificity to override inline PHP styles */
+body.dark-mode .main-sidebar,
+body.dark-mode .main-sidebar.sidebar-dark-primary {
+    background: #262626 !important;
+    background-color: #262626 !important;
+}
+
+body.dark-mode .sidebar-menu > li.header {
+    background-color: #2d2d2d !important;
+    color: #777777 !important;
+    border-bottom: 1px solid #383838 !important;
+}
+
+body.dark-mode .sidebar-menu > li > a {
+    color: #bbbbbb !important;
+    background: transparent !important;
+}
+
+body.dark-mode .sidebar-menu > li:hover > a, 
+body.dark-mode .sidebar-menu > li.active > a {
+    background: #333333 !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .treeview-menu {
+    background: #202020 !important;
+}
+
+/* Common Components (Boxes, Cards, Info-boxes) */
+body.dark-mode .box,
+body.dark-mode .card,
+body.dark-mode .info-box {
+    background-color: #262626 !important;
+    border: 1px solid #383838 !important;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.4) !important;
+    color: #cccccc !important;
+}
+
+body.dark-mode .box-header,
+body.dark-mode .card-header {
+    color: #ffffff !important;
+    border-bottom: 1px solid #383838 !important;
+    background-color: rgba(255,255,255,0.03) !important;
+}
+
+/* Kanban Specific Fixes - Overriding potential white backgrounds */
+body.dark-mode .content-wrapper.kanban .card.card-row {
+    background-color: #262626 !important;
+    border: 1px solid #383838 !important;
+    color: #cccccc !important;
+    min-height: 500px;
+}
+
+body.dark-mode .content-wrapper.kanban .card.card-row .card {
+    background-color: #333333 !important;
+    border: 1px solid #404040 !important;
+}
+
+body.dark-mode .content-wrapper.kanban .card.card-row .card-header {
+    background-color: #383838 !important;
+    color: #ffffff !important;
+    border-bottom: none !important;
+}
+
+/* Tables */
+body.dark-mode .table {
+    color: #cccccc !important;
+}
+
+body.dark-mode .table-bordered, 
+body.dark-mode .table-bordered > thead > tr > th, 
+body.dark-mode .table-bordered > tbody > tr > th, 
+body.dark-mode .table-bordered > tfoot > tr > th, 
+body.dark-mode .table-bordered > thead > tr > td, 
+body.dark-mode .table-bordered > tbody > tr > td, 
+body.dark-mode .table-bordered > tfoot > tr > td {
+    border: 1px solid #383838 !important;
+}
+
+body.dark-mode .table > thead > tr > th {
+    background-color: #2d2d2d !important;
+    color: #ffffff !important;
+    border-bottom: 2px solid #383838 !important;
+}
+
+body.dark-mode .table-striped > tbody > tr:nth-of-type(odd) {
+    background-color: #202020 !important;
+}
+
+body.dark-mode .table-hover > tbody > tr:hover {
+    background-color: #2d2d2d !important;
+}
+
+/* Forms and Inputs */
+body.dark-mode .form-control,
+body.dark-mode select.form-control {
+    background-color: #2d2d2d !important;
+    border: 1px solid #444444 !important;
+    color: #cccccc !important;
+}
+
+body.dark-mode .form-control:focus {
+    border-color: #3c8dbc !important;
+    background-color: #333333 !important;
+}
+
+/* Modern Header, Sidebar & Footer adjustments - Unificado */
+body.dark-mode .main-header,
+body.dark-mode .main-header .logo,
+body.dark-mode .main-sidebar,
+body.dark-mode .main-sidebar.sidebar-dark-primary,
+body.dark-mode .main-footer,
+body.dark-mode .main-footer.modern-main-footer {
+    background: #18202a !important;
+    background-color: #18202a !important;
+    border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+body.dark-mode .main-header .logo:hover {
+    background: #141b24 !important;
+}
+
+body.dark-mode .modern-select-inverted {
+    background: #333333 !important;
+    color: #ffffff !important;
+    border: 1px solid #444444 !important;
+}
+
+body.dark-mode .modern-input {
+    background: #2d2d2d !important;
+    border: 1px solid #444444 !important;
+    color: #ffffff !important;
+}
+
+/* Theme Toggle Button Style */
+.theme-toggle-btn {
+    font-size: 18px !important;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+body.dark-mode .theme-toggle-btn i {
+    color: #f1c40f !important;
+}
+
+body:not(.dark-mode) .theme-toggle-btn i {
+    color: #ffffff !important;
+}
+
+/* Chamados Pendentes Dark Mode */
+body.dark-mode .chamados-dropdown-menu {
+    background: #1e1e1e !important;
+    border: 1px solid #333333 !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important;
+}
+
+body.dark-mode .chamados-dropdown-header {
+    background: #181818 !important;
+    border-bottom: 1px solid #2d2d2d !important;
+}
+
+body.dark-mode .chamados-cards-scroll {
+    background: #1a1a1a !important;
+}
+
+body.dark-mode .chamados-cards-scroll::-webkit-scrollbar-thumb {
+    background: #444444 !important;
+}
+
+body.dark-mode .chamado-card-item {
+    background: #252525 !important;
+    border: 1px solid #333333 !important;
+    border-left: 3.5px solid #516480 !important;
+}
+
+body.dark-mode .chamado-card-item:hover {
+    background: #2c2c2c !important;
+    border-left-color: #3498db !important;
+}
+
+body.dark-mode .chamado-card-title {
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .chamado-card-desc {
+    color: #94a3b8 !important;
+}
+
+body.dark-mode .chamado-card-footer {
+    border-top: 1px dashed #333333 !important;
+    color: #64748b !important;
+}
+
+body.dark-mode .chamado-empty-state p {
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .chamado-empty-state span {
+    color: #94a3b8 !important;
+}
+
+
+

@@ -266,7 +266,7 @@ $selected_user = ($current_board && isset($filtros['filtro_usuarios'][$quadros_s
               <h5><strong>Esforço</strong></h5>
               <p class="esforco"></p>
 
-              <h5><strong>Plano de Ação</strong></h5>
+              <h5><strong>Projeto</strong></h5>
               <p class="plano_acao"></p>
             </div>
           </div>

@@ -42,7 +42,7 @@ class Dashboard extends Admin_Controller {
 
         {
 
-            redirect('auth/login');
+            redirect('auth/login', 'refresh');
 
         }
 
@@ -506,6 +506,9 @@ class Dashboard extends Admin_Controller {
                                 $data_page['compartilhados'] = $this->dashboard_model->get_chamados_compartilhados($unids_array);
 
                                 $data_page['meus_chamados'] = $this->dashboard_model->get_chamados('(c.responsavel_id = "' . $this->session->userdata('user_id') . '" AND c.status_id != 5)', $unids_array)->num_rows();
+                                $data_page['meus_atrasados'] = $this->dashboard_model->get_chamados('c.responsavel_id = ' . (int) $this->session->userdata('user_id') . ' AND c.status_id NOT IN (3, 5) AND c.data_finalizacao IS NULL AND c.data_prazo < "' . date('Y-m-d H:i:s') . '"', $unids_array)->num_rows();
+                                $data_page['sem_responsavel'] = $this->dashboard_model->get_chamados('(c.responsavel_id IS NULL OR c.responsavel_id = 0) AND c.status_id NOT IN (3, 5)', $unids_array)->num_rows();
+                                $data_page['usuario_nome'] = $this->ion_auth->user()->row()->first_name;
 
 
                                 $retorno = array();
@@ -543,24 +546,10 @@ class Dashboard extends Admin_Controller {
 
                                 $data_page['grafico_chamados'] = json_encode($retorno);
 
-                                // Busca as tarefas pendentes do usuario logado diretamente
-                                $user_id = $this->session->userdata('user_id');
-                                
-                                $this->db->select('ce.*, c.id as chamado_id, c.titulo as chamado_titulo');
-                                $this->db->from('chamados_checklists_etapas ce');
-                                $this->db->join('chamado c', 'c.id = ce.chamado_id', 'left');
-                                $this->db->where('ce.responsavel', $user_id);
-                                $this->db->where('ce.concluida', 0);
-                                $this->db->where('ce.status', 1);
-                                $this->db->order_by('ce.data_prazo', 'ASC');
-                                $this->db->order_by('ce.id', 'ASC');
-                                $data_page['tarefas_pendentes'] = $this->db->get()->result();
-
-                                // Conta o total de tarefas pendentes do usuario
-                                $this->db->where('responsavel', $user_id);
-                                $this->db->where('concluida', 0);
-                                $this->db->where('status', 1);
-                                $data_page['total_tarefas_pendentes'] = $this->db->count_all_results('chamados_checklists_etapas');
+                                // Buscar tarefas pendentes do usuário logado
+                                $this->load->model('chamados_checklists_etapas_model');
+                                $data_page['tarefas_pendentes'] = $this->chamados_checklists_etapas_model->get_pending_tasks_by_user($this->session->userdata('user_id'));
+                                $data_page['total_tarefas_pendentes'] = $this->chamados_checklists_etapas_model->count_pending_tasks_by_user($this->session->userdata('user_id'));
 
                             } elseif($key == "mapa_calor") {                                
 

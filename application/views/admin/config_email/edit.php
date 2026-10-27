@@ -53,6 +53,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 <script type="text/javascript">
     window.onload = function() {
-        CKEDITOR.replace('mensagem')
+        // Sem o filtro de conteúdo, o CKEditor removeria os estilos inline dos modelos de e-mail.
+        CKEDITOR.replace('mensagem', {allowedContent: true})
     };
 </script>

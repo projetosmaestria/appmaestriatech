@@ -261,4 +261,41 @@ class Checklists extends Admin_Controller
         $this->data['message'] = $this->session->flashdata('message');
         $this->template->admin_render('admin/checklists/view', $this->data);
     }
+
+    public function delete($id)
+    {
+        if (!$this->ion_auth->logged_in() || !$this->ion_auth->has_permissao("checklists", "delete")) {
+            redirect('auth/login', 'refresh');
+        }
+
+        $checklist = $this->checklists_model->get($id);
+        if (!$checklist) {
+            $this->session->set_flashdata('error', 'Checklist não encontrado.');
+            redirect('checklists', 'refresh');
+        }
+
+        $this->load->model('checklists_etapas_model');
+
+        $this->db->trans_start();
+
+        $etapas = $this->checklists_etapas_model->get_by_checklist($id);
+        foreach ($etapas as $etapa) {
+            $this->checklists_etapas_model->force_delete($etapa->id);
+        }
+
+        // Excluir o checklist
+        $deleted = $this->checklists_model->delete($id);
+
+        // Finalizar transação
+        $this->db->trans_complete();
+
+        if ($this->db->trans_status() === FALSE || !$deleted) {
+            $this->session->set_flashdata('error', 'Erro ao excluir o checklist e suas etapas.');
+        } else {
+            $this->session->set_flashdata('message', 'Checklist e suas etapas excluídos com sucesso.');
+        }
+
+        redirect('checklists', 'refresh');
+    }
 }
+

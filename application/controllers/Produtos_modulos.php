@@ -22,23 +22,31 @@ class Produtos_modulos extends Admin_Controller {
         $this->breadcrumbs->unshift(1, lang('menu_produtos_modulos'), 'produtos_modulos');
     }
 
-
 	public function index()
 	{
         if ( ! $this->ion_auth->logged_in() OR ! $this->ion_auth->has_permissao("produtos_modulos", "index"))
         {
             redirect('auth/login', 'refresh');
         }
-        else
-        {
-            /* Breadcrumbs */
-            $this->data['breadcrumb'] = $this->breadcrumbs->show();
-            $this->data['modulos'] = $this->produtos_modulos_model->get(array('select'=>'modulos.*, produtos.nome as nome_produto', 'join' => array(array('produtos', 'produtos.id = modulos.id_produto')), 'where'=>'produtos.empresa_id = '.$this->session->userdata('empresa_id') ,'order_by'=>array('modulos.id', 'desc')))->result();
-            $this->data['message'] = $this->session->flashdata('message');
 
-            /* Load Template */
-            $this->template->admin_render('admin/produtos/modulos/index', $this->data);
-        }
+        $this->data['modulos'] = $this->db->query("SELECT m.id, m.nome, m.descricao, m.status, m.id_produto, p.nome AS produto,
+                m.valor_licenca, m.valor_manutencao, m.valor_implantacao,
+                (SELECT COUNT(DISTINCT hp.id_cliente) FROM habilitacoes_modulo hm
+                    JOIN habilitacoes_produto hp ON hp.id = hm.id_habilitacao
+                    WHERE hm.id_modulo = m.id AND hm.status IN ('L', 'C') AND hp.status = 'S' AND hp.periodo_fim >= CURDATE()) AS clientes
+            FROM modulos m
+            JOIN produtos p ON p.id = m.id_produto
+            WHERE p.empresa_id = ?
+            ORDER BY m.status = 'S' DESC, p.nome, m.nome", array((int) $this->session->userdata('empresa_id')))->result();
+        $this->data['produtos_filtro'] = $this->produtos_empresa();
+        $this->data['produto_selecionado'] = (int) $this->input->get('produto');
+        $this->data['breadcrumb'] = $this->breadcrumbs->show();
+        $this->data['message'] = $this->session->flashdata('message');
+        $this->data['can_create'] = $this->ion_auth->has_permissao('produtos_modulos', 'create');
+        $this->data['can_edit'] = $this->ion_auth->has_permissao('produtos_modulos', 'edit');
+        $this->data['can_status'] = $this->ion_auth->has_permissao('produtos_modulos', 'deactivate') || $this->ion_auth->has_permissao('produtos_modulos', 'activate');
+
+        $this->template->admin_render('admin/produtos/modulos/index', $this->data);
 	}
 
 	public function create()
@@ -47,249 +55,152 @@ class Produtos_modulos extends Admin_Controller {
 		{
 			redirect('auth', 'refresh');
 		}
-
-        /* Breadcrumbs */
-        $this->breadcrumbs->unshift(2, lang('menu_produtos_modulos_create'), 'produtos_modulos/create');
-        $this->data['breadcrumb'] = $this->breadcrumbs->show();
-
-		/* Validate form input */
-		$this->form_validation->set_rules('status', 'lang:create_validation_status_label', 'required');
-		$this->form_validation->set_rules('nome', 'lang:create_validation_nome_label', 'trim|required');
-		$this->form_validation->set_rules('produto', 'lang:create_validation_produto_label', 'required');
-		$this->form_validation->set_rules('valor_licenca', 'lang:create_validation_valor_licenca_label', 'required|is_money');
-		$this->form_validation->set_rules('valor_manutencao', 'lang:create_validation_valor_manutencao_label', 'required|is_money');
-		$this->form_validation->set_rules('valor_implantacao', 'lang:create_validation_valor_implantacao_label', 'required|is_money');
-
-		$dados["status"] = $this->input->post('status');
-		$dados["nome"] = $this->input->post('nome');
-		$dados["id_produto"] = $this->input->post('produto');
-		$dados["descricao"] = $this->input->post('descricao');
-		$dados["valor_licenca"] = $this->input->post('valor_licenca');
-		$dados["valor_manutencao"] = $this->input->post('valor_manutencao');
-		$dados["valor_implantacao"] = $this->input->post('valor_implantacao');
-		$dados["data_cadastro"] = date('Y-m-d H:i:s');
-		$dados["cadastrado_por"] = $this->session->userdata('user_id');
-
-		if ($this->form_validation->run() == TRUE && $id = $this->produtos_modulos_model->create($dados))
-		{
-			$this->produtos_modulos_model->create_habilitacoes_produto($this->input->post('produto'), $id);
-
-			$this->session->set_flashdata('message', show_alert_success($this->produtos_modulos_model->messages()));
-			redirect('produtos_modulos', 'refresh');
-		} else {
-			if($_POST)
-            	$this->data['message'] = (validation_errors() ? show_alert_error(validation_errors()) : ($this->produtos_modulos_model->errors() ? show_alert_error($this->produtos_modulos_model->errors()) : show_alert_error($this->session->flashdata('message'))));
-
-            $this->data['status'] = $this->form_validation->set_value('status');
-
-			$produto_options = array(""=>"Selecione");
-			$produtos = $this->produtos_model->get(array('select'=>'produtos.*', 'where'=>'produtos.empresa_id = '.$this->session->userdata('empresa_id') ,'order_by'=>array('produtos.id', 'desc')));
-			if($produtos->num_rows() > 0):
-	        	foreach ($produtos->result() as $value) {
-	        		$produto_options[$value->id] = $value->nome;       		
-	        	}
-	        endif;
-			$this->data['produto'] = array(
-				'name'  => 'produto',
-				'id'    => 'produto1',
-	            'class' => 'form-control',
-	            'options' => $produto_options,
-				'selected' => $this->form_validation->set_value('produto')
-			);
-			$this->data['nome'] = array(
-				'name'  => 'nome',
-				'id'    => 'nome',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('nome')
-			);
-			$this->data['descricao'] = array(
-				'name'  => 'descricao',
-				'id'    => 'descricao',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('descricao')
-			);
-			$this->data['valor_licenca'] = array(
-				'name'  => 'valor_licenca',
-				'id'    => 'valor_licenca',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('valor_licenca')
-			);
-			$this->data['valor_manutencao'] = array(
-				'name'  => 'valor_manutencao',
-				'id'    => 'valor_manutencao',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('valor_manutencao')
-			);
-			$this->data['valor_implantacao'] = array(
-				'name'  => 'valor_implantacao',
-				'id'    => 'valor_implantacao',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('valor_implantacao')
-			);
-
-            /* Load Template */
-            $this->template->admin_render('admin/produtos/modulos/create', $this->data);
-		}
+        $this->formulario(null);
 	}
 
-	/*public function delete()
+	public function edit($id = null)
 	{
-        if ( ! $this->ion_auth->logged_in() OR ! $this->ion_auth->has_permissao("produtos", "delete"))
-        {
-            redirect('auth/login', 'refresh');
-        }
-        elseif ( ! $this->ion_auth->is_admin())
-		{
-            return show_error('You must be an administrator to view this page.');
-        }
-        else
-        {
-            $this->load->view('admin/produtos/delete');
-        }
-	}*/
-
-	public function edit($id)
-	{
-		if ( ! $this->ion_auth->logged_in() OR ! $id OR empty($id) OR ! $this->ion_auth->has_permissao("produtos_modulos", "edit"))
+		if ( ! $this->ion_auth->logged_in() OR ! $this->ion_auth->has_permissao("produtos_modulos", "edit"))
 		{
 			redirect('auth', 'refresh');
 		}
-
-        /* Breadcrumbs */
-        $this->breadcrumbs->unshift(2, lang('menu_produtos_modulos_edit'), 'produtos_modulos/edit');
-        $this->data['breadcrumb'] = $this->breadcrumbs->show();
-
-        /* Variables */
-		$produto_modulo = $this->produtos_modulos_model->get(array('select'=>'*', 'where'=>'id = '.$id, 'order_by'=>array('id','desc')))->row();
-
-		/* Validate form input */
-		$this->form_validation->set_rules('status', 'lang:create_validation_status_label', 'required');
-		$this->form_validation->set_rules('nome', 'lang:create_validation_nome_label', 'trim|required');
-		$this->form_validation->set_rules('produto', 'lang:create_validation_produto_label', 'required');
-		$this->form_validation->set_rules('valor_licenca', 'lang:create_validation_valor_licenca_label', 'required|is_money');
-		$this->form_validation->set_rules('valor_manutencao', 'lang:create_validation_valor_manutencao_label', 'required|is_money');
-		$this->form_validation->set_rules('valor_implantacao', 'lang:create_validation_valor_implantacao_label', 'required|is_money');	
-
-		$dados["status"] = $this->input->post('status');
-		$dados["nome"] = $this->input->post('nome');
-		$dados["id_produto"] = $this->input->post('produto');
-		$dados["descricao"] = $this->input->post('descricao');
-		$dados["valor_licenca"] = $this->input->post('valor_licenca');
-		$dados["valor_manutencao"] = $this->input->post('valor_manutencao');
-		$dados["valor_implantacao"] = $this->input->post('valor_implantacao');
-		$dados["data_atualizacao"] = date('Y-m-d H:i:s');
-		$dados["atualizado_por"] = $this->session->userdata('user_id');
-
-		if (isset($_POST) && ! empty($_POST))
-		{
-			if ($this->form_validation->run() == TRUE)
-			{
-				$produto_modulo_update = $this->produtos_modulos_model->update($id, $dados);
-
-				if ($produto_modulo_update)
-				{
-					$this->session->set_flashdata('message', show_alert_success($this->produtos_modulos_model->messages()));
-				}
-				else
-				{
-					$this->session->set_flashdata('message', show_alert_error($this->produtos_modulos_model->errors()));
-				}
-
-				redirect('produtos_modulos', 'refresh');
-			} else {
-				$this->data['message'] = (validation_errors() ? show_alert_error(validation_errors()) : ($this->produtos_modulos_model->errors() ? show_alert_error($this->produtos_modulos_model->errors()) : show_alert_error($this->session->flashdata('message'))));
-			}
-		}
-
-        $this->data['produto_modulo']   = $produto_modulo;
-		$this->data['status'] = $this->form_validation->set_value('status', $produto_modulo->status);
-		$produto_options = array(""=>"Selecione");
-			$produtos = $this->produtos_model->get(array('select'=>'produtos.*', 'where'=>'produtos.empresa_id = '.$this->session->userdata('empresa_id') ,'order_by'=>array('produtos.id', 'desc')));
-			if($produtos->num_rows() > 0):
-	        	foreach ($produtos->result() as $value) {
-	        		$produto_options[$value->id] = $value->nome;       		
-	        	}
-	        endif;
-			$this->data['produto'] = array(
-				'name'  => 'produto',
-				'id'    => 'produto1',
-	            'class' => 'form-control',
-	            'options' => $produto_options,
-				'selected' => $this->form_validation->set_value('produto', $produto_modulo->id_produto)
-			);
-		$this->data['nome'] = array(
-			'name'  => 'nome',
-			'id'    => 'nome',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('nome', $produto_modulo->nome)
-		);
-		$this->data['valor_licenca'] = array(
-			'name'  => 'valor_licenca',
-			'id'    => 'valor_licenca',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('valor_licenca', $produto_modulo->valor_licenca)
-		);
-		$this->data['valor_manutencao'] = array(
-			'name'  => 'valor_manutencao',
-			'id'    => 'valor_manutencao',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('valor_manutencao', $produto_modulo->valor_manutencao)
-		);
-		$this->data['valor_implantacao'] = array(
-			'name'  => 'valor_implantacao',
-			'id'    => 'valor_implantacao',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('valor_implantacao', $produto_modulo->valor_implantacao)
-		);
-		$this->data['descricao'] = array(
-			'name'  => 'descricao',
-			'id'    => 'descricao',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('descricao', $produto_modulo->descricao)
-		);
-
-        /* Load Template */
-        $this->template->admin_render('admin/produtos/modulos/edit', $this->data);
+        $modulo = $this->modulo_da_empresa($id);
+        if (!$modulo) {
+            $this->session->set_flashdata('message', show_alert_error('Módulo não encontrado.'));
+            redirect('produtos_modulos', 'refresh');
+        }
+        $this->formulario($modulo);
 	}
 
-
-	function activate($id)
+	public function activate($id = NULL)
 	{
-        $id = (int) $id;
-		if ($this->ion_auth->has_permissao("produtos_modulos", "activate"))
-		{
-			$activation = $this->produtos_modulos_model->activate($id);
-		}
-		if($activation)
-        	$this->session->set_flashdata('message', show_alert_success($this->produtos_modulos_model->messages()));
-        else
-        	$this->session->set_flashdata('message', show_alert_error($this->produtos_modulos_model->messages()));
-		redirect('produtos_modulos', 'refresh');
+        $this->alterar_status($id, 'activate');
 	}
-
 
 	public function deactivate($id = NULL)
 	{
-		$id = (int) $id;
-		if ($this->ion_auth->has_permissao("produtos_modulos", "deactivate"))
-		{
-			$deactivation = $this->produtos_modulos_model->deactivate($id);
-		}
-		if(@$deactivation)
-        	$this->session->set_flashdata('message', show_alert_success($this->produtos_modulos_model->messages()));
-        else
-        	$this->session->set_flashdata('message', show_alert_error(lang('permission_denied')));
-		redirect('produtos_modulos', 'refresh');
+        $this->alterar_status($id, 'deactivate');
 	}
-	
+
+    private function alterar_status($id, $acao)
+    {
+        if (!$this->ion_auth->logged_in() || !$this->ion_auth->has_permissao('produtos_modulos', $acao)) {
+            redirect('auth/login', 'refresh');
+        }
+        $modulo = $this->modulo_da_empresa($id);
+        $ok = $modulo && ($acao === 'activate' ? $this->produtos_modulos_model->activate($modulo->id) : $this->produtos_modulos_model->deactivate($modulo->id));
+        if ($ok) {
+            $this->session->set_flashdata('message', show_alert_success('Módulo "' . html_escape($modulo->nome) . '" ' . ($acao === 'activate' ? 'ativado.' : 'inativado.')));
+        } else {
+            $this->session->set_flashdata('message', show_alert_error('Não foi possível alterar o módulo.'));
+        }
+        redirect('produtos_modulos' . ($modulo ? '?produto=' . (int) $modulo->id_produto : ''), 'refresh');
+    }
+
+    private function modulo_da_empresa($id)
+    {
+        return $this->db->select('m.*')
+            ->join('produtos p', 'p.id = m.id_produto')
+            ->where('m.id', (int) $id)
+            ->where('p.empresa_id', (int) $this->session->userdata('empresa_id'))
+            ->get('modulos m')->row();
+    }
+
+    private function produtos_empresa()
+    {
+        return $this->db->select('id, nome, status')
+            ->where('empresa_id', (int) $this->session->userdata('empresa_id'))
+            ->order_by('status', 'DESC')
+            ->order_by('nome', 'ASC')
+            ->get('produtos')->result();
+    }
+
+    // "1.234,56" ou "1234.56" -> "1234.56"
+    private function valor_decimal($valor)
+    {
+        $valor = trim((string) $valor);
+        if (strpos($valor, ',') !== false) {
+            $valor = str_replace(',', '.', str_replace('.', '', $valor));
+        }
+        return number_format((float) $valor, 2, '.', '');
+    }
+
+    public function _produto_da_empresa($id)
+    {
+        $existe = $this->db->where('id', (int) $id)->where('empresa_id', (int) $this->session->userdata('empresa_id'))->count_all_results('produtos') > 0;
+        if (!$existe) {
+            $this->form_validation->set_message('_produto_da_empresa', 'Selecione um produto da empresa.');
+        }
+        return $existe;
+    }
+
+    // Criação ($modulo = null) e edição compartilham o formulário admin/produtos/modulos/_form.
+    private function formulario($modulo)
+    {
+        $editando = $modulo !== null;
+        $this->breadcrumbs->unshift(2, lang($editando ? 'menu_produtos_modulos_edit' : 'menu_produtos_modulos_create'), $editando ? 'produtos_modulos/edit/' . (int) $modulo->id : 'produtos_modulos/create');
+        $this->data['breadcrumb'] = $this->breadcrumbs->show();
+
+        $this->form_validation->set_rules('produto', 'Produto', 'required|callback__produto_da_empresa');
+        $this->form_validation->set_rules('nome', 'Nome', 'trim|required|max_length[255]');
+        $this->form_validation->set_rules('descricao', 'Descrição', 'trim');
+        $this->form_validation->set_rules('status', 'Status', 'required|in_list[S,N]');
+        foreach (array('valor_licenca' => 'Valor da licença', 'valor_manutencao' => 'Valor da manutenção', 'valor_implantacao' => 'Valor da implantação') as $campo => $rotulo) {
+            $this->form_validation->set_rules($campo, $rotulo, 'trim|required|is_money');
+        }
+
+        if ($this->input->post() && $this->form_validation->run() == TRUE) {
+            $dados = array(
+                'id_produto' => (int) $this->input->post('produto'),
+                'nome' => $this->input->post('nome'),
+                'descricao' => (string) $this->input->post('descricao'),
+                'status' => $this->input->post('status'),
+                'valor_licenca' => $this->valor_decimal($this->input->post('valor_licenca')),
+                'valor_manutencao' => $this->valor_decimal($this->input->post('valor_manutencao')),
+                'valor_implantacao' => $this->valor_decimal($this->input->post('valor_implantacao')),
+            );
+            if ($editando) {
+                $dados['data_atualizacao'] = date('Y-m-d H:i:s');
+                $dados['atualizado_por'] = $this->session->userdata('user_id');
+                $ok = $this->produtos_modulos_model->update($modulo->id, $dados);
+            } else {
+                $dados['data_cadastro'] = date('Y-m-d H:i:s');
+                $dados['cadastrado_por'] = $this->session->userdata('user_id');
+                $ok = $this->produtos_modulos_model->create($dados);
+            }
+            if ($ok) {
+                $this->session->set_flashdata('message', show_alert_success('Módulo "' . html_escape($dados['nome']) . '" ' . ($editando ? 'atualizado.' : 'criado.')));
+                redirect('produtos_modulos?produto=' . $dados['id_produto'], 'refresh');
+            }
+            $this->data['message'] = show_alert_error($this->produtos_modulos_model->errors() ? $this->produtos_modulos_model->errors() : 'Não foi possível salvar o módulo.');
+        } elseif ($this->input->post()) {
+            $this->data['message'] = show_alert_error(validation_errors());
+        }
+
+        $clientes = 0;
+        if ($editando) {
+            $clientes = (int) $this->db->query("SELECT COUNT(DISTINCT hp.id_cliente) AS total FROM habilitacoes_modulo hm
+                JOIN habilitacoes_produto hp ON hp.id = hm.id_habilitacao
+                WHERE hm.id_modulo = ? AND hm.status IN ('L', 'C') AND hp.status = 'S' AND hp.periodo_fim >= CURDATE()", array((int) $modulo->id))->row()->total;
+        }
+
+        $moeda = function ($valor) {
+            return $valor === null || $valor === '' ? '' : number_format((float) $valor, 2, ',', '.');
+        };
+        $this->data['modo'] = $editando ? 'edit' : 'create';
+        $this->data['modulo'] = $modulo;
+        $this->data['clientes'] = $clientes;
+        $this->data['produtos'] = $this->produtos_empresa();
+        $this->data['valores'] = array(
+            'produto' => $this->input->post() ? (int) $this->input->post('produto') : ($editando ? (int) $modulo->id_produto : (int) $this->input->get('produto')),
+            'nome' => $this->input->post() ? (string) $this->input->post('nome') : ($editando ? $modulo->nome : ''),
+            'descricao' => $this->input->post() ? (string) $this->input->post('descricao') : ($editando ? $modulo->descricao : ''),
+            'status' => $this->input->post() ? (string) $this->input->post('status') : ($editando ? $modulo->status : 'S'),
+            'valor_licenca' => $this->input->post() ? (string) $this->input->post('valor_licenca') : ($editando ? $moeda($modulo->valor_licenca) : '0,00'),
+            'valor_manutencao' => $this->input->post() ? (string) $this->input->post('valor_manutencao') : ($editando ? $moeda($modulo->valor_manutencao) : '0,00'),
+            'valor_implantacao' => $this->input->post() ? (string) $this->input->post('valor_implantacao') : ($editando ? $moeda($modulo->valor_implantacao) : '0,00'),
+        );
+
+        $this->template->admin_render('admin/produtos/modulos/_form', $this->data);
+    }
 }

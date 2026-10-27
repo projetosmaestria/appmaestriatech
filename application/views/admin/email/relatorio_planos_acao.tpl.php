@@ -40,7 +40,7 @@
     <div class="row">
       <div class="col-xs-12">
         <h2 style="font-family: 'Source Sans Pro',sans-serif;margin: 10px 0 20px 0;font-size: 22px;">
-          <i class="fa fa-list"></i> Planos de Ação em Abertos
+          <i class="fa fa-list"></i> Projetos em aberto
         </h2>
       </div>
     </div>
@@ -91,7 +91,7 @@
               $ult_tipo = $plano->tipo;
             }
           } else {
-            echo "<p>Não existe(m) plano(s) de ação em aberto(s).</p>";
+            echo "<p>Não existem projetos em aberto.</p>";
           }
         ?>
       </div>
@@ -103,7 +103,7 @@
       <div class="col-xs-12">
         <br><hr><br>
         <h2 style="font-family: 'Source Sans Pro',sans-serif;margin: 10px 0 20px 0;font-size: 22px;">
-          <i class="fa fa-list"></i> Planos de Ação Finalizados do Mês
+          <i class="fa fa-list"></i> Projetos finalizados no mês
         </h2>
       </div>
     </div>
@@ -140,7 +140,7 @@
               $ult_tipo = $plano->tipo;
             }
           } else {
-            echo "<p>Não existe(m) plano(s) de ação finalizado(s).</p>";
+            echo "<p>Não existem projetos finalizados.</p>";
           }
         ?>
       </div>

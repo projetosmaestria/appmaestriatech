@@ -29,24 +29,149 @@ class Unidades extends Admin_Controller {
         {
             redirect('auth/login', 'refresh');
         }
-        else
-        {
-            /* Breadcrumbs */
-            $this->data['breadcrumb'] = $this->breadcrumbs->show();
-            $this->data['unidades'] = $this->unidades_model->get(array('select'=>'unidades.*', 'where'=>'unidades.empresa_id = '.$this->session->userdata('empresa_id') ,'order_by'=>array('unidades.id', 'desc')))->result();
-            $this->data['message'] = $this->session->flashdata('message');
 
-			$this->data['can_recursos_ws'] = $this->ion_auth->has_permissao("unidades", "recursos_ws");
-			$this->data['can_facebook_api'] = $this->ion_auth->has_permissao("unidades", "facebook_api");
-			$this->data['can_parametros_contrato'] = $this->ion_auth->has_permissao("unidades", "parametros_contrato");
-			$this->data['can_edit'] = $this->ion_auth->has_permissao("unidades", "edit");
-			$this->data['can_create'] = $this->ion_auth->has_permissao("unidades", "create");
-			$this->data['can_rd_station'] = $this->ion_auth->has_permissao("unidades", "rd_station");
-			$this->data['can_iugu'] = $this->ion_auth->has_permissao("unidades", "iugu");
+        $empresa_id = (int) $this->session->userdata('empresa_id');
+        $this->data['indicadores'] = $this->db->query("SELECT COUNT(*) AS total,
+                SUM(u.actived = 's') AS ativas,
+                SUM(u.actived <> 's') AS inativas,
+                SUM(u.actived = 's' AND EXISTS (SELECT 1 FROM habilitacoes_produto hp WHERE hp.id_cliente = u.id AND hp.status = 'S' AND hp.periodo_fim >= CURDATE())) AS com_produto
+            FROM unidades u WHERE u.empresa_id = ?", array($empresa_id))->row();
+        $this->data['ufs'] = $this->db->distinct()->select('uf')->where('empresa_id', $empresa_id)->where('uf !=', '')->where('uf IS NOT NULL', null, false)->order_by('uf')->get('unidades')->result();
+        $this->data['caracteristicas'] = $this->unidades_model->get_caracteristicas()->result();
+        $this->data['breadcrumb'] = $this->breadcrumbs->show();
+        $this->data['message'] = $this->session->flashdata('message');
+        $this->data['can_create'] = $this->ion_auth->has_permissao("unidades", "create");
 
-            /* Load Template */
-            $this->template->admin_render('admin/unidades/index', $this->data);
+        $this->template->admin_render('admin/unidades/index', $this->data);
+	}
+
+	public function server_side()
+	{
+        $this->output->set_content_type('application/json');
+        if (!$this->ion_auth->logged_in() || !$this->ion_auth->has_permissao('unidades', 'index')) {
+            $this->output->set_status_header(403)->set_output(json_encode(array('data' => array(), 'recordsTotal' => 0, 'recordsFiltered' => 0)));
+            return;
         }
+
+        $empresa_id = (int) $this->session->userdata('empresa_id');
+        $status = (string) $this->input->post('status');
+        $tipo = (string) $this->input->post('tipo');
+        $filtros = array(
+            'q' => trim((string) $this->input->post('q')),
+            'status' => in_array($status, array('s', 'n'), true) ? $status : '',
+            'tipo' => in_array($tipo, array('J', 'F'), true) ? $tipo : '',
+            'uf' => preg_replace('/[^A-Z]/', '', strtoupper((string) $this->input->post('uf'))),
+            'caracteristica' => (int) $this->input->post('caracteristica'),
+        );
+        $aplicar = function ($db, $filtros) use ($empresa_id) {
+            $db->from('unidades u')->where('u.empresa_id', $empresa_id);
+            if ($filtros['q'] !== '') {
+                $digitos = preg_replace('/\D/', '', $filtros['q']);
+                $db->group_start()->like('u.unidade', $filtros['q'])->or_like('u.razao_social', $filtros['q'])->or_like('u.gestor', $filtros['q'])->or_like('u.email', $filtros['q'])->or_like('u.cidade', $filtros['q']);
+                if ($digitos !== '') {
+                    $digitos = $db->escape_like_str($digitos);
+                    $db->or_where("REPLACE(REPLACE(REPLACE(u.cnpj, '.', ''), '/', ''), '-', '') LIKE '%" . $digitos . "%' ESCAPE '!'", null, false);
+                    $db->or_where("REPLACE(REPLACE(u.cpf, '.', ''), '-', '') LIKE '%" . $digitos . "%' ESCAPE '!'", null, false);
+                }
+                $db->group_end();
+            }
+            if ($filtros['status'] === 's') { $db->where('u.actived', 's'); }
+            if ($filtros['status'] === 'n') { $db->where("(u.actived IS NULL OR u.actived <> 's')", null, false); }
+            if ($filtros['tipo'] !== '') { $db->where('u.tipo', $filtros['tipo']); }
+            if ($filtros['uf'] !== '') { $db->where('u.uf', $filtros['uf']); }
+            if ($filtros['caracteristica'] > 0) { $db->where('u.caracteristica', $filtros['caracteristica']); }
+        };
+
+        $ordem = $this->input->post('order');
+        $direcao = isset($ordem[0]['dir']) && $ordem[0]['dir'] === 'desc' ? 'DESC' : 'ASC';
+        $colunas = array(0 => 'u.unidade', 2 => 'u.cidade');
+        $coluna = isset($ordem[0]['column']) && isset($colunas[(int) $ordem[0]['column']]) ? $colunas[(int) $ordem[0]['column']] : 'u.unidade';
+        $inicio = max(0, (int) $this->input->post('start'));
+        $quantidade = (int) $this->input->post('length');
+        if ($quantidade <= 0 || $quantidade > 100) {
+            $quantidade = 25;
+        }
+
+        $this->db->select("u.id, u.unidade, u.razao_social, u.cnpj, u.cpf, u.tipo, u.gestor, u.telefone1, u.email, u.cidade, u.uf, u.actived,
+            (SELECT COUNT(*) FROM habilitacoes_produto hp WHERE hp.id_cliente = u.id AND hp.status = 'S' AND hp.periodo_fim >= CURDATE()) AS produtos", false);
+        $aplicar($this->db, $filtros);
+        $this->db->order_by($coluna, $direcao)->limit($quantidade, $inicio);
+        $unidades = $this->db->get()->result();
+
+        $acoes_extras = array(
+            'recursos_ws' => array('fa-server', 'Recursos Webservice'),
+            'facebook_api' => array('fa-facebook-square', 'Facebook API'),
+            'rd_station' => array('fa-registered', 'RD Station'),
+            'parametros_contrato' => array('fa-cogs', 'Parâmetros de contrato'),
+            'iugu' => array('fa-credit-card', 'Iugu'),
+            'cursos' => array('fa-book', 'Cursos'),
+        );
+        $permitidas = array();
+        foreach ($acoes_extras as $metodo => $acao) {
+            if ($this->ion_auth->has_permissao('unidades', $metodo)) {
+                $permitidas[$metodo] = $acao;
+            }
+        }
+        $pode = array(
+            'edit' => $this->ion_auth->has_permissao('unidades', 'edit'),
+            'activate' => $this->ion_auth->has_permissao('unidades', 'activate'),
+            'deactivate' => $this->ion_auth->has_permissao('unidades', 'deactivate'),
+        );
+
+        $linhas = array();
+        foreach ($unidades as $unidade) {
+            $ativa = $unidade->actived === 's';
+            $documento = $unidade->cnpj != '' ? $unidade->cnpj : $unidade->cpf;
+            $detalhes = array();
+            if ($unidade->razao_social != '' && $unidade->razao_social !== $unidade->unidade) { $detalhes[] = html_escape($unidade->razao_social); }
+            if ($documento != '') { $detalhes[] = html_escape($documento); }
+            $contato = array();
+            if ($unidade->gestor != '') { $contato[] = '<div>' . html_escape($unidade->gestor) . '</div>'; }
+            $linha_contato = array();
+            if ($unidade->telefone1 != '') { $linha_contato[] = html_escape($unidade->telefone1); }
+            if ($unidade->email != '') { $linha_contato[] = html_escape($unidade->email); }
+            if ($linha_contato) { $contato[] = '<div class="lista-detalhe">' . implode(' · ', $linha_contato) . '</div>'; }
+
+            $botoes = '';
+            if ($pode['edit']) {
+                $botoes .= '<a href="' . base_url('unidades/edit/' . (int) $unidade->id) . '" class="btn btn-default btn-sm"><i class="fa fa-pencil"></i> Editar</a> ';
+            }
+            $menu = '';
+            foreach ($permitidas as $metodo => $acao) {
+                $menu .= '<li><a href="' . base_url('unidades/' . $metodo . '/' . (int) $unidade->id) . '"><i class="fa ' . $acao[0] . '"></i> ' . html_escape($acao[1]) . '</a></li>';
+            }
+            if ($ativa && $pode['deactivate']) {
+                $menu .= ($menu ? '<li class="divider"></li>' : '') . '<li><a href="' . base_url('unidades/deactivate/' . (int) $unidade->id) . '" class="js-confirmar" data-confirmar="Inativar a filial &quot;' . html_escape($unidade->unidade) . '&quot;?"><i class="fa fa-ban"></i> Inativar</a></li>';
+            } elseif (!$ativa && $pode['activate']) {
+                $menu .= ($menu ? '<li class="divider"></li>' : '') . '<li><a href="' . base_url('unidades/activate/' . (int) $unidade->id) . '"><i class="fa fa-check"></i> Ativar</a></li>';
+            }
+            if ($menu) {
+                $botoes .= '<div class="btn-group"><button type="button" class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" aria-expanded="false" title="Mais ações"><i class="fa fa-ellipsis-v"></i></button><ul class="dropdown-menu dropdown-menu-right">' . $menu . '</ul></div>';
+            }
+
+            $linhas[] = array(
+                '<div class="lista-nome">' . html_escape($unidade->unidade) . ($unidade->tipo === 'F' ? ' <span class="lista-chip">Pessoa física</span>' : '') . '</div>' . ($detalhes ? '<div class="lista-detalhe">' . implode(' · ', $detalhes) . '</div>' : ''),
+                $contato ? implode('', $contato) : '<span class="text-muted">—</span>',
+                $unidade->cidade != '' ? html_escape($unidade->cidade) . ($unidade->uf != '' ? ' / ' . html_escape($unidade->uf) : '') : '<span class="text-muted">—</span>',
+                (int) $unidade->produtos > 0 ? (int) $unidade->produtos . ' vigente' . ((int) $unidade->produtos === 1 ? '' : 's') : '<span class="text-muted">Nenhum</span>',
+                $ativa ? '<span class="label label-success">Ativa</span>' : '<span class="label label-default">Inativa</span>',
+                $botoes,
+                'DT_RowClass' => $ativa ? 'is-ativo' : 'is-inativo',
+            );
+        }
+
+        $this->db->reset_query();
+        $aplicar($this->db, array('q' => '', 'status' => '', 'tipo' => '', 'uf' => '', 'caracteristica' => 0));
+        $total = (int) $this->db->count_all_results();
+        $aplicar($this->db, $filtros);
+        $filtrados = (int) $this->db->count_all_results();
+
+        $this->output->set_output(json_encode(array(
+            'draw' => (int) $this->input->post('draw'),
+            'recordsTotal' => $total,
+            'recordsFiltered' => $filtrados,
+            'data' => $linhas,
+        )));
 	}
 
 	public function create()
@@ -55,230 +180,7 @@ class Unidades extends Admin_Controller {
 		{
 			redirect('auth', 'refresh');
 		}
-
-        /* Breadcrumbs */
-        $this->breadcrumbs->unshift(2, lang('menu_unidades_create'), 'unidades/create');
-        $this->data['breadcrumb'] = $this->breadcrumbs->show();
-
-		/* Validate form input */
-		//$this->form_validation->set_rules('empresa', 'lang:create_validation_empresa_label', 'required');
-		$this->form_validation->set_rules('status', 'lang:create_validation_status_label', 'required');
-		$this->form_validation->set_rules('tipo', 'lang:create_validation_tipo_label', 'required');
-		$this->form_validation->set_rules('telefone1', 'lang:create_validation_telefone1_label', 'required');
-		$this->form_validation->set_rules('email', 'lang:create_validation_email_label', 'trim|required|valid_email');
-		$this->form_validation->set_rules('cep', 'lang:create_validation_cep_label', 'trim|required');
-		$this->form_validation->set_rules('logradouro', 'lang:create_validation_logradouro_label', 'trim|required');
-		$this->form_validation->set_rules('numero', 'lang:create_validation_numero_label', 'trim|required');
-		$this->form_validation->set_rules('bairro', 'lang:create_validation_bairro_label', 'trim|required');
-		$this->form_validation->set_rules('cidade', 'lang:create_validation_cidade_label', 'trim|required');
-		$this->form_validation->set_rules('uf', 'lang:create_validation_uf_label', 'trim|required');
-		if($this->input->post('tipo') == "J") {
-			$this->form_validation->set_rules('cnpj', 'lang:create_validation_cnpj_label', 'required|validar_cnpj');
-			$this->form_validation->set_rules('razao_social', 'lang:create_validation_razao_social_label', 'trim|required');
-			$this->form_validation->set_rules('fantasia', 'lang:create_validation_fantasia_label', 'trim|required');
-			$dados = array(
-				"cnpj" => $this->input->post('cnpj'),
-				"razao_social" => $this->input->post('razao_social'),
-				"unidade" => $this->input->post('fantasia')
-			);
-		} else {
-			$this->form_validation->set_rules('cpf', 'lang:create_validation_cpf_label', 'required|validar_cpf');
-			$this->form_validation->set_rules('rg', 'lang:create_validation_rg_label', 'required');
-			$this->form_validation->set_rules('nome', 'lang:create_validation_nome_label', 'trim|required');
-			$dados = array(
-				"cpf" => $this->input->post('cpf'),
-				"rg" => $this->input->post('rg'),
-				"unidade" => $this->input->post('nome')
-			);
-		}
-
-		$dados["actived"] = $this->input->post('status');
-		$dados["tipo_cliente"] = $this->input->post('tipo');
-		$dados["tipo"] = $this->input->post('tipo');
-		$dados["gestor"] = $this->input->post('gestor');
-		$dados["email"] = $this->input->post('email');
-		$dados["site"] = $this->input->post('site');
-		$dados["endereco"] = $this->input->post('logradouro').", ".$this->input->post('bairro').", ".$this->input->post('numero');
-		$dados["rua"] = $this->input->post('logradouro');
-		$dados["numero"] = $this->input->post('numero');
-		$dados["bairro"] = $this->input->post('bairro');
-		$dados["cidade"] = $this->input->post('cidade');
-		$dados["uf"] = $this->input->post('uf');
-		$dados["cep"] = $this->input->post('cep');
-		$dados["telefone1"] = $this->input->post('telefone1');
-		$dados["telefone2"] = $this->input->post('telefone2');
-		$dados["agente_encaminhamento"] = $this->input->post('responsavel');
-		$dados["caracteristica"] = $this->input->post('caracteristica');
-		//$dados["empresa_id"] = $this->input->post('empresa');
-		$dados["empresa_id"] = $this->session->userdata('empresa_id');
-
-		if ($this->form_validation->run() == TRUE && $id = $this->unidades_model->create($dados))
-		{
-			$this->session->set_flashdata('message', show_alert_success($this->unidades_model->messages()));
-			redirect('unidades', 'refresh');
-		} else {
-			if($_POST)
-            	$this->data['message'] = (validation_errors() ? show_alert_error(validation_errors()) : ($this->unidades_model->errors() ? show_alert_error($this->unidades_model->errors()) : show_alert_error($this->session->flashdata('message'))));
-
-            /*$empresa_options = array(""=>"Selecione");
-			foreach ($this->unidades_model->get_empresas()->result() as $emp) {
-				$empresa_options[$emp->id] = $emp->nome;
-			}
-			$this->data['empresa'] = array(
-				'name'  => 'empresa',
-				'id'    => 'empresa',
-	            'class' => 'form-control',
-	            'options' => $empresa_options,
-				'selected' => ($this->form_validation->set_value('empresa') ? $this->form_validation->set_value('empresa') : $this->session->userdata('empresa_id')),
-			);*/
-			$this->data['status'] = $this->form_validation->set_value('status');
-			$this->data['tipo'] = $this->form_validation->set_value('tipo');
-			$car_options = array(""=>"Selecione");
-			foreach ($this->unidades_model->get_caracteristicas()->result() as $carac) {
-				$car_options[$carac->id] = $carac->descricao;
-			}
-			$this->data['caracteristica'] = array(
-				'name'  => 'caracteristica',
-				'id'    => 'caracteristica',
-	            'class' => 'form-control',
-	            'options' => $car_options,
-				'selected' => $this->form_validation->set_value('caracteristica'),
-			);
-			$this->data['cnpj'] = array(
-				'name'  => 'cnpj',
-				'id'    => 'cnpj',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('cnpj')
-			);
-			$this->data['cpf'] = array(
-				'name'  => 'cpf',
-				'id'    => 'cpf',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('cpf')
-			);
-			$this->data['razao_social'] = array(
-				'name'  => 'razao_social',
-				'id'    => 'razao_social',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('razao_social')
-			);
-			$this->data['rg'] = array(
-				'name'  => 'rg',
-				'id'    => 'rg',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('rg')
-			);
-			$this->data['fantasia'] = array(
-				'name'  => 'fantasia',
-				'id'    => 'fantasia',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('fantasia')
-			);
-			$this->data['nome'] = array(
-				'name'  => 'nome',
-				'id'    => 'nome',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('nome')
-			);
-			$this->data['gestor'] = array(
-				'name'  => 'gestor',
-				'id'    => 'gestor',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('gestor')
-			);
-			$this->data['responsavel'] = array(
-				'name'  => 'responsavel',
-				'id'    => 'responsavel',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('responsavel')
-			);
-			$this->data['telefone1'] = array(
-				'name'  => 'telefone1',
-				'id'    => 'telefone1',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('telefone1')
-			);
-			$this->data['telefone2'] = array(
-				'name'  => 'telefone2',
-				'id'    => 'telefone2',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('telefone2')
-			);
-			$this->data['email'] = array(
-				'name'  => 'email',
-				'id'    => 'email',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('email')
-			);
-			$this->data['site'] = array(
-				'name'  => 'site',
-				'id'    => 'site',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('site')
-			);
-			$this->data['cep'] = array(
-				'name'  => 'cep',
-				'id'    => 'cep',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('cep'),
-				'onblur' => "loadEndereco(this.value, '')"
-			);
-			$this->data['logradouro'] = array(
-				'name'  => 'logradouro',
-				'id'    => 'logradouro',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('logradouro')
-			);
-			$this->data['numero'] = array(
-				'name'  => 'numero',
-				'id'    => 'numero',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('numero')
-			);
-			$this->data['bairro'] = array(
-				'name'  => 'bairro',
-				'id'    => 'bairro',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('bairro')
-			);
-			$this->data['cidade'] = array(
-				'name'  => 'cidade',
-				'id'    => 'cidade',
-				'type'  => 'text',
-                'class' => 'form-control',
-				'value' => $this->form_validation->set_value('cidade')
-			);
-			$uf_options = array(""=>"Selecione");
-			foreach (get_uf() as $uf_key => $uf_value) {
-				$uf_options[$uf_key] = $uf_value;
-			}
-			$this->data['uf'] = array(
-				'name'  => 'uf',
-				'id'    => 'uf',
-	            'class' => 'form-control',
-	            'options' => $uf_options,
-				'selected' => $this->form_validation->set_value('uf'),
-			);
-
-            /* Load Template */
-            $this->template->admin_render('admin/unidades/create', $this->data);
-		}
+        $this->formulario(null);
 	}
 
 	public function recursos_ws($id)
@@ -802,301 +704,209 @@ class Unidades extends Admin_Controller {
         }
 	}
 
-	public function edit($id)
+	public function edit($id = null)
 	{
-		if ( ! $this->ion_auth->logged_in() OR ! $id OR empty($id) OR ! $this->ion_auth->has_permissao("unidades", "edit"))
+		if ( ! $this->ion_auth->logged_in() OR ! $this->ion_auth->has_permissao("unidades", "edit"))
 		{
 			redirect('auth', 'refresh');
 		}
-
-        /* Breadcrumbs */
-        $this->breadcrumbs->unshift(2, lang('menu_unidades_edit'), 'unidades/edit');
-        $this->data['breadcrumb'] = $this->breadcrumbs->show();
-
-        /* Variables */
-		$unidade = $this->unidades_model->get(array('select'=>'*', 'where'=>'id = '.$id, 'order_by'=>array('id','desc')))->row();
-
-		/* Validate form input */
-		$this->form_validation->set_rules('status', 'lang:create_validation_status_label', 'required');
-		$this->form_validation->set_rules('tipo', 'lang:create_validation_tipo_label', 'required');
-		$this->form_validation->set_rules('telefone1', 'lang:create_validation_telefone1_label', 'required');
-		$this->form_validation->set_rules('email', 'lang:create_validation_email_label', 'trim|required|valid_email');
-		$this->form_validation->set_rules('cep', 'lang:create_validation_cep_label', 'trim|required');
-		$this->form_validation->set_rules('logradouro', 'lang:create_validation_logradouro_label', 'trim|required');
-		$this->form_validation->set_rules('numero', 'lang:create_validation_numero_label', 'trim|required');
-		$this->form_validation->set_rules('bairro', 'lang:create_validation_bairro_label', 'trim|required');
-		$this->form_validation->set_rules('cidade', 'lang:create_validation_cidade_label', 'trim|required');
-		$this->form_validation->set_rules('uf', 'lang:create_validation_uf_label', 'trim|required');
-		if($this->input->post('tipo') == "J") {
-			if($unidade->cnpj == $this->input->post('cnpj'))
-				$this->form_validation->set_rules('cnpj', 'lang:create_validation_cnpj_label', 'required|validar_cnpj');
-			else
-				$this->form_validation->set_rules('cnpj', 'lang:create_validation_cnpj_label', 'required|validar_cnpj');
-			$this->form_validation->set_rules('razao_social', 'lang:create_validation_razao_social_label', 'trim|required');
-			$this->form_validation->set_rules('fantasia', 'lang:create_validation_fantasia_label', 'trim|required');
-			$dados = array(
-				"cnpj" => $this->input->post('cnpj'),
-				"cpf" => "",
-				"razao_social" => $this->input->post('razao_social'),
-				"rg" => "",
-				"unidade" => $this->input->post('fantasia')
-			);
-		} else {
-			if($unidade->cpf == $this->input->post('cpf'))
-				$this->form_validation->set_rules('cpf', 'lang:create_validation_cpf_label', 'required|validar_cpf');
-			else
-				$this->form_validation->set_rules('cpf', 'lang:create_validation_cpf_label', 'required|validar_cpf');
-			$this->form_validation->set_rules('rg', 'lang:create_validation_rg_label', 'required');
-			$this->form_validation->set_rules('nome', 'lang:create_validation_nome_label', 'trim|required');
-			$dados = array(
-				"cpf" => $this->input->post('cpf'),
-				"cnpj" => "",
-				"razao_social" => "",
-				"rg" => $this->input->post('rg'),
-				"unidade" => $this->input->post('nome')
-			);
-		}
-
-		$dados["actived"] = $this->input->post('status');
-		$dados["tipo_cliente"] = $this->input->post('tipo');
-		$dados["tipo"] = $this->input->post('tipo');
-		$dados["gestor"] = $this->input->post('gestor');
-		$dados["email"] = $this->input->post('email');
-		$dados["site"] = $this->input->post('site');
-		$dados["endereco"] = $this->input->post('logradouro').", ".$this->input->post('bairro').", ".$this->input->post('numero');
-		$dados["rua"] = $this->input->post('logradouro');
-		$dados["numero"] = $this->input->post('numero');
-		$dados["bairro"] = $this->input->post('bairro');
-		$dados["cidade"] = $this->input->post('cidade');
-		$dados["uf"] = $this->input->post('uf');
-		$dados["cep"] = $this->input->post('cep');
-		$dados["telefone1"] = $this->input->post('telefone1');
-		$dados["telefone2"] = $this->input->post('telefone2');
-		$dados["agente_encaminhamento"] = $this->input->post('responsavel');
-		$dados["modified"] = date("Y-m-d H:i:s");
-		$dados["empresa_id"] = $unidade->empresa_id;
-		$dados["caracteristica"] = $this->input->post('caracteristica');
-
-		if (isset($_POST) && ! empty($_POST))
-		{
-			if ($this->form_validation->run() == TRUE)
-			{
-				$unidade_update = $this->unidades_model->update($id, $dados);
-
-				if ($unidade_update)
-				{
-					$this->session->set_flashdata('message', show_alert_success($this->lang->line('edit_unidade_saved')));
-				}
-				else
-				{
-					$this->session->set_flashdata('message', show_alert_error($this->unidades_model->errors()));
-				}
-
-				redirect('unidades', 'refresh');
-			} else {
-				$this->data['message'] = (validation_errors() ? show_alert_error(validation_errors()) : ($this->unidades_model->errors() ? show_alert_error($this->unidades_model->errors()) : show_alert_error($this->session->flashdata('message'))));
-			}
-		}
-
-        $this->data['unidade']   = $unidade;
-
-        /*if($unidade->rua == "" && $unidade->bairro == "") {
-			$retorno_curl = $this->curl->get('app.xkeysti.com.br/api/v1/getEnderecoByCep?cep='.$unidade->cep);
-			$data['rua'] = $retorno_curl[0]['logradouro_nome'];
-			$data['bairro'] = $retorno_curl[0]['bairro_nome'];
-			$data['cidade'] = $retorno_curl[0]['cidade_nome'];
-			$data['uf'] = $retorno_curl[0]['uf'];
-        }*/
-
-		$empresa_options = array(""=>"Selecione");
-		foreach ($this->unidades_model->get_empresas()->result() as $emp) {
-			$empresa_options[$emp->id] = $emp->nome;
-		}
-		$this->data['empresa'] = array(
-			'name'  => 'empresa',
-			'id'    => 'empresa',
-            'class' => 'form-control',
-            'options' => $empresa_options,
-			'selected' => $this->form_validation->set_value('empresa', $unidade->empresa_id),
-		);
-		$this->data['status'] = $this->form_validation->set_value('status', $unidade->actived);
-		$this->data['tipo'] = $this->form_validation->set_value('tipo', $unidade->tipo);
-		$car_options = array(""=>"Selecione");
-		foreach ($this->unidades_model->get_caracteristicas()->result() as $carac) {
-			$car_options[$carac->id] = $carac->descricao;
-		}
-		$this->data['caracteristica'] = array(
-			'name'  => 'caracteristica',
-			'id'    => 'caracteristica',
-            'class' => 'form-control',
-            'options' => $car_options,
-			'selected' => $this->form_validation->set_value('caracteristica', $unidade->caracteristica),
-		);
-		$this->data['cnpj'] = array(
-			'name'  => 'cnpj',
-			'id'    => 'cnpj',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('cnpj', $unidade->cnpj)
-		);
-		$this->data['cpf'] = array(
-			'name'  => 'cpf',
-			'id'    => 'cpf',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('cpf', $unidade->cpf)
-		);
-		$this->data['razao_social'] = array(
-			'name'  => 'razao_social',
-			'id'    => 'razao_social',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('razao_social', $unidade->razao_social)
-		);
-		$this->data['rg'] = array(
-			'name'  => 'rg',
-			'id'    => 'rg',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('rg', $unidade->rg)
-		);
-		$this->data['fantasia'] = array(
-			'name'  => 'fantasia',
-			'id'    => 'fantasia',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('fantasia', $unidade->unidade)
-		);
-		$this->data['nome'] = array(
-			'name'  => 'nome',
-			'id'    => 'nome',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('nome', $unidade->unidade)
-		);
-		$this->data['gestor'] = array(
-			'name'  => 'gestor',
-			'id'    => 'gestor',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('gestor', $unidade->gestor)
-		);
-		$this->data['responsavel'] = array(
-			'name'  => 'responsavel',
-			'id'    => 'responsavel',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('responsavel', $unidade->agente_encaminhamento)
-		);
-		$this->data['telefone1'] = array(
-			'name'  => 'telefone1',
-			'id'    => 'telefone1',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('telefone1', $unidade->telefone1)
-		);
-		$this->data['telefone2'] = array(
-			'name'  => 'telefone2',
-			'id'    => 'telefone2',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('telefone2', $unidade->telefone2)
-		);
-		$this->data['email'] = array(
-			'name'  => 'email',
-			'id'    => 'email',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('email', $unidade->email)
-		);
-		$this->data['site'] = array(
-			'name'  => 'site',
-			'id'    => 'site',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('site', $unidade->site)
-		);
-		$this->data['cep'] = array(
-			'name'  => 'cep',
-			'id'    => 'cep',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('cep', $unidade->cep),
-			'onblur' => "loadEndereco(this.value, '../')"
-		);
-		$this->data['logradouro'] = array(
-			'name'  => 'logradouro',
-			'id'    => 'logradouro',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('logradouro', $unidade->rua)
-		);
-		$this->data['numero'] = array(
-			'name'  => 'numero',
-			'id'    => 'numero',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('numero', $unidade->numero)
-		);
-		$this->data['bairro'] = array(
-			'name'  => 'bairro',
-			'id'    => 'bairro',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('bairro', $unidade->bairro)
-		);
-		$this->data['cidade'] = array(
-			'name'  => 'cidade',
-			'id'    => 'cidade',
-			'type'  => 'text',
-            'class' => 'form-control',
-			'value' => $this->form_validation->set_value('cidade', $unidade->cidade)
-		);
-		$uf_options = array(""=>"Selecione");
-		foreach (get_uf() as $uf_key => $uf_value) {
-			$uf_options[$uf_key] = $uf_value;
-		}
-		$this->data['uf'] = array(
-			'name'  => 'uf',
-			'id'    => 'uf',
-            'class' => 'form-control',
-            'options' => $uf_options,
-			'selected' => $this->form_validation->set_value('uf', $unidade->uf),
-		);
-
-        /* Load Template */
-        $this->template->admin_render('admin/unidades/edit', $this->data);
+        $unidade = $this->unidade_da_empresa($id);
+        if (!$unidade) {
+            $this->session->set_flashdata('message', show_alert_error('Filial não encontrada.'));
+            redirect('unidades', 'refresh');
+        }
+        $this->formulario($unidade);
 	}
 
-
-	function activate($id)
+	public function activate($id = NULL)
 	{
-        $id = (int) $id;
-		if ($this->ion_auth->has_permissao("unidades", "activate"))
-		{
-			$activation = $this->unidades_model->activate($id);
-		}
-		if($activation)
-        	$this->session->set_flashdata('message', show_alert_success($this->unidades_model->messages()));
-        else
-        	$this->session->set_flashdata('message', show_alert_error($this->unidades_model->messages()));
-		redirect('unidades', 'refresh');
+        $this->alterar_status($id, 'activate');
 	}
-
 
 	public function deactivate($id = NULL)
 	{
-		$id = (int) $id;
-		if ($this->ion_auth->has_permissao("unidades", "deactivate"))
-		{
-			$deactivation = $this->unidades_model->deactivate($id);
-		}
-		if($deactivation)
-        	$this->session->set_flashdata('message', show_alert_success($this->unidades_model->messages()));
-        else
-        	$this->session->set_flashdata('message', show_alert_error($this->unidades_model->messages()));
-		redirect('unidades', 'refresh');
+        $this->alterar_status($id, 'deactivate');
 	}
+
+    private function alterar_status($id, $acao)
+    {
+        if (!$this->ion_auth->logged_in() || !$this->ion_auth->has_permissao('unidades', $acao)) {
+            redirect('auth/login', 'refresh');
+        }
+        $unidade = $this->unidade_da_empresa($id);
+        $ok = $unidade && ($acao === 'activate' ? $this->unidades_model->activate($unidade->id) : $this->unidades_model->deactivate($unidade->id));
+        if ($ok) {
+            $this->session->set_flashdata('message', show_alert_success('Filial "' . html_escape($unidade->unidade) . '" ' . ($acao === 'activate' ? 'ativada.' : 'inativada.')));
+        } else {
+            $this->session->set_flashdata('message', show_alert_error('Não foi possível alterar a filial.'));
+        }
+        redirect('unidades', 'refresh');
+    }
+
+    private function unidade_da_empresa($id)
+    {
+        return $this->db->where('id', (int) $id)
+            ->where('empresa_id', (int) $this->session->userdata('empresa_id'))
+            ->get('unidades')->row();
+    }
+
+    // Criação ($unidade = null) e edição compartilham o formulário admin/unidades/_form.
+    private function formulario($unidade)
+    {
+        $editando = $unidade !== null;
+        $this->breadcrumbs->unshift(2, lang($editando ? 'menu_unidades_edit' : 'menu_unidades_create'), $editando ? 'unidades/edit/' . (int) $unidade->id : 'unidades/create');
+        $this->data['breadcrumb'] = $this->breadcrumbs->show();
+
+        $tipo = $this->input->post('tipo') === 'F' ? 'F' : 'J';
+        $this->form_validation->set_rules('status', 'Status', 'required|in_list[s,n]');
+        $this->form_validation->set_rules('tipo', 'Tipo', 'required|in_list[J,F]');
+        if ($tipo === 'J') {
+            $this->form_validation->set_rules('cnpj', 'CNPJ', 'required|validar_cnpj');
+            $this->form_validation->set_rules('razao_social', 'Razão social', 'trim|required');
+            $this->form_validation->set_rules('fantasia', 'Nome fantasia', 'trim|required');
+        } else {
+            $this->form_validation->set_rules('cpf', 'CPF', 'required|validar_cpf');
+            $this->form_validation->set_rules('rg', 'RG', 'trim|required');
+            $this->form_validation->set_rules('nome', 'Nome', 'trim|required');
+        }
+        $this->form_validation->set_rules('telefone1', 'Telefone', 'trim|required');
+        $this->form_validation->set_rules('email', 'E-mail', 'trim|required|valid_email');
+        $this->form_validation->set_rules('cep', 'CEP', 'trim|required');
+        $this->form_validation->set_rules('logradouro', 'Logradouro', 'trim|required');
+        $this->form_validation->set_rules('numero', 'Número', 'trim|required');
+        $this->form_validation->set_rules('bairro', 'Bairro', 'trim|required');
+        $this->form_validation->set_rules('cidade', 'Cidade', 'trim|required');
+        $this->form_validation->set_rules('uf', 'UF', 'trim|required');
+
+        if ($this->input->post() && $this->form_validation->run() == TRUE) {
+            if ($tipo === 'J') {
+                $dados = array('cnpj' => $this->input->post('cnpj'), 'cpf' => '', 'rg' => '', 'razao_social' => $this->input->post('razao_social'), 'unidade' => $this->input->post('fantasia'));
+            } else {
+                $dados = array('cpf' => $this->input->post('cpf'), 'rg' => $this->input->post('rg'), 'cnpj' => '', 'razao_social' => '', 'unidade' => $this->input->post('nome'));
+            }
+            $dados += array(
+                'actived' => $this->input->post('status'),
+                'tipo_cliente' => $tipo,
+                'tipo' => $tipo,
+                'gestor' => (string) $this->input->post('gestor'),
+                'email' => $this->input->post('email'),
+                'site' => (string) $this->input->post('site'),
+                'endereco' => $this->input->post('logradouro') . ', ' . $this->input->post('bairro') . ', ' . $this->input->post('numero'),
+                'rua' => $this->input->post('logradouro'),
+                'numero' => $this->input->post('numero'),
+                'bairro' => $this->input->post('bairro'),
+                'cidade' => $this->input->post('cidade'),
+                'uf' => $this->input->post('uf'),
+                'cep' => $this->input->post('cep'),
+                'telefone1' => $this->input->post('telefone1'),
+                'telefone2' => (string) $this->input->post('telefone2'),
+                'agente_encaminhamento' => (string) $this->input->post('responsavel'),
+                'caracteristica' => $this->input->post('caracteristica') ? (int) $this->input->post('caracteristica') : null,
+                'empresa_id' => (int) $this->session->userdata('empresa_id'),
+            );
+
+            if ($editando) {
+                $dados['modified'] = date('Y-m-d H:i:s');
+                $ok = $this->unidades_model->update($unidade->id, $dados);
+                if ($ok) {
+                    // URL do node e token da API por produto habilitado (aba "Dados do APP").
+                    $produtos_post = $this->input->post('produtos_app');
+                    if (is_array($produtos_post)) {
+                        foreach ($produtos_post as $id_produto => $campos) {
+                            $update_hp = array();
+                            if (isset($campos['url_node'])) { $update_hp['url_node'] = $campos['url_node']; }
+                            if (isset($campos['token_api'])) { $update_hp['token_api'] = $campos['token_api']; }
+                            if ($update_hp) {
+                                $this->db->update('habilitacoes_produto', $update_hp, array('id_cliente' => (int) $unidade->id, 'id_produto' => (int) $id_produto));
+                            }
+                        }
+                    }
+                }
+            } else {
+                $ok = $this->unidades_model->create($dados);
+            }
+            if ($ok) {
+                $this->session->set_flashdata('message', show_alert_success('Filial "' . html_escape($dados['unidade']) . '" ' . ($editando ? 'atualizada.' : 'criada.')));
+                redirect('unidades', 'refresh');
+            }
+            $this->data['message'] = show_alert_error($this->unidades_model->errors() ? $this->unidades_model->errors() : 'Não foi possível salvar a filial.');
+        } elseif ($this->input->post()) {
+            $this->data['message'] = show_alert_error(validation_errors());
+        }
+
+        $produtos_app = array();
+        $numeros = null;
+        if ($editando) {
+            $produtos_app = $this->db->select('hp.id_produto, hp.url_node, hp.token_api, hp.status, hp.periodo_fim, p.nome')
+                ->from('habilitacoes_produto hp')->join('produtos p', 'hp.id_produto = p.id')
+                ->where('hp.id_cliente', (int) $unidade->id)->order_by('p.nome')->get()->result();
+            $numeros = $this->db->query("SELECT
+                    (SELECT COUNT(*) FROM habilitacoes_produto hp WHERE hp.id_cliente = ? AND hp.status = 'S' AND hp.periodo_fim >= CURDATE()) AS produtos,
+                    (SELECT COUNT(DISTINCT uu.user_id) FROM user_unidade uu JOIN users us ON us.id = uu.user_id AND us.active = 1 WHERE uu.unidade_id = ?) AS usuarios,
+                    (SELECT COUNT(*) FROM chamado c WHERE c.unidade_id = ? AND c.created >= CURDATE() - INTERVAL 90 DAY) AS chamados_90",
+                array((int) $unidade->id, (int) $unidade->id, (int) $unidade->id))->row();
+        }
+
+        $post = $this->input->post();
+        $atual = function ($campo, $coluna = null) use ($post, $editando, $unidade) {
+            if ($post) {
+                return (string) $this->input->post($campo);
+            }
+            $coluna = $coluna ? $coluna : $campo;
+            return $editando && isset($unidade->$coluna) ? (string) $unidade->$coluna : '';
+        };
+        $tipo_atual = $post ? $tipo : ($editando && $unidade->tipo === 'F' ? 'F' : 'J');
+        $this->data['valores'] = array(
+            'tipo' => $tipo_atual,
+            'status' => $post ? (string) $this->input->post('status') : ($editando ? ($unidade->actived === 's' ? 's' : 'n') : 's'),
+            'cnpj' => $atual('cnpj'),
+            'razao_social' => $atual('razao_social'),
+            'fantasia' => $post ? (string) $this->input->post('fantasia') : ($editando && $tipo_atual === 'J' ? $unidade->unidade : ''),
+            'cpf' => $atual('cpf'),
+            'rg' => $atual('rg'),
+            'nome' => $post ? (string) $this->input->post('nome') : ($editando && $tipo_atual === 'F' ? $unidade->unidade : ''),
+            'caracteristica' => $atual('caracteristica'),
+            'gestor' => $atual('gestor'),
+            'responsavel' => $atual('responsavel', 'agente_encaminhamento'),
+            'telefone1' => $atual('telefone1'),
+            'telefone2' => $atual('telefone2'),
+            'email' => $atual('email'),
+            'site' => $atual('site'),
+            'cep' => $atual('cep'),
+            // Cadastros antigos têm o endereço só em "endereco".
+            'logradouro' => ($post || !$editando || (string) $unidade->rua !== '') ? $atual('logradouro', 'rua') : (string) $unidade->endereco,
+            'numero' => $atual('numero'),
+            'bairro' => $atual('bairro'),
+            'cidade' => $atual('cidade'),
+            'uf' => $atual('uf'),
+        );
+
+        $integracoes = array();
+        if ($editando) {
+            foreach (array(
+                'recursos_ws' => array('fa-server', 'Recursos Webservice'),
+                'facebook_api' => array('fa-facebook-square', 'Facebook API'),
+                'rd_station' => array('fa-registered', 'RD Station'),
+                'parametros_contrato' => array('fa-cogs', 'Parâmetros de contrato'),
+                'iugu' => array('fa-credit-card', 'Iugu'),
+                'cursos' => array('fa-book', 'Cursos'),
+            ) as $metodo => $acao) {
+                if ($this->ion_auth->has_permissao('unidades', $metodo)) {
+                    $integracoes[$metodo] = $acao;
+                }
+            }
+        }
+
+        $this->data['modo'] = $editando ? 'edit' : 'create';
+        $this->data['unidade'] = $unidade;
+        $this->data['numeros'] = $numeros;
+        $this->data['produtos_app'] = $produtos_app;
+        $this->data['integracoes'] = $integracoes;
+        $this->data['caracteristicas'] = $this->unidades_model->get_caracteristicas()->result();
+        $this->data['ufs'] = get_uf();
+
+        $this->template->admin_render('admin/unidades/_form', $this->data);
+    }
 
 	public function buscar_endereco() {
 		$retorno = $this->curl->get('app.xkeysti.com.br/api/v1/getEnderecoByCep?cep='.$this->input->post('cep'));

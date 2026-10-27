@@ -713,6 +713,47 @@ class Chamados_model extends CI_Model
         return $query->get("chamado_apontamento a");
     }
 
+    public function get_apontamentos_relatorio($filtros)
+    {
+        $this->db->select(
+            'a.id, a.chamado_id, a.user_id, a.data, a.hora_inicio, a.hora_termino, a.esforco, a.observacao, ' .
+            'TIME_TO_SEC(a.esforco) AS segundos, CONCAT(u.first_name, " ", u.last_name) AS nome_usuario, ' .
+            'un.id AS unidade_id, un.unidade AS cliente, c.titulo AS chamado_titulo, st.descricao AS status',
+            false
+        )
+            ->from('chamado_apontamento a')
+            ->join('users u', 'u.id = a.user_id')
+            ->join('chamado c', 'c.id = a.chamado_id')
+            ->join('unidades un', 'un.id = c.unidade_id')
+            ->join('chamado_status st', 'st.id = c.status_id', 'left')
+            ->where('un.empresa_id', (int) $this->session->userdata('empresa_id'))
+            ->where_in('c.unidade_id', $filtros['unidades_permitidas'] ? $filtros['unidades_permitidas'] : array(0))
+            ->where('a.data >=', $filtros['inicio'])
+            ->where('a.data <=', $filtros['fim']);
+        if (!empty($filtros['usuarios'])) {
+            $this->db->where_in('a.user_id', $filtros['usuarios']);
+        }
+        if (!empty($filtros['clientes'])) {
+            $this->db->where_in('c.unidade_id', $filtros['clientes']);
+        }
+        if (!empty($filtros['chamado'])) {
+            $this->db->where('a.chamado_id', (int) $filtros['chamado']);
+        }
+        return $this->db->order_by('a.data', 'desc')->order_by('a.hora_inicio', 'desc')->get()->result();
+    }
+
+    // Confere se o apontamento pertence a um chamado da empresa logada.
+    public function apontamento_da_empresa($apontamento_id)
+    {
+        return $this->db->from('chamado_apontamento a')
+            ->join('chamado c', 'c.id = a.chamado_id')
+            ->join('unidades un', 'un.id = c.unidade_id')
+            ->where('a.id', (int) $apontamento_id)
+            ->where('un.empresa_id', (int) $this->session->userdata('empresa_id'))
+            ->count_all_results() > 0;
+    }
+
+    
     public function salvar_apontamento($data)
     {
         $hora_termino = explode(" ", @$data['hora_termino']);
@@ -1050,5 +1091,32 @@ class Chamados_model extends CI_Model
     {
         $this->load->model('chamados_checklists_model');
         return $this->chamados_checklists_model->get_com_etapas($chamado_id);
+    }
+
+    public function get_chamados_pendentes_user($user_id, $empresa_id = null)
+    {
+        if (!$user_id) {
+            return array();
+        }
+
+        $this->db->select('c.id, c.protocolo, c.titulo, c.descricao, c.created, c.data_prazo, c.status_id, cst.descricao as status_desc, cp.descricao as prioridade_desc, un.unidade as cliente')
+            ->from($this->table . ' c')
+            ->join('chamado_status cst', 'cst.id = c.status_id', 'inner')
+            ->join('chamado_prioridade cp', 'cp.id = c.prioridade_id', 'left')
+            ->join('unidades un', 'un.id = c.unidade_id', 'left')
+            ->where('c.status_id', 1)
+            ->group_start()
+                ->where('c.responsavel_id', (int) $user_id)
+                ->or_where('c.desenvolvedor_id', (int) $user_id)
+                ->or_where('c.dono_id', (int) $user_id)
+            ->group_end();
+
+        if ($empresa_id) {
+            $this->db->where('un.empresa_id', (int) $empresa_id);
+        }
+
+        $this->db->order_by('c.id', 'desc');
+
+        return $this->db->get()->result();
     }
 }

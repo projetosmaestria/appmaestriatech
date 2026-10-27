@@ -30,6 +30,20 @@ class Niveis extends Admin_Controller {
             /* Breadcrumbs */
             $this->data['breadcrumb'] = $this->breadcrumbs->show();
             $this->data['niveis'] = $this->niveis_model->get()->result();
+            // Quantidade de chamados que usam cada nível, para mostrar o impacto antes de editar ou desativar.
+            $uso = array();
+            foreach ($this->db->select('c.nivel_id, COUNT(*) AS total', false)
+                ->from('chamado c')
+                ->join('unidades un', 'un.id = c.unidade_id')
+                ->where('un.empresa_id', (int) $this->session->userdata('empresa_id'))
+                ->where('c.nivel_id IS NOT NULL', null, false)
+                ->group_by('c.nivel_id')
+                ->get()->result() as $row) {
+                $uso[(int) $row->nivel_id] = (int) $row->total;
+            }
+            $this->data['uso_niveis'] = $uso;
+            $this->data['can_create'] = $this->ion_auth->has_permissao('niveis', 'create');
+            $this->data['can_edit'] = $this->ion_auth->has_permissao('niveis', 'edit');
             $this->data['message'] = $this->session->flashdata('message');
 
             /* Load Template */
@@ -49,13 +63,15 @@ class Niveis extends Admin_Controller {
         $this->data['breadcrumb'] = $this->breadcrumbs->show();
 
 		/* Validate form input */
-		$this->form_validation->set_rules('descricao', 'lang:nivel_validation_descricao_label', 'trim|required|alpha_dash');
-		$this->form_validation->set_rules('status', 'lang:nivel_validation_status_label', 'required');
+		$this->form_validation->set_rules('descricao', 'lang:nivel_validation_descricao_label', 'trim|required|max_length[100]');
+		$this->form_validation->set_rules('status', 'lang:nivel_validation_status_label', 'required|in_list[0,1]');
+		$this->form_validation->set_rules('cor', 'Cor', 'regex_match[/^#[0-9a-fA-F]{6}$/]');
 
 		$dados = array(
 			"descricao" => $this->input->post("descricao"),
 			"empresa_id" => $this->session->userdata("empresa_id"),
-			"actived" => $this->input->post("status")
+			"actived" => $this->input->post("status"),
+			"cor" => $this->input->post("cor") ? $this->input->post("cor") : '#3c8dbc'
 		);
 
 		if ($this->form_validation->run() == TRUE && $id = $this->niveis_model->create($dados))
@@ -74,6 +90,7 @@ class Niveis extends Admin_Controller {
                 'class' => 'form-control',
 				'value' => $this->form_validation->set_value('descricao')
 			);
+			$this->data['cor_valor'] = $this->form_validation->set_value('cor', '#3c8dbc');
 
             /* Load Template */
             $this->template->admin_render('admin/niveis/create', $this->data);
@@ -108,11 +125,17 @@ class Niveis extends Admin_Controller {
         $this->data['breadcrumb'] = $this->breadcrumbs->show();
 
         /* Variables */
-		$nivel = $this->niveis_model->get(array('select'=>'*', 'where'=>'id = '.$id, 'order_by'=>array('id','desc')))->row();
+		// O model já restringe à empresa logada.
+		$nivel = $this->niveis_model->get(array('select'=>'*', 'where'=>'id = ' . (int) $id, 'order_by'=>array('id','desc')))->row();
+		if (!$nivel) {
+			$this->session->set_flashdata('message', show_alert_error('Nível não encontrado.'));
+			redirect('niveis', 'refresh');
+		}
 
 		/* Validate form input */
-        $this->form_validation->set_rules('descricao', $this->lang->line('nivel_validation_descricao_label'), 'required|alpha_dash');
-        $this->form_validation->set_rules('status', $this->lang->line('nivel_validation_status_label'), 'required');
+        $this->form_validation->set_rules('descricao', $this->lang->line('nivel_validation_descricao_label'), 'trim|required|max_length[100]');
+        $this->form_validation->set_rules('status', $this->lang->line('nivel_validation_status_label'), 'required|in_list[0,1]');
+        $this->form_validation->set_rules('cor', 'Cor', 'regex_match[/^#[0-9a-fA-F]{6}$/]');
 
 		if (isset($_POST) && ! empty($_POST))
 		{	
@@ -123,7 +146,7 @@ class Niveis extends Admin_Controller {
 			);
 			if ($this->form_validation->run() == TRUE)
 			{
-				$nivel_update = $this->niveis_model->update($id, $dados);
+				$nivel_update = $this->niveis_model->update((int) $id, $dados);
 
 				if ($nivel_update)
 				{
@@ -150,14 +173,7 @@ class Niveis extends Admin_Controller {
 			'value'   => $this->form_validation->set_value('descricao', $nivel->descricao),
             'class'   => 'form-control'
 		);
-		$this->data['cor'] = array(
-			'type'     => 'text',
-			'name'     => 'cor',
-			'id'       => 'group_bgcolor',
-			'value'    => $this->form_validation->set_value('cor', $nivel->cor),
-			'data-src' => $nivel->cor,
-            'class'    => 'form-control'
-		);
+		$this->data['cor_valor'] = $this->form_validation->set_value('cor', $nivel->cor ? $nivel->cor : '#3c8dbc');
 
         /* Load Template */
         $this->template->admin_render('admin/niveis/edit', $this->data);
@@ -166,6 +182,7 @@ class Niveis extends Admin_Controller {
 	function activate($id)
 	{
         $id = (int) $id;
+		$activation = false;
 		if ($this->ion_auth->has_permissao("niveis", "activate"))
 		{
 			$activation = $this->niveis_model->activate($id);
@@ -181,6 +198,7 @@ class Niveis extends Admin_Controller {
 	public function deactivate($id = NULL)
 	{
 		$id = (int) $id;
+		$deactivation = false;
 		if ($this->ion_auth->has_permissao("niveis", "deactivate"))
 		{
 			$deactivation = $this->niveis_model->deactivate($id);
