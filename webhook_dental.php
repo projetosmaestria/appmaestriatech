@@ -1082,7 +1082,7 @@
                                     return $retorno;
                                 }
 
-                                //buscando/cadastrando usuário no SAXweb
+                                //buscando/cadastrando usuário no MaestriaTech
                                 if($this->has_user_by_email($requisicao_customer_data["email"])) {
                                     $user = $this->get_user_by_email($requisicao_customer_data["email"]);
                                 } else {
@@ -1163,7 +1163,7 @@
 
                 } else {
                     $retorno["erro"] = true;
-                    $retorno["msg"] = "Assinatura não encontrada no SAXweb.";
+                    $retorno["msg"] = "Assinatura não encontrada no MaestriaTech.";
                 }
             } else {
                 $retorno["erro"] = true;
@@ -1188,7 +1188,7 @@
 
                 } else {
                     $retorno["erro"] = true;
-                    $retorno["msg"] = "Assinatura não encontrada no SAXweb.";
+                    $retorno["msg"] = "Assinatura não encontrada no MaestriaTech.";
                 }
             } else {
                 $retorno["erro"] = true;
@@ -1262,7 +1262,7 @@
                     }
                 } else {
                     $retorno["erro"] = true;
-                    $retorno["msg"] = "Assinatura não encontrada no SAXweb.";
+                    $retorno["msg"] = "Assinatura não encontrada no MaestriaTech.";
                 }
             } else {
                 $retorno["erro"] = true;

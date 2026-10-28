@@ -729,7 +729,7 @@ class Ead_tutoria extends Admin_Controller {
                     $pessoa = $this->ion_auth->get_pessoa($user_id);
                     if($pessoa->num_rows() > 0) {
                         $data = array();
-                        $data['from'] = "Saxweb";
+                        $data['from'] = "MaestriaTech";
                         $data['to'] = formatCelApi($pessoa->row()->celular);
                         $data['msg'] = trim($this->input->post('mensagem'));
 

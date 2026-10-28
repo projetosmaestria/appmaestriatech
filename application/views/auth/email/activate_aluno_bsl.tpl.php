@@ -3,7 +3,7 @@
 		<div style="width:100%; height:100%; display:table; padding:20px; background:#EEE;">
 			<div style="min-width:550px; max-width:550px; margin:0 auto; font:14px sans-serif, tahoma; color:#003366">
 				<div style="border-radius:5px; border:1px solid #999; padding:15px; background:#FFF;">
-					<h2>Seja bem-vindo ao Saxweb!</h2>
+					<h2>Seja bem-vindo ao MaestriaTech!</h2>
 					<br class="clear-15">
 					<p>Uma conta no aplicativo foi criada para você !</p>
 					<br class="clear-15">
@@ -26,7 +26,7 @@
 					<p>Por gentileza, não responda este e-mail.</p>
 					<br><br>
 					<p>Atenciosamente,</p>
-					<p>Saxweb</p>
+					<p>MaestriaTech</p>
 					<p style="background-color:#212854; color:#FFF; border-radius:5px; padding:5px; font-size:12px; text-align:center;">Powered by XKey STI</p>
 				</div>
 			</div>

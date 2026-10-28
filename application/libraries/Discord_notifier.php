@@ -59,7 +59,7 @@ class Discord_notifier {
             CURLOPT_HTTPHEADER => array(
                 'Authorization: Bot ' . $this->token,
                 'Content-Type: application/json',
-                'User-Agent: SAXweb Kanban (https://app.xkeysti.com.br, 1.0)',
+                'User-Agent: MaestriaTech Kanban (https://app.xkeysti.com.br, 1.0)',
             ),
             CURLOPT_POSTFIELDS => json_encode($payload),
         ));

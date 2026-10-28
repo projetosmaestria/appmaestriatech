@@ -868,7 +868,7 @@ class Cupom extends Admin_Controller {
         	if($_POST["acao"] == "sms") {
         		$this->load->library('zenvia');
                 $data = array();
-                $data['from'] = "Saxweb";
+                $data['from'] = "MaestriaTech";
                 $data['to'] = formatCelApi(trim($cupom->celular));
                 if($cupom->unidade_id == 519)
                 	$data['msg'] = "Utilize o cupom ".$cupom->cupom." para comprar seu curso em https://www.bslidiomas.com.br/ead";

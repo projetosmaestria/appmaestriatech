@@ -1244,9 +1244,9 @@ function carregarProdutos(id_cliente, base_url){
                                                             +'</div>'
                                                         +'</div>'
                                                     +'</div>';
-                                            //Contrato SAX
+                                            //Contrato MaestriaTech
                                             html += '<div class="col-md-6">'
-                                                        +'<label for="inputContratoSax" class="control-label">Contrato SAX</label>'
+                                                        +'<label for="inputContratoSax" class="control-label">Contrato MaestriaTech</label>'
                                                         +'<input type="text" class="form-control" id="inputContratoSax" name="inputContratoSax">'
                                                     +'</div>';
                                             //Habilitar
@@ -1358,9 +1358,9 @@ function carregarProdutos(id_cliente, base_url){
                                                       +'</div>'
                                                   +'</div>'
                                               +'</div>';
-                                      //Contrato SAX
+                                      //Contrato MaestriaTech
                                       html_hbltds += '<div class="col-md-6">'
-                                                  +'<label for="inputContratoSax" class="control-label">Contrato SAX</label>'
+                                                  +'<label for="inputContratoSax" class="control-label">Contrato MaestriaTech</label>'
                                                   +'<input type="text" class="form-control" id="inputContratoSax" name="inputContratoSax" value="'+((retorno_hbltds[i].contrato_sax != null) ? retorno_hbltds[i].contrato_sax : '')+'">'
                                               +'</div>';
                                       //Habilitar Demo

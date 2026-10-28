@@ -68,7 +68,7 @@ $documento = $cliente->cnpj != '' ? $cliente->cnpj : $cliente->cpf;
                                 <th>Situação</th>
                                 <th>Período</th>
                                 <th>Módulos</th>
-                                <th>Contrato SAX</th>
+                                <th>Contrato MaestriaTech</th>
                                 <th>Registro</th>
                                 <th></th>
                             </tr>

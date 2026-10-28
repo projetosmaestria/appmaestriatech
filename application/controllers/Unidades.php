@@ -437,7 +437,7 @@ class Unidades extends Admin_Controller {
 		$historicos = $this->unidades_model->get_historicos_status($unidade->empresa_id);
 
 		if($status->num_rows() == 0) {
-			$this->session->set_flashdata('message', show_alert_error("É necessário importar os status do SAX para acessar a página."));
+			$this->session->set_flashdata('message', show_alert_error("É necessário importar os status do MaestriaTech para acessar a página."));
 			redirect('unidades', 'refresh');
 		}
 

@@ -14,28 +14,28 @@ if ( ! function_exists('get_recursos_ws'))
         );
         $recursos_ws = array(
             0 => array(
-                1=>"SAXweb para SAX",
-                2=>"SAX para SAXweb"
+                1=>"MaestriaTech para MaestriaTech",
+                2=>"MaestriaTech para MaestriaTech"
             ),
             1 => array(
-                1=>"SAXweb para SAX",
-                2=>"SAX para SAXweb"
+                1=>"MaestriaTech para MaestriaTech",
+                2=>"MaestriaTech para MaestriaTech"
             ),
             2 => array(
-                1=>"SAXweb para SAX",
-                2=>"SAX para SAXweb"
+                1=>"MaestriaTech para MaestriaTech",
+                2=>"MaestriaTech para MaestriaTech"
             ),
             3 => array(
-                1=>"SAXweb para SAX",
-                2=>"SAX para SAXweb"
+                1=>"MaestriaTech para MaestriaTech",
+                2=>"MaestriaTech para MaestriaTech"
             ),
             4 => array(
-                1=>"SAXweb para SAX",
-                2=>"SAX para SAXweb"
+                1=>"MaestriaTech para MaestriaTech",
+                2=>"MaestriaTech para MaestriaTech"
             ),
             5 => array(
-                1=>"SAXweb para SAX",
-                2=>"SAX para SAXweb"
+                1=>"MaestriaTech para MaestriaTech",
+                2=>"MaestriaTech para MaestriaTech"
             )
         );
         $response = '';

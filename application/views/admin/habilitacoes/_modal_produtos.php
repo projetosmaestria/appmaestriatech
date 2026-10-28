@@ -134,7 +134,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
             linha.append(periodo);
 
             var contrato = el('div', 'col-sm-4 form-group');
-            contrato.append(el('label', '', 'Contrato SAX'));
+            contrato.append(el('label', '', 'Contrato MaestriaTech'));
             contrato.append($('<input type="text" name="contrato_sax" class="form-control" inputmode="numeric" maxlength="10" placeholder="Nº do contrato">').val(dados.contrato_sax || ''));
             linha.append(contrato);
             form.append(linha);
@@ -211,7 +211,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
             var meta = [];
             if (item.inicio || item.fim) { meta.push(item.inicio + ' a ' + item.fim); }
-            if (item.contrato_sax) { meta.push('Contrato SAX ' + item.contrato_sax); }
+            if (item.contrato_sax) { meta.push('Contrato MaestriaTech ' + item.contrato_sax); }
             meta.push(resumoModulos(item.modulos));
             topo.append(el('div', 'habil-card-meta', meta.join(' · ')));
 

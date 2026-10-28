@@ -1,6 +1,6 @@
 /**
  * menus.js - Gerenciamento da Árvore de Menus e Seleção Múltipla de Empresas
- * Projeto: SaxWeb / MaestriaTech
+ * Projeto: MaestriaTech
  */
 
 (function() {

@@ -228,7 +228,7 @@ class Habilitacoes extends Admin_Controller {
 
         $contrato = trim((string) $this->input->post('contrato_sax'));
         if ($contrato !== '' && !ctype_digit($contrato)) {
-            $this->responder_json(array('erro' => true, 'msg' => 'O contrato SAX deve ter apenas números.'), 400);
+            $this->responder_json(array('erro' => true, 'msg' => 'O contrato MaestriaTech deve ter apenas números.'), 400);
             return;
         }
 

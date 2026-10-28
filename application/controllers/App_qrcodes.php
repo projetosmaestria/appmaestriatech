@@ -456,7 +456,7 @@ class App_qrcodes extends Admin_Controller {
 
         //Informações do documento
         $pdf->SetCreator(PDF_CREATOR);
-        $pdf->SetAuthor('Saxweb');
+        $pdf->SetAuthor('MaestriaTech');
         $pdf->SetTitle('QRCode');
         $pdf->SetSubject('Lista de QRCodes');
         $pdf->SetKeywords('qrcode, livro');
@@ -572,7 +572,7 @@ class App_qrcodes extends Admin_Controller {
 
         //Informações do documento
         $pdf->SetCreator(PDF_CREATOR);
-        $pdf->SetAuthor('Saxweb');
+        $pdf->SetAuthor('MaestriaTech');
         $pdf->SetTitle('QRCode');
         $pdf->SetSubject('Lista de QRCodes');
         $pdf->SetKeywords('qrcode, livro');
