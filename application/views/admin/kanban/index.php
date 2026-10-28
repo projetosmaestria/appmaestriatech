@@ -154,9 +154,7 @@ $selected_user = ($current_board && isset($filtros['filtro_usuarios'][$quadros_s
                   <?php } ?>
 
                 </section>
-                <?php if (!$coluna['tarefas']) { ?>
-                  <p class="kanban-column-empty text-muted">Nenhum chamado</p>
-                <?php } ?>
+                <p class="kanban-column-empty text-muted" <?php echo $coluna['tarefas'] ? 'style="display:none;"' : ''; ?>>Nenhum chamado</p>
               </div>
             </div>
 

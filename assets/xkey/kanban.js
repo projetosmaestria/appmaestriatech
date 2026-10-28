@@ -213,9 +213,14 @@ $(document).ready(function(){
 
   	});
 
+	// O card inteiro é a alça de arraste (o layout novo não tem mais .box-header, usado como handle no footer)
 	var tarefa_dragged = $(".connectedSortable").sortable({
+	    handle: false,
+	    items: '> .kanban-task',
+	    cursor: 'grabbing',
 	    stop: function(ui, event){
-	        
+	        atualizar_contadores_colunas();
+
 	        $('html, body').css("cursor", "wait");
 	      	$(".loading").show();
 	      	
@@ -235,6 +240,8 @@ $(document).ready(function(){
 
 				      	if(result.erro == true) {
 			      			$('html, body').css("cursor", "auto");
+			      			tarefa_dragged.sortable('cancel');
+			      			atualizar_contadores_colunas();
 				      		alert(result.data);
 				      		return false;
 				      	} else {
@@ -244,6 +251,7 @@ $(document).ready(function(){
 	      			} else {
 	      				$('html, body').css("cursor", "auto");
 	      				tarefa_dragged.sortable('cancel');
+	      				atualizar_contadores_colunas();
 	      				alert("Houve um problema ao tentar alterar o status da tarefa.");
 			      		return false;
 	      			}
@@ -269,6 +277,14 @@ $(document).ready(function(){
 	});
 
 });
+
+function atualizar_contadores_colunas() {
+	$('.quadros .card-row').each(function() {
+		var total = $(this).find('.connectedSortable > .kanban-task').length;
+		$(this).find('.kanban-column-count').text(total);
+		$(this).find('.kanban-column-empty').toggle(total == 0);
+	});
+}
 
 function atualizar_status(chamado_id, status) {
 	$('.overlay').show();
