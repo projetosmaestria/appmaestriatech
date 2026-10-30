@@ -661,6 +661,15 @@ $escalar_horas_previstas = ($chamado->horas_prevista !== null && $chamado->horas
                         <span class='text-muted small' id='upload-file-info-escalar'></span>
                     </div>
                     <p class="help-block">A mensagem e as mudanças de responsável, programador, serviço e prazo ficam registradas na conversa do chamado.</p>
+                    <?php if (!empty($acesso_interno)) { ?>
+                        <div class="escalar-restrito">
+                            <label for="escalar-restrito">
+                                <input type="checkbox" id="escalar-restrito" name="restrito" value="1">
+                                <i class="fa fa-lock"></i> Marcar como restrito
+                            </label>
+                            <p class="help-block">Os registros desta escalada ficam como <strong>Interno</strong>: o solicitante não vê na conversa e o e-mail não vai para o cliente. O anexo continua visível.</p>
+                        </div>
+                    <?php } ?>
                 </div>
             </div>
 
@@ -1551,6 +1560,25 @@ $escalar_horas_previstas = ($chamado->horas_prevista !== null && $chamado->horas
     }
     .escalar-attach {
         margin-top: 8px;
+    }
+    .escalar-restrito {
+        margin-top: 10px;
+        padding: 10px 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-left: 3px solid #9CD7D4;
+        border-radius: 6px;
+    }
+    .escalar-restrito label {
+        margin: 0;
+        color: #1E1D3F;
+        cursor: pointer;
+    }
+    .escalar-restrito .fa-lock {
+        color: #1E1D3F;
+    }
+    .escalar-restrito .help-block {
+        color: #64748b;
     }
     .escalar-planejamento-ajuda {
         margin-top: 28px !important;

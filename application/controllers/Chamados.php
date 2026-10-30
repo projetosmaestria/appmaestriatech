@@ -929,6 +929,68 @@ class Chamados extends Admin_Controller
 		}
 	}
 
+	/**
+	 * Avisa por mensagem direta no Discord o responsável pelo chamado encerrado, quando ele tem
+	 * Discord cadastrado no planejamento do Kanban. Nunca interrompe o fluxo do chamado.
+	 */
+	private function avisar_discord_encerramento($chamado_id)
+	{
+		$this->load->model('kanban_dashboard_model');
+		$this->load->library('discord_notifier');
+		if (!$this->discord_notifier->is_configured() || !$this->kanban_dashboard_model->has_discord_tables()) {
+			return;
+		}
+
+		$chamado = $this->db->select('c.id, c.titulo, c.responsavel_id, un.empresa_id, un.unidade AS cliente')
+			->from('chamado c')
+			->join('unidades un', 'un.id = c.unidade_id')
+			->where('c.id', (int) $chamado_id)
+			->limit(1)
+			->get()
+			->row();
+		if (!$chamado || (int) $chamado->responsavel_id <= 0) {
+			return;
+		}
+
+		$discord_ids = $this->kanban_dashboard_model->get_discord_ids((int) $chamado->empresa_id);
+		if (empty($discord_ids[(int) $chamado->responsavel_id])) {
+			return;
+		}
+
+		$escape = function ($text) {
+			return addcslashes(trim((string) $text), '\\*_~`|>[]');
+		};
+		$mensagem = '✅ **Chamado [#' . (int) $chamado->id . '](<' . base_url('chamados/details/' . (int) $chamado->id) . '>) encerrado**' .
+			"\n" . $escape($chamado->titulo) .
+			"\nCliente: " . $escape($chamado->cliente) .
+			"\nEncerrado por " . $escape($this->chamados_model->get_user_name($this->session->userdata('user_id'))) . ' em ' . date('d/m/Y') . ' às ' . date('H:i') . '.';
+
+		if (!$this->discord_notifier->send_direct_message($discord_ids[(int) $chamado->responsavel_id], $mensagem)) {
+			log_message('error', 'Discord: aviso de encerramento do chamado ' . (int) $chamado->id . ' - ' . $this->discord_notifier->last_error());
+		}
+	}
+
+	/**
+	 * Usuário dos grupos de responsável ou programador do chamado, que pode marcar mensagens como internas.
+	 */
+	private function pode_marcar_interno()
+	{
+		$query_pref = $this->db->get_where('admin_preferences', array('empresa_id' => $this->session->userdata('empresa_id')))->row();
+		if (!$query_pref) {
+			return false;
+		}
+		$grupos = array_merge((array) @unserialize($query_pref->grupos_responsavel_chamado), (array) @unserialize($query_pref->grupos_dev_chamado));
+		$grupos = array_unique(array_filter(array_map('intval', $grupos)));
+		if (!$grupos) {
+			return false;
+		}
+		return $this->db->join('groups g', 'g.id = ug.group_id')
+			->where_in('ug.group_id', $grupos)
+			->where('g.empresa_id', $this->session->userdata('empresa_id'))
+			->where('ug.user_id', $this->session->userdata('user_id'))
+			->count_all_results('users_groups ug') > 0;
+	}
+
 	private function registrar_aviso_whatsapp($chamado_id, $descricao)
 	{
 		$this->chamados_model->create_dialogo(array(
@@ -1489,22 +1551,8 @@ class Chamados extends Admin_Controller
 		if ($this->ion_auth->has_permissao("chamados", "associar_checklist"))
 			$this->data['acesso_associar_checklist'] = true;
 
-		$query_pref = $this->db->get_where('admin_preferences', array('empresa_id' => $this->session->userdata('empresa_id')))->row();
-		if (count(unserialize($query_pref->grupos_responsavel_chamado)) > 0 || count(unserialize($query_pref->grupos_dev_chamado)) > 0) {
-			$wheres = array_merge(unserialize($query_pref->grupos_responsavel_chamado), unserialize($query_pref->grupos_dev_chamado));
-			$where_in_responsavel = @implode(",", array_unique($wheres));
-			$q_responsavel = $this->db->select('u.id, u.first_name, u.last_name')
-				->join('users u', 'ug.user_id = u.id')
-				->join('groups g', 'g.id = ug.group_id')
-				->where('ug.group_id IN (' . $where_in_responsavel . ')')
-				->where('g.empresa_id', $this->session->userdata('empresa_id'))
-				->where('u.id', $this->session->userdata('user_id'))
-				->distinct()
-				->get('users_groups ug');
-
-			if ($q_responsavel->num_rows() > 0) {
-				$this->data['acesso_interno'] = true;
-			}
+		if ($this->pode_marcar_interno()) {
+			$this->data['acesso_interno'] = true;
 		}
 
 		$grupos_usuarios_chamado = $this->chamados_model->get_groups();
@@ -3000,6 +3048,10 @@ class Chamados extends Admin_Controller
 				$data_planejada_anterior = $this->kanban_dashboard_model->get_planned_date($empresa_planejamento, $chamado->id);
 			}
 
+			// Restrito: os registros desta escalada ficam internos e o e-mail não vai para os grupos do cliente.
+			$restrito = $this->input->post('restrito') && $this->pode_marcar_interno();
+			$dados = array('interno' => $restrito ? 1 : 0);
+
 			if ($this->chamados_model->update($_POST["chamado_id"], $data)) {
 				if ($data_planejada !== null && $data_planejada !== $data_planejada_anterior) {
 					$this->kanban_dashboard_model->save_planned_date((int) $chamado->empresa_id, $chamado->id, $data_planejada, $this->session->userdata("user_id"));
@@ -3008,6 +3060,7 @@ class Chamados extends Admin_Controller
 						"responsavel_id" => $this->session->userdata("user_id"),
 						"descricao" => "Planejado para " . date("d/m/Y", strtotime($data_planejada)) . " no planejamento da equipe.",
 						"data_envio" => date("Y-m-d H:i:s"),
+						"interno" => $dados['interno'],
 					));
 				} else {
 					$data_planejada = null;
@@ -3016,6 +3069,10 @@ class Chamados extends Admin_Controller
 				/** kanban **/
 				$this->kanban_model->atualizarKanban($this->input->post(), $_POST["chamado_id"], false);
 				/** fim kanban **/
+
+				if ((int) $_POST["status"] === 3 && (int) $chamado->status_id !== 3) {
+					$this->avisar_discord_encerramento((int) $_POST["chamado_id"]);
+				}
 
 				//adicionar flag retrabalho
 				if (($chamado->status_id == 8 || $chamado->status_id == 3 || $chamado->status_id == 5) && $_POST['status'] == 1) {
@@ -3094,9 +3151,11 @@ class Chamados extends Admin_Controller
 				$email_config_db = $this->ion_auth->get_email_config()->row();
 
 				if ($email_config_db->test == 1) {
+					$email_config = rowToConfigEmail($email_config_db);
 					$from_email = $email_config_db->from_email;
 					$from_name = $email_config_db->from_name;
 				} else {
+					$email_config = $this->config->item('email_config', 'ion_auth');
 					$from_email = $this->config->item('admin_email', 'ion_auth');
 					$from_name = $this->config->item('site_title', 'ion_auth');
 				}
@@ -3118,7 +3177,7 @@ class Chamados extends Admin_Controller
 				}
 				list($padrao_email_ass, $padrao_email_msg) = $this->aplicar_email_chamado(9, $_POST["chamado_id"], array(
 					'{msg_adicional}' => $msg_adicional !== '' ? '<div style="margin:0 0 16px;padding:12px 14px;background:#f7f9fb;border-left:3px solid #3c8dbc;font-size:14px;line-height:1.5;color:#444444;">' . $msg_adicional . '</div>' : '',
-				));
+				), $restrito);
 
 				/*$this->email->clear();
 				$this->email->from($from_email, utf8_decode($from_name));
@@ -3148,27 +3207,48 @@ class Chamados extends Admin_Controller
 
 				$mail->setFrom($from_email, utf8_decode($from_name));
 
+				// Mesmos grupos que o diálogo interno deixa de fora do e-mail.
+				$grupos_excluidos = array(2, 11, 35, 58, 68);
+				$pode_receber = function ($user_id) use ($restrito, $grupos_excluidos) {
+					if (!$restrito || !$user_id) {
+						return true;
+					}
+					foreach ($grupos_excluidos as $grupo_id) {
+						if ($this->ion_auth->in_group($grupo_id, $user_id)) {
+							return false;
+						}
+					}
+					return true;
+				};
+
 				if (is_array(unserialize($chamado->interessados))) {
 					foreach (unserialize($chamado->interessados) as $int) {
-						$mail->addAddress($this->chamados_model->get_email($int));
+						if ($pode_receber($int)) {
+							$mail->addAddress($this->chamados_model->get_email($int));
+						}
 					}
 				}
-				$mail->addAddress($chamado->email_dono);
-				$mail->addAddress($chamado->email_resp);
-				$mail->addAddress($chamado->email_dev);
+				if ($pode_receber($chamado->dono_id))
+					$mail->addAddress($chamado->email_dono);
+				if ($pode_receber($chamado->responsavel_id))
+					$mail->addAddress($chamado->email_resp);
+				if ($pode_receber($chamado->desenvolvedor_id))
+					$mail->addAddress($chamado->email_dev);
 
 				$mail->Subject = utf8_decode($padrao_email_ass);
 				$mail->isHTML(true);
 
 				$mail->Body = utf8_decode($padrao_email_msg);
-				$mail->send();
+				if (count($mail->getToAddresses()) > 0) {
+					$mail->send();
+				}
 
 				if ($chamado->plano_acao != "" && $chamado->plano_acao != 0) {
 					$this->atualizar_plano_acao($chamado->plano_acao);
 				}
 			}
 
-			$this->session->set_flashdata('message', show_alert_success("Chamado escalado com sucesso."));
+			$this->session->set_flashdata('message', show_alert_success($restrito ? "Chamado escalado com sucesso (restrito)." : "Chamado escalado com sucesso."));
 		} else {
 			$this->session->set_flashdata('message', show_alert_error(validation_errors()));
 		}
@@ -3262,6 +3342,7 @@ class Chamados extends Admin_Controller
 
 			if ((int) $_POST["status"] === 3 && (int) $chamado->status_id !== 3) {
 				$this->avisar_whatsapp_solicitante((int) $_POST["chamado_id"], 'encerramento');
+				$this->avisar_discord_encerramento((int) $_POST["chamado_id"]);
 			}
 
 			$i = 0;
