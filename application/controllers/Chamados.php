@@ -421,7 +421,8 @@ class Chamados extends Admin_Controller
 			$mail->Body = utf8_decode($padrao_email_msg);
 			$mail->send();
 
-			$this->avisar_whatsapp_solicitante($id, 'abertura');
+			// Aviso por WhatsApp desabilitado por enquanto no Maestriatech.
+			// $this->avisar_whatsapp_solicitante($id, 'abertura');
 
 			$mensagem_criacao = show_alert_success($this->chamados_model->messages());
 			if ($erros_anexos) {
@@ -3070,9 +3071,10 @@ class Chamados extends Admin_Controller
 				$this->kanban_model->atualizarKanban($this->input->post(), $_POST["chamado_id"], false);
 				/** fim kanban **/
 
-				if ((int) $_POST["status"] === 3 && (int) $chamado->status_id !== 3) {
-					$this->avisar_discord_encerramento((int) $_POST["chamado_id"]);
-				}
+				// Aviso por Discord desabilitado por enquanto no Maestriatech.
+				// if ((int) $_POST["status"] === 3 && (int) $chamado->status_id !== 3) {
+				// 	$this->avisar_discord_encerramento((int) $_POST["chamado_id"]);
+				// }
 
 				//adicionar flag retrabalho
 				if (($chamado->status_id == 8 || $chamado->status_id == 3 || $chamado->status_id == 5) && $_POST['status'] == 1) {
@@ -3340,10 +3342,11 @@ class Chamados extends Admin_Controller
 
 			$this->chamados_model->create_dialogo($dados);
 
-			if ((int) $_POST["status"] === 3 && (int) $chamado->status_id !== 3) {
-				$this->avisar_whatsapp_solicitante((int) $_POST["chamado_id"], 'encerramento');
-				$this->avisar_discord_encerramento((int) $_POST["chamado_id"]);
-			}
+			// Avisos por WhatsApp e Discord desabilitados por enquanto no Maestriatech.
+			// if ((int) $_POST["status"] === 3 && (int) $chamado->status_id !== 3) {
+			// 	$this->avisar_whatsapp_solicitante((int) $_POST["chamado_id"], 'encerramento');
+			// 	$this->avisar_discord_encerramento((int) $_POST["chamado_id"]);
+			// }
 
 			$i = 0;
 			$dialogos = array();
