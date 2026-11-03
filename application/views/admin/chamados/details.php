@@ -472,6 +472,7 @@ $checklist_count = isset($checklists_associados) ? count($checklists_associados)
                     </div>
                 </div>
 
+                <?php if (@$acesso_ver_apontamentos) { ?>
                 <div class="box <?php echo $time_entries ? '' : 'collapsed-box' ?>">
                     <div class="box-header with-border">
                         <h3 class="box-title"><i class="fa fa-clock-o"></i> Horas apontadas <small><?php echo $total_effort ?> h</small></h3>
@@ -498,6 +499,7 @@ $checklist_count = isset($checklists_associados) ? count($checklists_associados)
                         <?php } ?>
                     </div>
                 </div>
+                <?php } ?>
             </div>
         </div>
     </section>
@@ -776,7 +778,7 @@ $escalar_horas_previstas = ($chamado->horas_prevista !== null && $chamado->horas
 
                 <div class="modal-header">
                     <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">&times;</button>
-                    <h4 class="modal-title" id="apontarModalTitulo">Apontar horas no chamado #<?php echo (int) $chamado->id ?></h4>
+                    <h4 class="modal-title" id="apontarModalTitulo"><?php echo @$acesso_lancar_apontamento ? 'Apontar horas no chamado' : 'Apontamentos do chamado' ?> #<?php echo (int) $chamado->id ?></h4>
                     <div class="apontar-subtitle"><?php echo html_escape($chamado->titulo) ?></div>
                 </div>
 
@@ -811,6 +813,7 @@ $escalar_horas_previstas = ($chamado->horas_prevista !== null && $chamado->horas
                         </div>
                     </div>
 
+                    <?php if (@$acesso_lancar_apontamento) { ?>
                     <div class="apontar-form">
                         <div class="row">
                             <div class="col-sm-3 form-group">
@@ -852,6 +855,9 @@ $escalar_horas_previstas = ($chamado->horas_prevista !== null && $chamado->horas
                         </div>
                         <p class="text-danger small apontar-erro" id="apontar-erro" style="display:none;"></p>
                     </div>
+                    <?php } else { ?>
+                        <p class="text-muted small"><i class="fa fa-lock"></i> Apenas usuários do grupo admin ou desenvolvedores podem lançar apontamentos.</p>
+                    <?php } ?>
 
                     <div class="apontar-history">
                         <div class="apontar-history-title">
@@ -885,8 +891,12 @@ $escalar_horas_previstas = ($chamado->horas_prevista !== null && $chamado->horas
                 </div>
 
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" id="btn-apontar"><i class="fa fa-check"></i> Salvar apontamento</button>
+                    <?php if (@$acesso_lancar_apontamento) { ?>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" id="btn-apontar"><i class="fa fa-check"></i> Salvar apontamento</button>
+                    <?php } else { ?>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Fechar</button>
+                    <?php } ?>
                 </div>
                 <?php echo form_close(); ?>
             </div>

@@ -810,12 +810,17 @@ class Unidades extends Admin_Controller {
                 $ok = $this->unidades_model->update($unidade->id, $dados);
                 if ($ok) {
                     // URL do node e token da API por produto habilitado (aba "Dados do APP").
+                    // Prefixo do banco e IP só existem no produto SaxWeb.
                     $produtos_post = $this->input->post('produtos_app');
                     if (is_array($produtos_post)) {
                         foreach ($produtos_post as $id_produto => $campos) {
                             $update_hp = array();
                             if (isset($campos['url_node'])) { $update_hp['url_node'] = $campos['url_node']; }
                             if (isset($campos['token_api'])) { $update_hp['token_api'] = $campos['token_api']; }
+                            if ((int) $id_produto === ID_PRODUTO_SAXWEB) {
+                                if (isset($campos['prefixo_banco'])) { $update_hp['prefixo_banco'] = substr(trim($campos['prefixo_banco']), 0, 50); }
+                                if (isset($campos['ip_servidor'])) { $update_hp['ip_servidor'] = substr(trim($campos['ip_servidor']), 0, 45); }
+                            }
                             if ($update_hp) {
                                 $this->db->update('habilitacoes_produto', $update_hp, array('id_cliente' => (int) $unidade->id, 'id_produto' => (int) $id_produto));
                             }
@@ -837,7 +842,7 @@ class Unidades extends Admin_Controller {
         $produtos_app = array();
         $numeros = null;
         if ($editando) {
-            $produtos_app = $this->db->select('hp.id_produto, hp.url_node, hp.token_api, hp.status, hp.periodo_fim, p.nome')
+            $produtos_app = $this->db->select('hp.id_produto, hp.url_node, hp.token_api, hp.prefixo_banco, hp.ip_servidor, hp.status, hp.periodo_fim, p.nome')
                 ->from('habilitacoes_produto hp')->join('produtos p', 'hp.id_produto = p.id')
                 ->where('hp.id_cliente', (int) $unidade->id)->order_by('p.nome')->get()->result();
             $numeros = $this->db->query("SELECT

@@ -132,14 +132,14 @@ $campo = function ($nome, $rotulo, $obrigatorio, $atributos = '') use ($valores,
                     <div class="box box-primary">
                         <div class="box-header with-border">
                             <h3 class="box-title"><span class="step-number">4</span>Dados do APP</h3>
-                            <span class="box-subtitle">Endereço do node e token da API de cada produto habilitado. Só produtos ativos podem ser alterados.</span>
+                            <span class="box-subtitle">Endereço do node e token da API de cada produto habilitado. No SaxWeb, também o prefixo do banco e o IP. Só produtos ativos podem ser alterados.</span>
                         </div>
                         <div class="box-body table-responsive no-padding">
                             <?php if ($produtos_app) { ?>
                                 <table class="table lista-tabela">
-                                    <thead><tr><th>Produto</th><th>URL do node</th><th>Token da API</th></tr></thead>
+                                    <thead><tr><th>Produto</th><th>URL do node</th><th>Token da API</th><th>Prefixo do banco</th><th>IP</th></tr></thead>
                                     <tbody>
-                                        <?php foreach ($produtos_app as $produto) { $bloqueado = $produto->status !== 'S'; ?>
+                                        <?php foreach ($produtos_app as $produto) { $bloqueado = $produto->status !== 'S'; $saxweb = (int) $produto->id_produto === ID_PRODUTO_SAXWEB; ?>
                                             <tr class="<?php echo $bloqueado ? 'is-inativo' : 'is-ativo' ?>">
                                                 <td>
                                                     <div class="lista-nome"><?php echo html_escape($produto->nome) ?></div>
@@ -147,6 +147,13 @@ $campo = function ($nome, $rotulo, $obrigatorio, $atributos = '') use ($valores,
                                                 </td>
                                                 <td><input type="text" name="produtos_app[<?php echo (int) $produto->id_produto ?>][url_node]" value="<?php echo html_escape($produto->url_node) ?>" class="form-control input-sm" <?php echo $bloqueado ? 'disabled' : '' ?>></td>
                                                 <td><input type="text" name="produtos_app[<?php echo (int) $produto->id_produto ?>][token_api]" value="<?php echo html_escape($produto->token_api) ?>" class="form-control input-sm" autocomplete="off" <?php echo $bloqueado ? 'disabled' : '' ?>></td>
+                                                <?php if ($saxweb) { ?>
+                                                    <td><input type="text" name="produtos_app[<?php echo (int) $produto->id_produto ?>][prefixo_banco]" value="<?php echo html_escape($produto->prefixo_banco) ?>" class="form-control input-sm" maxlength="50" autocomplete="off" <?php echo $bloqueado ? 'disabled' : '' ?>></td>
+                                                    <td><input type="text" name="produtos_app[<?php echo (int) $produto->id_produto ?>][ip_servidor]" value="<?php echo html_escape($produto->ip_servidor) ?>" class="form-control input-sm" maxlength="45" placeholder="0.0.0.0" autocomplete="off" <?php echo $bloqueado ? 'disabled' : '' ?>></td>
+                                                <?php } else { ?>
+                                                    <td class="text-muted">—</td>
+                                                    <td class="text-muted">—</td>
+                                                <?php } ?>
                                             </tr>
                                         <?php } ?>
                                     </tbody>

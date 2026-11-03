@@ -19,7 +19,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
         <script src="<?php echo base_url('assets/xkey/moment.min.js'); ?>"></script>
         <script src="<?php echo base_url('assets/xkey/pt-br.js'); ?>"></script>
         <script src="<?php echo base_url($plugins_dir . '/datetimepicker/build/js/bootstrap-datetimepicker.min.js'); ?>"></script>
-        <script src="<?php echo base_url('assets/xkey/funcoes.js?v=3.7'); ?>"></script>
+        <script src="<?php echo base_url('assets/xkey/funcoes.js?v=3.8'); ?>"></script>
         <script src="<?php echo base_url($frameworks_dir . '/jquery-ui/jquery-ui.min.js'); ?>"></script>
         <script src="<?php echo base_url($frameworks_dir . '/bootstrap/js/bootstrap.min.js'); ?>"></script>
         <script src="<?php echo base_url($plugins_dir . '/slimscroll/slimscroll.min.js'); ?>"></script>

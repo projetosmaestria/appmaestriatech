@@ -455,7 +455,7 @@ $('#unidade').change(function(e){
     var id_unidade = $('#unidade').val();
     var base_url = $('#base_url').val();
     carregar_select_default(id_unidade, 'produto', base_url+'chamados/get_produtos_habilitados', 'Esta unidade não possui produtos habilitados!');
-    carregar_select_default_chamados(id_unidade, 'interessados', base_url+'chamados/get_users_unidade', 'Esta unidade não usuários!');
+    carregar_select_default_chamados(id_unidade, 'interessados', base_url+'chamados/get_users_unidade', 'Esta unidade não possui usuários vinculados!');
     carregar_select_default(id_unidade, 'plano_acao', base_url+'chamados/get_plano_acao', 'Esta unidade não possui projetos habilitados!');
     //$('#dono').fastselect();
     //$('#interessados').fastselect();
@@ -556,22 +556,29 @@ function carregar_select_default_chamados(id, select, controller, msg){
     $('#'+select).html('<option value="">Carregando...</option>');
     $('#dono').html('<option value="">Carregando...</option>');
 
-    var option_select = '<option value="">Selecione</option>';
-    var option_multi = '';
     $.post(controller,{
         id: id
     }, function(data){
-        if(!jQuery.isEmptyObject(data)){
-            $.each(data, function(i, obj){
+        var vazio = '<option value="">'+msg+'</option>';
+
+        if(!jQuery.isEmptyObject(data.dono)){
+            var option_select = '<option value="">Selecione</option>';
+            $.each(data.dono, function(i, obj){
                 option_select += '<option value="'+obj.id+'">'+obj.nome+'</option>';
+            });
+            $('#dono').html(option_select).show();
+        }else{
+            $('#dono').html(vazio).show();
+        }
+
+        if(!jQuery.isEmptyObject(data.interessados)){
+            var option_multi = '';
+            $.each(data.interessados, function(i, obj){
                 option_multi += '<option value="'+obj.id+'">'+obj.nome+' ('+obj.email+')</option>';
             });
             $('#interessados').html(option_multi).show();
-            $('#dono').html(option_select).show();
         }else{
-            option_select = '<option value="">'+msg+'</option>';
-            $('#interessados').html(option_select).show();
-            $('#dono').html(option_select).show();
+            $('#interessados').html(vazio).show();
         }
     }, 'json');
 }

@@ -739,6 +739,10 @@ class Chamados_model extends CI_Model
         if (!empty($filtros['chamado'])) {
             $this->db->where('a.chamado_id', (int) $filtros['chamado']);
         }
+        if (!empty($filtros['vinculado_user_id'])) {
+            $user_id = (int) $filtros['vinculado_user_id'];
+            $this->db->where('(c.dono_id = ' . $user_id . ' OR c.responsavel_id = ' . $user_id . ' OR c.desenvolvedor_id = ' . $user_id . ')', null, false);
+        }
         return $this->db->order_by('a.data', 'desc')->order_by('a.hora_inicio', 'desc')->get()->result();
     }
 

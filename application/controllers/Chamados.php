@@ -992,6 +992,39 @@ class Chamados extends Admin_Controller
 			->count_all_results('users_groups ug') > 0;
 	}
 
+	// Usuário do grupo admin ou dos grupos de desenvolvedores da empresa: lança apontamentos e vê qualquer chamado da empresa.
+	private function is_admin_ou_desenvolvedor()
+	{
+		if ($this->ion_auth->is_admin()) {
+			return true;
+		}
+		$query_pref = $this->db->get_where('admin_preferences', array('empresa_id' => $this->session->userdata('empresa_id')))->row();
+		if (!$query_pref) {
+			return false;
+		}
+		$grupos = array_unique(array_filter(array_map('intval', (array) @unserialize($query_pref->grupos_dev_chamado))));
+		return $grupos && $this->ion_auth->in_group($grupos);
+	}
+
+	// Usuário é o solicitante, o responsável ou o programador do chamado.
+	private function vinculado_ao_chamado($chamado)
+	{
+		$user_id = (int) $this->session->userdata('user_id');
+		return in_array($user_id, array((int) $chamado->dono_id, (int) $chamado->responsavel_id, (int) $chamado->desenvolvedor_id), true);
+	}
+
+	// Demais usuários só veem chamados das filiais a que estão vinculados ou aos quais estão vinculados diretamente.
+	private function pode_ver_chamado($chamado)
+	{
+		return $this->is_admin_ou_desenvolvedor() || $this->tem_acesso_unidade($chamado->unidade_id) || $this->vinculado_ao_chamado($chamado);
+	}
+
+	// Demais usuários só veem os apontamentos dos chamados aos quais estão vinculados diretamente.
+	private function pode_ver_apontamentos($chamado)
+	{
+		return $this->is_admin_ou_desenvolvedor() || $this->vinculado_ao_chamado($chamado);
+	}
+
 	private function registrar_aviso_whatsapp($chamado_id, $descricao)
 	{
 		$this->chamados_model->create_dialogo(array(
@@ -1545,9 +1578,11 @@ class Chamados extends Admin_Controller
 			$this->data['acesso_imprimir'] = true;
 		if ($this->ion_auth->has_permissao("chamados", "reagendar"))
 			$this->data['acesso_reagendar'] = true;
+		$admin_ou_desenvolvedor = $this->is_admin_ou_desenvolvedor();
 		if ($this->ion_auth->has_permissao("chamados", "apontamento_manual_criar"))
 			$this->data['acesso_apontar_manual'] = true;
-		if ($this->ion_auth->has_permissao("chamados", "apontamento_automatico_criar"))
+		$this->data['acesso_lancar_apontamento'] = $admin_ou_desenvolvedor;
+		if ($admin_ou_desenvolvedor && $this->ion_auth->has_permissao("chamados", "apontamento_automatico_criar"))
 			$this->data['acesso_apontar_automatico'] = true;
 		if ($this->ion_auth->has_permissao("chamados", "associar_checklist"))
 			$this->data['acesso_associar_checklist'] = true;
@@ -1574,7 +1609,11 @@ class Chamados extends Admin_Controller
 			'order_by' => array('c.id', 'desc')
 		))->row();
 
-		if ($chamado->empresa_id != $this->session->userdata('empresa_id')) {
+		if (!$chamado || $chamado->empresa_id != $this->session->userdata('empresa_id')) {
+			redirect('chamados', 'refresh');
+		}
+		if (!$this->pode_ver_chamado($chamado)) {
+			$this->session->set_flashdata('message', show_alert_error("Você não tem acesso a este chamado."));
 			redirect('chamados', 'refresh');
 		}
 
@@ -1596,7 +1635,10 @@ class Chamados extends Admin_Controller
 		$where = "";
 		$where .= "a.user_id IN (" . $this->session->userdata('user_id') . ")";
 		// $this->data['apontamentos'] = $this->chamados_model->get_apontamentos($chamado->id, "a.user_id = ".$this->session->userdata('user_id'));
-		$this->data['apontamentos'] = $this->chamados_model->get_apontamentos($chamado->id);
+		$this->data['acesso_ver_apontamentos'] = $this->pode_ver_apontamentos($chamado);
+		$this->data['apontamentos'] = $this->chamados_model->get_apontamentos($chamado->id, $this->data['acesso_ver_apontamentos'] ? "" : "1 = 0");
+		if (!$this->data['acesso_ver_apontamentos'])
+			unset($this->data['acesso_apontar_manual']);
 
 		if ($this->ion_auth->has_permissao("chamados", "alterar_prioridade"))
 			$this->data['has_prioridade'] = true;
@@ -3490,7 +3532,7 @@ class Chamados extends Admin_Controller
 		$checklists_associados = $this->chamados_checklists_model->get_com_etapas($id);
 
 		$chamado = $this->chamados_model->get(array(
-			'select' => 'c.id, c.categoria_id, c.modulo_id, c.resposta, c.referencia_id, c.unidade_id, c.produto_id, c.modulo_id, c.protocolo, c.titulo, c.descricao, c.horas, c.reincidencia, c.created, c.data_finalizacao, c.data_inicio, c.data_prazo, c.modified, c.status_id, c.prioridade_id, c.dono_id, c.responsavel_id, u.first_name, u.last_name, cs.descricao as catalogo_desc, un.unidade as cliente, cst.descricao as status, cp.descricao as prioridade, un.empresa_id, mc.nome as categoria_desc, p.nome as produto_desc, m.nome as modulo_desc, n.descricao as nivel_desc, ud.first_name as first_name_dono, ud.last_name as last_name_dono',
+			'select' => 'c.id, c.categoria_id, c.modulo_id, c.resposta, c.referencia_id, c.unidade_id, c.produto_id, c.modulo_id, c.protocolo, c.titulo, c.descricao, c.horas, c.reincidencia, c.created, c.data_finalizacao, c.data_inicio, c.data_prazo, c.modified, c.status_id, c.prioridade_id, c.dono_id, c.responsavel_id, u.first_name, u.last_name, cs.descricao as catalogo_desc, un.unidade as cliente, cst.descricao as status, cp.descricao as prioridade, un.empresa_id, mc.nome as categoria_desc, p.nome as produto_desc, m.nome as modulo_desc, n.descricao as nivel_desc, ud.first_name as first_name_dono, ud.last_name as last_name_dono, c.desenvolvedor_id',
 			'join' => array(
 				array('users u', 'u.id = c.responsavel_id', 'left'),
 				array('users ud', 'ud.id = c.dono_id', 'left'),
@@ -3510,6 +3552,10 @@ class Chamados extends Admin_Controller
 		if (!$chamado) {
 			log_message('error', 'IMPRIMIR - Chamado não encontrado para o ID: ' . $id);
 			$this->session->set_flashdata('message', show_alert_error("Chamado não encontrado."));
+			redirect('chamados', 'refresh');
+		}
+		if ($chamado->empresa_id != $this->session->userdata('empresa_id') || !$this->pode_ver_chamado($chamado)) {
+			$this->session->set_flashdata('message', show_alert_error("Você não tem acesso a este chamado."));
 			redirect('chamados', 'refresh');
 		}
 
@@ -3540,7 +3586,7 @@ class Chamados extends Admin_Controller
 
 		$this->data['timeline'] = $timeline;
 		$this->data['chamado'] = $chamado;
-		$this->data['apontamentos'] = $this->chamados_model->get_apontamentos($chamado->id);
+		$this->data['apontamentos'] = $this->chamados_model->get_apontamentos($chamado->id, $this->pode_ver_apontamentos($chamado) ? "" : "1 = 0");
 
 		$times = array();
 		if ($this->data['apontamentos']->num_rows()) {
@@ -3638,23 +3684,24 @@ class Chamados extends Admin_Controller
 
 	public function get_users_unidade()
 	{
-		$users_unidade = $this->chamados_model->get_users_interessados_unidade($_POST["id"]);
-
-		$select = array();
-		if ($users_unidade->num_rows() > 0):
-			foreach ($users_unidade->result() as $value) {
-				$user = array(
+		// Mesmas regras do carregamento da página: solicitante lista todos os usuários da unidade,
+		// interessados exclui os grupos responsáveis por chamado.
+		$formatar = function ($users) {
+			$lista = array();
+			foreach ($users->result() as $value) {
+				$lista[] = array(
 					'id' => $value->id,
 					'nome' => $value->first_name . " " . $value->last_name,
 					'email' =>  $value->email
 				);
-				array_push($select, $user);
 			}
-		else:
-			$select = false;
-		endif;
+			return $lista;
+		};
 
-		exit(json_encode($select));
+		exit(json_encode(array(
+			'dono' => $formatar($this->chamados_model->get_users_unidade($_POST["id"])),
+			'interessados' => $formatar($this->chamados_model->get_users_interessados_unidade($_POST["id"]))
+		)));
 	}
 
 	public function get_plano_acao()
@@ -3718,7 +3765,7 @@ class Chamados extends Admin_Controller
 		$retorno = array();
 		$data_hora = explode(" ", $_POST["data"]);
 		$data = explode("/", $data_hora[0]);
-		if ($_POST["chamado_id"] && checkdate($data[1], $data[0], $data[2]) && $this->ion_auth->has_permissao("chamados", "apontamento_automatico_criar")) {
+		if ($_POST["chamado_id"] && checkdate($data[1], $data[0], $data[2]) && $this->ion_auth->has_permissao("chamados", "apontamento_automatico_criar") && (!empty($_POST["apontamento_id"]) || $this->is_admin_ou_desenvolvedor())) {
 			$id = $this->chamados_model->salvar_apontamento($_POST);
 			$retorno["erro"] = false;
 			$retorno["data"] = $id;
@@ -3733,6 +3780,10 @@ class Chamados extends Admin_Controller
 	{
 		if (!isset($_POST["data"])) {
 			$this->session->set_flashdata('message', show_alert_error("Data inválida."));
+			redirect('chamados/details/' . $_POST["chamado_id"], 'refresh');
+		}
+		if (!$this->is_admin_ou_desenvolvedor()) {
+			$this->session->set_flashdata('message', show_alert_error("Apenas usuários do grupo admin ou desenvolvedores podem criar apontamentos."));
 			redirect('chamados/details/' . $_POST["chamado_id"], 'refresh');
 		}
 		$data_hora = explode(" ", $_POST["data"]);
@@ -3824,6 +3875,8 @@ class Chamados extends Admin_Controller
 			'clientes' => array_values(array_intersect($inteiros($this->input->get('clientes')), array_keys($unidade_options))),
 			'chamado' => (int) $this->input->get('chamado'),
 			'unidades_permitidas' => array_keys($unidade_options),
+			// Fora do admin e dos desenvolvedores, só os apontamentos dos chamados aos quais o usuário está vinculado.
+			'vinculado_user_id' => $this->is_admin_ou_desenvolvedor() ? 0 : (int) $this->session->userdata('user_id'),
 		);
 
 		$apontamentos = $this->chamados_model->get_apontamentos_relatorio($filtros);
