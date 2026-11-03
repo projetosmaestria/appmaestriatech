@@ -3,6 +3,9 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class Chamados extends Admin_Controller
 {
+	// Status a partir dos quais o chamado pode ir para Fechado (3): Aguardando Testes com o Cliente (8)
+	// e Aguardando Testes Sanclá (14).
+	private $status_permite_fechar = array(8, 14);
 
 	/*public $nomenclatura = array(
 		"index" => array("inicial","descricao teste"),
@@ -1695,7 +1698,7 @@ class Chamados extends Admin_Controller
 
 		$this->data['timeline'] = $timeline;
 
-		if ($chamado->status_id == 8)
+		if (in_array((int) $chamado->status_id, $this->status_permite_fechar, true))
 			$status_n_obrigatorios = $this->chamados_model->get_status_n_obrigatorios(true)->result();
 		else
 			$status_n_obrigatorios = $this->chamados_model->get_status_n_obrigatorios()->result();
@@ -3331,7 +3334,7 @@ class Chamados extends Admin_Controller
 			'order_by' => array('c.id', 'desc')
 		))->row();
 
-		if ($_POST["status"] == 3 && $chamado->status_id != 8) {
+		if ($_POST["status"] == 3 && !in_array((int) $chamado->status_id, $this->status_permite_fechar, true)) {
 			$this->session->set_flashdata('message', show_alert_error('Status "Em Avaliação" apenas permitido para chamados resolvidos.'));
 			redirect('chamados/details/' . $_POST["chamado_id"], 'refresh');
 		}
