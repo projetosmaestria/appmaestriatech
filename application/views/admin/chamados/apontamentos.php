@@ -178,6 +178,14 @@ foreach ($resumo['usuarios'] as $usuario) {
             <div class="box-header with-border">
                 <h3 class="box-title">Apontamentos</h3>
                 <span class="text-muted small"> · mais recentes primeiro</span>
+                <?php if ($apontamentos) { ?>
+                    <div class="box-tools pull-right">
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-default btn-sm js-exportar-tabela" data-formato="xlsx" title="Exportar as linhas da tabela (respeita a busca e a ordenação)"><i class="fa fa-file-excel-o text-green"></i> Excel</button>
+                            <button type="button" class="btn btn-default btn-sm js-exportar-tabela" data-formato="pdf" title="Exportar as linhas da tabela (respeita a busca e a ordenação)"><i class="fa fa-file-pdf-o text-red"></i> PDF</button>
+                        </div>
+                    </div>
+                <?php } ?>
             </div>
             <div class="box-body">
                 <?php if (!$apontamentos) { ?>
@@ -438,19 +446,89 @@ foreach ($resumo['usuarios'] as $usuario) {
             }
         };
 
-        document.querySelectorAll('.js-exportar').forEach(function(button) {
-            button.addEventListener('click', function() {
-                var formato = button.getAttribute('data-formato');
-                var texto = button.innerHTML;
-                button.disabled = true;
-                button.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Gerando...';
-                exportar[formato]().catch(function() {
-                    alert('Não foi possível gerar o arquivo. Verifique a conexão com a internet e tente novamente.');
-                }).then(function() {
-                    button.disabled = false;
-                    button.innerHTML = texto;
+        // Linhas da tabela na ordem e com a busca aplicadas no DataTable. As linhas do <tbody>
+        // seguem a mesma ordem de dados.linhas, então o índice da linha aponta para o registro.
+        function selecaoTabela() {
+            var tabela = (window.jQuery && $.fn.dataTable && $.fn.dataTable.isDataTable('#apont_datatable')) ? $('#apont_datatable').DataTable() : null;
+            if (!tabela) { return {linhas: dados.linhas, busca: ''}; }
+            var linhas = tabela.rows({search: 'applied', order: 'applied'}).indexes().toArray().map(function(i) { return dados.linhas[i]; });
+            return {linhas: linhas, busca: $.trim(tabela.search())};
+        }
+        function somaSegundos(linhas) { return linhas.reduce(function(total, l) { return total + l.segundos; }, 0); }
+
+        var exportarTabela = {
+            xlsx: function(sel) {
+                return carregar('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js').then(function() {
+                    var total = somaSegundos(sel.linhas);
+                    var linhas = [['Data', 'Usuário', 'Cliente', 'Chamado', 'Título', 'Início', 'Término', 'Esforço (hh:mm)', 'Horas', 'Observação']];
+                    sel.linhas.forEach(function(l) {
+                        linhas.push([l.data, l.usuario, l.cliente, l.chamado, l.titulo, l.inicio, l.fim, hhmm(l.segundos), horasDecimais(l.segundos), l.observacao]);
+                    });
+                    linhas.push(['Total', '', '', '', '', '', '', hhmm(total), horasDecimais(total), '']);
+
+                    var livro = XLSX.utils.book_new();
+                    var aba = XLSX.utils.aoa_to_sheet(linhas);
+                    aba['!cols'] = [{wch: 11}, {wch: 24}, {wch: 28}, {wch: 9}, {wch: 45}, {wch: 7}, {wch: 8}, {wch: 14}, {wch: 8}, {wch: 50}];
+                    aba['!autofilter'] = {ref: 'A1:J' + (linhas.length - 1)};
+                    XLSX.utils.book_append_sheet(livro, aba, 'Apontamentos');
+                    XLSX.writeFile(livro, dados.arquivo + (sel.busca ? '_filtrado' : '') + '.xlsx');
+                });
+            },
+            pdf: function(sel) {
+                return carregar('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js')
+                    .then(function() { return carregar('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js'); })
+                    .then(function() {
+                        var total = somaSegundos(sel.linhas);
+                        var cab = function(t) { return {text: t, style: 'cab'}; };
+                        var corpo = [[cab('Data'), cab('Usuário'), cab('Cliente'), cab('Chamado'), cab('Período'), cab('Esforço'), cab('Observação')]];
+                        sel.linhas.forEach(function(l) {
+                            corpo.push([l.data, l.usuario, l.cliente, '#' + l.chamado + ' ' + l.titulo, l.inicio ? l.inicio + (l.fim ? ' – ' + l.fim : '') : '—', {text: hhmm(l.segundos), alignment: 'right'}, l.observacao]);
+                        });
+                        corpo.push([{text: 'Total (' + sel.linhas.length + ' apontamentos)', colSpan: 5, alignment: 'right', bold: true}, '', '', '', '', {text: hhmm(total), alignment: 'right', bold: true}, '']);
+
+                        var subtitulo = 'Período: ' + dados.periodo + '   ·   ' + dados.filtros;
+                        if (sel.busca) { subtitulo += '   ·   Busca na tabela: "' + sel.busca + '"'; }
+                        pdfMake.createPdf({
+                            pageSize: 'A4', pageOrientation: 'landscape', pageMargins: [28, 32, 28, 36],
+                            defaultStyle: {fontSize: 8, color: '#333333'},
+                            styles: {titulo: {fontSize: 14, bold: true, color: '#2f4a5c'}, sub: {fontSize: 9, color: '#777777'}, cab: {bold: true, color: '#ffffff', fontSize: 8}},
+                            footer: function(pagina, totalPaginas) { return {columns: [{text: 'Apontamentos · ' + dados.periodo + ' · Gerado em ' + dados.gerado_em, margin: [28, 0, 0, 0]}, {text: 'Página ' + pagina + ' de ' + totalPaginas, alignment: 'right', margin: [0, 0, 28, 0]}], fontSize: 7, color: '#999999'}; },
+                            content: [
+                                {text: 'Apontamentos', style: 'titulo'},
+                                {text: subtitulo, style: 'sub', margin: [0, 2, 0, 10]},
+                                {table: {headerRows: 1, widths: [44, 80, 90, '*', 52, 38, 150], body: corpo}, layout: {
+                                    fillColor: function(i) { return i === 0 ? '#2f4a5c' : (i % 2 === 0 ? '#f4f6f8' : null); },
+                                    hLineColor: '#d2d6de', vLineColor: '#d2d6de', hLineWidth: function() { return 0.5; }, vLineWidth: function() { return 0; }
+                                }}
+                            ]
+                        }).download(dados.arquivo + (sel.busca ? '_filtrado' : '') + '.pdf');
+                    });
+            }
+        };
+
+        function aoClicarExportar(seletor, gerar) {
+            document.querySelectorAll(seletor).forEach(function(button) {
+                button.addEventListener('click', function() {
+                    var texto = button.innerHTML;
+                    button.disabled = true;
+                    button.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Gerando...';
+                    gerar(button.getAttribute('data-formato')).catch(function() {
+                        alert('Não foi possível gerar o arquivo. Verifique a conexão com a internet e tente novamente.');
+                    }).then(function() {
+                        button.disabled = false;
+                        button.innerHTML = texto;
+                    });
                 });
             });
+        }
+        aoClicarExportar('.js-exportar', function(formato) { return exportar[formato](); });
+        aoClicarExportar('.js-exportar-tabela', function(formato) {
+            var sel = selecaoTabela();
+            if (!sel.linhas.length) {
+                alert('Nenhuma linha na tabela para exportar.');
+                return Promise.resolve();
+            }
+            return exportarTabela[formato](sel);
         });
     })();
 

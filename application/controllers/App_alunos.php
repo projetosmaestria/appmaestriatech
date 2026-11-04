@@ -202,9 +202,18 @@ class App_alunos extends Admin_Controller {
             redirect('auth', 'refresh');
         }
 
+        $id = (int) $id;
         $user = $this->ion_auth_model->user($id)->row();
 
-        if(@$user->id) {
+        // O aluno precisa estar vinculado a uma unidade da empresa logada (mesmo critério da listagem).
+        $pertence_empresa = $this->db->select('uu.user_id')
+            ->join('unidades un', 'un.id = uu.unidade_id')
+            ->where('uu.user_id', $id)
+            ->where('un.empresa_id', (int) $this->session->userdata('empresa_id'))
+            ->limit(1)
+            ->get('user_unidade uu')->num_rows() > 0;
+
+        if(@$user->id && $pertence_empresa) {
             if($user->active == 1 || $user->activation_code == "") {
                 $this->session->set_flashdata('message', show_alert_info("Este usuário já se encontra ativo."));
                 redirect('app_alunos', 'refresh');
@@ -318,10 +327,10 @@ class App_alunos extends Admin_Controller {
             // Send email
             if(!$mail->send()){
                 $this->session->set_flashdata('message', show_alert_error("Houve um problema ao enviar o e-mail, tente novamente ou entre em contato com o administrador."));
-                redirect('users', 'refresh');
+                redirect('app_alunos', 'refresh');
             }else{
                 $this->session->set_flashdata('message', show_alert_success("E-mail reenviado com sucesso."));
-                redirect('users', 'refresh');
+                redirect('app_alunos', 'refresh');
             }
         }
         $this->session->set_flashdata('message', show_alert_error("Usuário não encontrado."));
