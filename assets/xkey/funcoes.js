@@ -433,13 +433,91 @@ function add_resposta(tipo, chamado_id) {
       $('.dialogo-anexo').hide().html(html).fadeIn('slow');
     }
     if(tipo == 2) {
-      var html = "<form enctype='multipart/form-data' id='resposta-chamado-form' action='"+$('#base_url').val()+"chamados/anexo/"+chamado_id+"' method='post'><div class='form-group'><br><label for='anexo_desc'>Descrição do Anexo</label><textarea id='anexo_desc' name='anexo_desc' class='form-control' rows='3' placeholder='Digite aqui...'></textarea></div><div class='form-group'><label class='btn btn-primary' for='anexo'> <input id='anexo' type='file' name='anexo[]' multiple style='display:none' onchange='informarArquivos(this.files)'> Selecionar Anexo... </label> <span class='label label-info' id='upload-file-info'></span></div><div class='form-group'><button type='submit' class='btn btn-primary btn-flat'>Salvar</button></div></form>"; 
+      var html = "<form enctype='multipart/form-data' id='resposta-chamado-form' action='"+$('#base_url').val()+"chamados/anexo/"+chamado_id+"' method='post'>"+
+        "<div class='form-group'><br><label for='anexo_desc'>Descrição do Anexo</label><textarea id='anexo_desc' name='anexo_desc' class='form-control' rows='3' placeholder='Digite aqui...'></textarea></div>"+
+        "<div class='form-group anexo-dialogo-drop' style='padding:12px;border:2px dashed #c9d3dd;border-radius:6px;background:#f9fbfc;text-align:center;'>"+
+          "<label class='btn btn-default' for='anexo' style='margin:0;'><i class='fa fa-paperclip'></i> Adicionar arquivos... <input id='anexo' type='file' name='anexo[]' multiple style='display:none'></label>"+
+          "<div class='text-muted small' style='margin-top:6px;'>Você pode adicionar quantos arquivos quiser, em várias seleções ou arrastando para cá. Todos ficam no mesmo diálogo.</div>"+
+        "</div>"+
+        "<ul class='list-group' id='anexo-dialogo-lista' style='margin-bottom:10px;'></ul>"+
+        "<div class='form-group'><button type='submit' class='btn btn-primary btn-flat' id='anexo-dialogo-salvar' disabled>Salvar</button></div></form>";
       $('.dialogo-anexo').hide().html(html).fadeIn('slow');
+      iniciarAnexosDialogo();
     }
   } else {
     $('.dialogo-anexo').html('');
   }
 }
+// Acumula os arquivos de várias seleções/arrastes no input anexo[] do formulário de anexo do chamado.
+function iniciarAnexosDialogo() {
+  var input = document.getElementById('anexo');
+  var arquivos = [];
+  var podeAcumular = typeof DataTransfer !== 'undefined';
+
+  function tamanho(bytes) {
+    return bytes >= 1048576 ? (bytes / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(bytes / 1024)) + ' KB';
+  }
+
+  function sincronizar() {
+    var $lista = $('#anexo-dialogo-lista').empty();
+    $.each(arquivos, function(indice, arquivo) {
+      $("<li class='list-group-item' style='display:flex;align-items:center;gap:8px;padding:6px 10px;'>")
+        .append("<i class='fa fa-file-o text-muted'></i>")
+        .append($("<span style='flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>").text(arquivo.name).attr('title', arquivo.name))
+        .append($("<span class='text-muted small'>").text(tamanho(arquivo.size)))
+        .append($("<button type='button' class='btn btn-box-tool' title='Remover'><i class='fa fa-times'></i></button>").on('click', function() {
+          arquivos.splice(indice, 1);
+          sincronizar();
+        }))
+        .appendTo($lista);
+    });
+    if (podeAcumular) {
+      var transfer = new DataTransfer();
+      $.each(arquivos, function(i, arquivo) { transfer.items.add(arquivo); });
+      input.files = transfer.files;
+    }
+    $('#anexo-dialogo-salvar').prop('disabled', !arquivos.length);
+  }
+
+  function adicionar(lista) {
+    if (!podeAcumular) {
+      // Navegador sem DataTransfer: vale só a última seleção.
+      arquivos = [];
+    }
+    $.each(lista, function(i, arquivo) {
+      var repetido = arquivos.some(function(atual) {
+        return atual.name === arquivo.name && atual.size === arquivo.size;
+      });
+      if (!repetido) {
+        arquivos.push(arquivo);
+      }
+    });
+    sincronizar();
+  }
+
+  $(input).on('change', function() {
+    // Cada seleção substitui this.files; somamos à lista e sincronizar() regrava o input.
+    adicionar(Array.prototype.slice.call(this.files));
+  });
+
+  $('.anexo-dialogo-drop')
+    .on('dragenter dragover', function(e) {
+      e.preventDefault();
+      $(this).css({ borderColor: '#3c8dbc', background: '#eef5fa' });
+    })
+    .on('dragleave drop', function(e) {
+      e.preventDefault();
+      $(this).css({ borderColor: '#c9d3dd', background: '#f9fbfc' });
+      if (e.type === 'drop' && podeAcumular && e.originalEvent.dataTransfer.files.length) {
+        adicionar(Array.prototype.slice.call(e.originalEvent.dataTransfer.files));
+      }
+    });
+
+  $('#resposta-chamado-form').on('submit', function() {
+    $('#anexo-dialogo-salvar').prop('disabled', true).html("<i class='fa fa-spinner fa-spin'></i> Enviando " + arquivos.length + (arquivos.length === 1 ? ' arquivo...' : ' arquivos...'));
+  });
+}
+
 function informarArquivos(files) {
   var html = "";
   $.each(files, function(i, obj){

@@ -80,6 +80,29 @@ foreach ($time_entries as $entry) {
 $total_effort = sprintf('%d:%02d', floor($total_seconds / 3600), floor(($total_seconds % 3600) / 60));
 $is_closed = $chamado->status_id == 3 || $chamado->status_id == 5;
 $checklist_count = isset($checklists_associados) ? count($checklists_associados) : 0;
+// Arquivos enviados juntos (mesmo autor, horário e descrição) aparecem em uma única mensagem.
+$conversa = array();
+$grupos_anexo = array();
+foreach ((array) $timeline as $item) {
+    if (empty($item['anexo'])) {
+        $conversa[] = $item;
+        continue;
+    }
+    $chave = $item['responsavel_id'] . '|' . $item['created'] . '|' . trim((string) $item['descricao']);
+    if (isset($grupos_anexo[$chave])) {
+        $conversa[$grupos_anexo[$chave]]['arquivos'][] = $item['anexo'];
+        continue;
+    }
+    $item['arquivos'] = array($item['anexo']);
+    $grupos_anexo[$chave] = count($conversa);
+    $conversa[] = $item;
+}
+foreach ($conversa as $indice => $item) {
+    if (!empty($item['arquivos'])) {
+        // get_anexos ordena do mais recente: volta à ordem de envio.
+        $conversa[$indice]['arquivos'] = array_reverse($item['arquivos']);
+    }
+}
 ?>
 <div class="content-wrapper">
     <section class="content-header">
@@ -154,7 +177,7 @@ $checklist_count = isset($checklists_associados) ? count($checklists_associados)
                     <ul class="nav nav-tabs" role="tablist">
                         <li role="presentation" class="active">
                             <a href="#dialogo" aria-controls="dialogo" role="tab" data-toggle="tab">
-                                <i class="fa fa-comments"></i> Conversa <span class="badge"><?php echo count($timeline) ?></span>
+                                <i class="fa fa-comments"></i> Conversa <span class="badge"><?php echo count($conversa) ?></span>
                             </a>
                         </li>
                         <?php if (!$is_closed) { ?>
@@ -177,14 +200,14 @@ $checklist_count = isset($checklists_associados) ? count($checklists_associados)
                             </div>
                             <div class="dialogo-anexo"></div>
 
-                            <?php if (!$timeline) { ?>
+                            <?php if (!$conversa) { ?>
                                 <p class="text-muted chamado-empty">Nenhuma interação ainda. Use <strong>Responder</strong> para iniciar a conversa.</p>
                             <?php } else { ?>
                                 <p class="text-muted small">Mais recentes primeiro.</p>
                                 <div class="chamado-conversation">
                                     <?php
                                     $last_day = '';
-                                    foreach ($timeline as $dialog) {
+                                    foreach ($conversa as $dialog) {
                                         $day = date('Y-m-d', strtotime($dialog['created']));
                                         if ($day !== $last_day) {
                                             echo '<div class="chamado-day"><span>' . $day_label($dialog['created']) . '</span></div>';
@@ -201,16 +224,20 @@ $checklist_count = isset($checklists_associados) ? count($checklists_associados)
                                                     <strong><?php echo html_escape($full_name($dialog['first_name'], $dialog['last_name'])) ?></strong>
                                                     <span class="chamado-role"><?php echo $is_requester ? 'Solicitante' : 'Equipe' ?></span>
                                                     <?php if ($is_internal) { ?><span class="label label-warning"><i class="fa fa-lock"></i> Interno</span><?php } ?>
-                                                    <?php if ($is_attachment) { ?><span class="label label-default"><i class="fa fa-paperclip"></i> Anexo</span><?php } ?>
+                                                    <?php if ($is_attachment) { ?><span class="label label-default"><i class="fa fa-paperclip"></i> <?php echo count($dialog['arquivos']) > 1 ? count($dialog['arquivos']) . ' anexos' : 'Anexo' ?></span><?php } ?>
                                                     <span class="chamado-time"><?php echo date('H:i', strtotime($dialog['created'])) ?></span>
                                                 </div>
                                                 <?php if (trim((string) $dialog['descricao']) !== '') { ?>
                                                     <div class="chamado-bubble-body"><?php echo $format_text($dialog['descricao']); ?></div>
                                                 <?php } ?>
                                                 <?php if ($is_attachment) { ?>
-                                                    <a href="<?php echo base_url("upload/anexo/" . $dialog['anexo']) ?>" target="_blank" class="chamado-file" download>
-                                                        <i class="fa fa-file-o"></i> <?php echo html_escape($dialog['anexo']) ?> <i class="fa fa-download"></i>
-                                                    </a>
+                                                    <div class="chamado-files">
+                                                        <?php foreach ($dialog['arquivos'] as $arquivo) { ?>
+                                                            <a href="<?php echo html_escape(base_url("upload/anexo/" . rawurlencode($arquivo))) ?>" target="_blank" class="chamado-file" download>
+                                                                <i class="fa fa-file-o"></i> <?php echo html_escape($arquivo) ?> <i class="fa fa-download"></i>
+                                                            </a>
+                                                        <?php } ?>
+                                                    </div>
                                                 <?php } ?>
                                             </div>
                                         </div>
@@ -1421,9 +1448,18 @@ $escalar_horas_previstas = ($chamado->horas_prevista !== null && $chamado->horas
         line-height: 1.5;
         word-wrap: break-word;
     }
+    .chamado-files {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 6px;
+    }
     .chamado-file {
         display: inline-block;
-        margin-top: 6px;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         padding: 4px 10px;
         border: 1px solid #d2d6de;
         border-radius: 4px;

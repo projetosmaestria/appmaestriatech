@@ -1091,6 +1091,7 @@ class Chamados extends Admin_Controller
 
 		$erros = array();
 		$arquivos = $_FILES['anexo'];
+		$created_envio = date('Y-m-d H:i:s');
 		foreach ($arquivos['name'] as $key => $nome) {
 			if ($arquivos['error'][$key] === UPLOAD_ERR_NO_FILE || $nome === '') {
 				continue;
@@ -1111,7 +1112,7 @@ class Chamados extends Admin_Controller
 					'responsavel_id' => $this->session->userdata('user_id'),
 					'descricao' => $descricao,
 					'anexo' => $this->upload->data('file_name'),
-					'created' => date('Y-m-d H:i:s'),
+					'created' => $created_envio,
 				));
 			} else {
 				$erros[] = html_escape($nome) . ': ' . strip_tags($this->upload->display_errors('', ''));
@@ -2105,7 +2106,8 @@ class Chamados extends Admin_Controller
 
 	public function anexo($id)
 	{
-		if (! $this->ion_auth->logged_in() or ! $id or empty($id) or ! $this->ion_auth->has_permissao("chamados", "anexo")) {
+		$id = (int) $id;
+		if (! $this->ion_auth->logged_in() or ! $id or ! $this->ion_auth->has_permissao("chamados", "anexo")) {
 			redirect('auth', 'refresh');
 		}
 
@@ -2121,7 +2123,7 @@ class Chamados extends Admin_Controller
 			'order_by' => array('c.id', 'desc')
 		))->row();
 
-		if ($chamado->empresa_id != $this->session->userdata('empresa_id')) {
+		if (! $chamado || $chamado->empresa_id != $this->session->userdata('empresa_id')) {
 			redirect('chamados', 'refresh');
 		}
 
@@ -2129,27 +2131,32 @@ class Chamados extends Admin_Controller
 		$this->page_title->push(lang('chamados_details') . ": " . $chamado->id);
 		$this->data['pagetitle'] = $this->page_title->show();
 
-		if (isset($_FILES) && ! empty($_FILES)) {
+		if (! empty($_FILES['anexo']['name']) && is_array($_FILES['anexo']['name'])) {
 			$this->load->library('upload', get_upload_config());
 
-			//exit("<pre>".print_r($_FILES,true)."</pre>");
-
-			$images = array();
 			$count_upload = 0;
 			$upload_msgs = "";
+			$erros_upload = array();
+			// Todos os arquivos do mesmo envio compartilham data/descrição: a conversa os agrupa em uma única mensagem.
+			$created_envio = date("Y-m-d H:i:s");
 			foreach ($_FILES['anexo']['name'] as $key => $anexo) {
+				if ($_FILES['anexo']['error'][$key] === UPLOAD_ERR_NO_FILE || $anexo === '') {
+					continue;
+				}
 				$_FILES['images[]']['name'] = removerAcentos($_FILES['anexo']['name'][$key]);
 				$_FILES['images[]']['type'] = $_FILES['anexo']['type'][$key];
 				$_FILES['images[]']['tmp_name'] = $_FILES['anexo']['tmp_name'][$key];
 				$_FILES['images[]']['error'] = $_FILES['anexo']['error'][$key];
 				$_FILES['images[]']['size'] = $_FILES['anexo']['size'][$key];
 
+				// Reinicia o estado (inclusive os erros) do upload a cada arquivo.
+				$this->upload->initialize(get_upload_config());
 				if ($this->upload->do_upload('images[]')) {
 					$dados["chamado_id"] = $id;
 					$dados["responsavel_id"] = $this->session->userdata('user_id');
 					$dados["descricao"] = $this->input->post('anexo_desc');
 					$dados["anexo"] = $this->upload->data('file_name');
-					$dados["created"] = date("Y-m-d H:i:s");
+					$dados["created"] = $created_envio;
 
 					$anexo_create = $this->chamados_model->create_anexo($dados);
 
@@ -2158,8 +2165,13 @@ class Chamados extends Admin_Controller
 						$upload_msgs .= ", ";
 					$upload_msgs .= $this->upload->data('file_name');
 				} else {
-					$this->session->set_flashdata('message', show_alert_error($this->upload->display_errors()));
+					$erros_upload[] = html_escape($anexo) . ': ' . strip_tags($this->upload->display_errors('', ''));
 				}
+			}
+			unset($_FILES['images[]']);
+
+			if ($erros_upload && $count_upload == 0) {
+				$this->session->set_flashdata('message', show_alert_error('Nenhum anexo foi enviado:<br>' . implode('<br>', $erros_upload)));
 			}
 
 			if ($count_upload > 0) {
@@ -2257,7 +2269,11 @@ class Chamados extends Admin_Controller
 				$mail->Body = utf8_decode($padrao_email_msg);
 				$mail->send();
 
-				$this->session->set_flashdata('message', show_alert_success("Anexo " . $upload_msgs . " adicionado com sucesso."));
+				$mensagem_upload = show_alert_success(($count_upload > 1 ? "Anexos " : "Anexo ") . html_escape($upload_msgs) . ($count_upload > 1 ? " adicionados" : " adicionado") . " com sucesso.");
+				if ($erros_upload) {
+					$mensagem_upload .= show_alert_error('Alguns anexos não foram enviados:<br>' . implode('<br>', $erros_upload));
+				}
+				$this->session->set_flashdata('message', $mensagem_upload);
 			}
 		}
 
