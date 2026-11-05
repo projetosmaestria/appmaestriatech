@@ -793,7 +793,7 @@ if ( ! function_exists('get_upload_config'))
     {
         $max_size = 5; // Limite ajustado para 5MB
         $config['upload_path']          = './upload/anexo/';
-        $config['allowed_types']        = 'jpg|png|gif|jpeg|bmp|xls|xlsx|xlsm|csv|doc|docx|pdf|zip|rar|txt';
+        $config['allowed_types']        = 'jpg|png|gif|jpeg|bmp|pdf|txt|csv|rtf|doc|docx|odt|xls|xlsx|xlsm|xlsb|ods|ppt|pptx|pps|ppsx|odp|zip|rar';
         $config['max_size']             = 1024*$max_size;
         return $config;
     }   
