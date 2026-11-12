@@ -1139,6 +1139,37 @@ class Chamados_model extends CI_Model
     }
 
     /**
+     * URLs das fotos de perfil (miniatura) dos usuários informados, no formato [user_id => url].
+     * Usuários sem foto ficam de fora. Sem a coluna users.foto (sql/2026-11-12_users_foto.sql) devolve vazio.
+     *
+     * @param array $user_ids
+     * @return array
+     */
+    public function get_fotos_usuarios($user_ids)
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', (array) $user_ids))));
+        if (!$ids || !$this->db->field_exists('foto', 'users')) {
+            return array();
+        }
+
+        $this->load->library('foto_usuario');
+        $fotos = array();
+        $usuarios = $this->db->select('id, foto')
+            ->where_in('id', $ids)
+            ->where('foto IS NOT NULL', null, false)
+            ->where('foto !=', '')
+            ->get('users')
+            ->result();
+        foreach ($usuarios as $usuario) {
+            $url = $this->foto_usuario->url($usuario->foto);
+            if ($url) {
+                $fotos[(int) $usuario->id] = $url;
+            }
+        }
+        return $fotos;
+    }
+
+    /**
      * Unidade da empresa à qual o usuário logado tem acesso (ou null).
      *
      * @param int $unidade_id

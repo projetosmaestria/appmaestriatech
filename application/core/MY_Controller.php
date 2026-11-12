@@ -211,6 +211,13 @@ class Admin_Controller extends MY_Controller
             $this->data["notifications"] = array_merge($notifications_ead, $notifications_iugu);
             $this->data["notifications_count"] = $notifications_ead_count + $notifications_iugu_count;
 
+            // Novidades vigentes: as não vistas abrem em um modal; as já vistas ficam no sino de notificações.
+            $this->load->model('novidades_model');
+            $novidades_usuario = $this->novidades_model->do_usuario($this->session->userdata('empresa_id'), $this->session->userdata('user_id'));
+            $this->data['novidades_pendentes'] = $novidades_usuario['pendentes'] ? $this->novidades_model->para_exibicao($novidades_usuario['pendentes']) : array();
+            $this->data['novidades_lidas'] = $novidades_usuario['lidas'];
+            $this->data['notifications_count'] += count($novidades_usuario['lidas']);
+
             /* Data */
             $this->data['session']     = $this->session;
             $this->data['title']       = $this->config->item('title');

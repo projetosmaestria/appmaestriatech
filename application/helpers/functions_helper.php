@@ -348,6 +348,8 @@ if ( ! function_exists('get_metodos'))
                 $method != 'get_modulos_habilitados' &&
                 $method != 'get_servicos' &&
                 $method != 'get_users_unidade' &&
+                $method != 'detalhe' &&
+                $method != 'marcar_lida' &&
                 $method != 'buscar_seguimentos' &&
                 $method != 'mostrar_resolvidos' &&
                 $method != 'mostrar_corrigidos' &&

@@ -21,6 +21,25 @@ class Foto_usuario {
 
     protected $erro = '';
 
+    // Configuráveis no load->library(): as novidades usam a mesma lógica em outra pasta,
+    // com uma versão reduzida retangular (sem recorte) em vez da miniatura quadrada.
+    protected $pasta = self::PASTA;
+    protected $lado_miniatura = self::LADO_MINIATURA;
+    protected $miniatura_quadrada = true;
+
+    public function __construct($params = array())
+    {
+        if (!empty($params['pasta'])) {
+            $this->pasta = rtrim($params['pasta'], '/') . '/';
+        }
+        if (!empty($params['lado_miniatura'])) {
+            $this->lado_miniatura = (int) $params['lado_miniatura'];
+        }
+        if (isset($params['miniatura_quadrada'])) {
+            $this->miniatura_quadrada = (bool) $params['miniatura_quadrada'];
+        }
+    }
+
     public function erro()
     {
         return $this->erro;
@@ -36,17 +55,17 @@ class Foto_usuario {
         }
         if ($miniatura) {
             $thumb = $this->nome_miniatura($foto);
-            if (is_file(FCPATH . self::PASTA . $thumb)) {
-                return base_url(self::PASTA . $thumb);
+            if (is_file(FCPATH . $this->pasta . $thumb)) {
+                return base_url($this->pasta . $thumb);
             }
         }
-        return is_file(FCPATH . self::PASTA . $foto) ? base_url(self::PASTA . $foto) : null;
+        return is_file(FCPATH . $this->pasta . $foto) ? base_url($this->pasta . $foto) : null;
     }
 
     /**
      * Valida e grava a foto enviada ($_FILES[campo]). Retorna o nome do arquivo gravado ou false (ver erro()).
      */
-    public function salvar($arquivo, $user_id)
+    public function salvar($arquivo, $user_id, $prefixo = 'u')
     {
         $this->erro = '';
 
@@ -77,7 +96,7 @@ class Foto_usuario {
             return false;
         }
 
-        $pasta = FCPATH . self::PASTA;
+        $pasta = FCPATH . $this->pasta;
         if (!is_dir($pasta) && !@mkdir($pasta, 0755, true)) {
             $this->erro = 'Não foi possível criar a pasta das fotos no servidor.';
             return false;
@@ -86,7 +105,7 @@ class Foto_usuario {
             @file_put_contents($pasta . 'index.html', '<html><head><title>403 Forbidden</title></head><body><p>Directory access is forbidden.</p></body></html>');
         }
 
-        $base = 'u' . (int) $user_id . '_' . date('YmdHis') . '_' . substr(md5(uniqid(mt_rand(), true)), 0, 8);
+        $base = preg_replace('/[^a-z]/', '', strtolower($prefixo)) . (int) $user_id . '_' . date('YmdHis') . '_' . substr(md5(uniqid(mt_rand(), true)), 0, 8);
         $tamanho = (int) filesize($arquivo['tmp_name']);
 
         if ($tamanho > self::LIMITE_BYTES) {
@@ -123,8 +142,8 @@ class Foto_usuario {
         if (!$this->nome_valido($foto)) {
             return;
         }
-        @unlink(FCPATH . self::PASTA . $foto);
-        @unlink(FCPATH . self::PASTA . $this->nome_miniatura($foto));
+        @unlink(FCPATH . $this->pasta . $foto);
+        @unlink(FCPATH . $this->pasta . $this->nome_miniatura($foto));
     }
 
     protected function nome_valido($foto)
@@ -210,7 +229,8 @@ class Foto_usuario {
     }
 
     /**
-     * Miniatura quadrada (recorte central) em JPEG.
+     * Miniatura em JPEG: quadrada com recorte central (foto de perfil) ou reduzida
+     * mantendo a proporção, com o maior lado em $lado_miniatura (imagens das novidades).
      */
     protected function gerar_miniatura($origem, $destino)
     {
@@ -226,13 +246,23 @@ class Foto_usuario {
 
         $largura = imagesx($img);
         $altura = imagesy($img);
-        $lado = min($largura, $altura);
-        $x = (int) floor(($largura - $lado) / 2);
-        $y = (int) floor(($altura - $lado) / 2);
-        $destino_lado = min(self::LADO_MINIATURA, $lado);
+        if ($this->miniatura_quadrada) {
+            $lado = min($largura, $altura);
+            $x = (int) floor(($largura - $lado) / 2);
+            $y = (int) floor(($altura - $lado) / 2);
+            $origem_largura = $origem_altura = $lado;
+            $destino_largura = $destino_altura = min($this->lado_miniatura, $lado);
+        } else {
+            $x = $y = 0;
+            $origem_largura = $largura;
+            $origem_altura = $altura;
+            $escala = min(1, $this->lado_miniatura / max($largura, $altura));
+            $destino_largura = max(1, (int) round($largura * $escala));
+            $destino_altura = max(1, (int) round($altura * $escala));
+        }
 
-        $tela = $this->tela_branca($destino_lado, $destino_lado);
-        imagecopyresampled($tela, $img, 0, 0, $x, $y, $destino_lado, $destino_lado, $lado, $lado);
+        $tela = $this->tela_branca($destino_largura, $destino_altura);
+        imagecopyresampled($tela, $img, 0, 0, $x, $y, $destino_largura, $destino_altura, $origem_largura, $origem_altura);
         $ok = imagejpeg($tela, $destino, 85);
         imagedestroy($tela);
         imagedestroy($img);

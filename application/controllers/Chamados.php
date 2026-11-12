@@ -1705,6 +1705,10 @@ class Chamados extends Admin_Controller
 		});
 
 		$this->data['timeline'] = $timeline;
+		// Foto de quem escreveu cada mensagem da conversa (sem foto, a view mostra as iniciais).
+		$this->data['fotos_autores'] = $this->chamados_model->get_fotos_usuarios(array_map(function ($item) {
+			return isset($item['responsavel_id']) ? $item['responsavel_id'] : 0;
+		}, $timeline));
 
 		if (in_array((int) $chamado->status_id, $this->status_permite_fechar, true))
 			$status_n_obrigatorios = $this->chamados_model->get_status_n_obrigatorios(true)->result();

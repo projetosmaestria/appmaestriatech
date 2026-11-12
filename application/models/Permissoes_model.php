@@ -20,7 +20,11 @@ class Permissoes_model extends CI_Model {
         'buscar_prod_venda', 'carregar_historico', 'carregar_produtos', 'carregar_unidades', 'carregar_condicoes',
         'carregar_vencimentos', 'carregar_cursos', 'get_plano_acao', 'busca_sidebar', 'server_side_ativos', 'check_can_apontar',
         'alterar_id_assinatura_ajax', 'verificar_anulacao', 'oauth', 'produtos_cliente', 'salvar_habilitacao', 'alterar_status',
+        'detalhe', 'marcar_lida',
     );
+
+    // Telas restritas ao grupo admin da empresa (is_admin): não entram no catálogo de permissões dos grupos.
+    private $so_admin = array('novidades');
 
     private $rotulos = array(
         'index' => 'Acessar / listar',
@@ -59,7 +63,7 @@ class Permissoes_model extends CI_Model {
             ->order_by('m.pai_id IS NULL', 'DESC', false)
             ->get('menus_empresas me')->result() as $menu) {
             $controlador = strtolower(trim($menu->controlador));
-            if ($controlador === '' || isset($nomes[$controlador])) {
+            if ($controlador === '' || isset($nomes[$controlador]) || in_array($controlador, $this->so_admin, true)) {
                 continue;
             }
             $nomes[$controlador] = $menu->nome;
@@ -100,7 +104,7 @@ class Permissoes_model extends CI_Model {
         $todas = array();
         foreach (glob(APPPATH . 'controllers/*.php') as $arquivo) {
             $base = basename($arquivo, '.php');
-            if (preg_match('/(^auth|^crons$|^index$|-|old|novo|backup|bkp|temp|teste|_alt$)/i', $base)) {
+            if (preg_match('/(^auth|^crons$|^index$|-|old|novo|backup|bkp|temp|teste|_alt$)/i', $base) || in_array(strtolower($base), $this->so_admin, true)) {
                 continue;
             }
             $metodos = array_values(array_unique(array_diff($this->metodos_do_controller($base), $ignorados)));

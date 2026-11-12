@@ -218,7 +218,14 @@ foreach ($conversa as $indice => $item) {
                                         $is_requester = isset($dialog['responsavel_id']) && (int) $dialog['responsavel_id'] === (int) $chamado->dono_id;
                                     ?>
                                         <div class="chamado-message <?php echo $is_requester ? 'from-requester' : 'from-team' ?> <?php echo $is_internal ? 'is-internal' : '' ?>">
-                                            <div class="chamado-avatar" title="<?php echo html_escape($full_name($dialog['first_name'], $dialog['last_name'])) ?>"><?php echo html_escape($initials($dialog['first_name'], $dialog['last_name'])) ?></div>
+                                            <?php $foto_autor = isset($dialog['responsavel_id'], $fotos_autores[(int) $dialog['responsavel_id']]) ? $fotos_autores[(int) $dialog['responsavel_id']] : null; ?>
+                                            <div class="chamado-avatar<?php echo $foto_autor ? ' has-foto' : '' ?>" title="<?php echo html_escape($full_name($dialog['first_name'], $dialog['last_name'])) ?>">
+                                                <?php if ($foto_autor) { ?>
+                                                    <img src="<?php echo html_escape($foto_autor) ?>" alt="">
+                                                <?php } else { ?>
+                                                    <?php echo html_escape($initials($dialog['first_name'], $dialog['last_name'])) ?>
+                                                <?php } ?>
+                                            </div>
                                             <div class="chamado-bubble">
                                                 <div class="chamado-bubble-header">
                                                     <strong><?php echo html_escape($full_name($dialog['first_name'], $dialog['last_name'])) ?></strong>
@@ -427,26 +434,52 @@ foreach ($conversa as $indice => $item) {
                         </div>
                         <div class="box-body">
                             <input type="hidden" name="apontamento_id" id="apontamento_id" value="<?php echo ($apontamento_ativo->num_rows() > 0) ? $apontamento_ativo->row()->id : '' ?>">
-                            <div class="chamado-timer-row left-myday">
-                                <?php if ($apontamento_ativo->num_rows() > 0) {
-                                    $hora_inicio = new DateTime($apontamento_ativo->row()->data . " " . $apontamento_ativo->row()->hora_inicio);
-                                    $diff = $hora_inicio->diff(new DateTime(date("Y-m-d H:i:s")));
-                                    $horas = ($diff->days * 24) + $diff->format('%h');
-                                ?>
+                            <?php
+                            // Os nomes .btn-app, .duration-clock, .progress-bar, .inicio-apontamento e #obs_apontamento são usados
+                            // por startApontamento()/stopApontamento() (funcoes.js).
+                            $timer_ativo = $apontamento_ativo->num_rows() > 0;
+                            $timer_relogio = '00:00:00';
+                            if ($timer_ativo) {
+                                $hora_inicio = new DateTime($apontamento_ativo->row()->data . " " . $apontamento_ativo->row()->hora_inicio);
+                                $diff = $hora_inicio->diff(new DateTime(date("Y-m-d H:i:s")));
+                                $timer_relogio = sprintf('%02d:%02d:%02d', ($diff->days * 24) + (int) $diff->format('%h'), (int) $diff->format('%i'), (int) $diff->format('%s'));
+                            }
+                            ?>
+                            <div class="timer-painel">
+                                <div class="timer-leitura">
+                                    <div class="duration-clock"><?php echo $timer_relogio ?></div>
+                                    <div class="inicio-apontamento"<?php echo $timer_ativo ? '' : ' style="display:none;"' ?>><i class="fa fa-clock-o"></i> Início às <span class="inicio-apontamento-span"><?php echo $timer_ativo ? html_escape(substr($apontamento_ativo->row()->hora_inicio, 0, 5)) : '' ?></span></div>
+                                </div>
+                                <?php if ($timer_ativo) { ?>
                                     <a class="btn btn-app" onclick="stopApontamento()"><i class="fa fa-stop"></i> Parar</a>
-                                    <div class="duration-clock"><?php echo $horas . ":" . $diff->format('%i') . ":" . $diff->format('%s') ?></div>
                                 <?php } else { ?>
                                     <a class="btn btn-app" onclick="startApontamento()"><i class="fa fa-play"></i> Iniciar</a>
-                                    <div class="duration-clock">00:00:00</div>
                                 <?php } ?>
                             </div>
-                            <div class="informations-apontamento">
-                                <input type="text" class="form-control" name="obs_apontamento" id="obs_apontamento" value="" placeholder="Observação do apontamento (opcional)" <?php echo ($apontamento_ativo->num_rows() > 0) ? '' : 'readonly="readonly"' ?>>
-                                <div class="progress progress-xxs active">
-                                    <div class="progress-bar progress-bar-success progress-bar-striped" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%"></div>
-                                </div>
-                                <div class="inicio-apontamento text-muted small" style="display:none;">Início <span class="inicio-apontamento-span"><?php echo ($apontamento_ativo->num_rows() > 0) ? $apontamento_ativo->row()->hora_inicio : '' ?></span></div>
+                            <div class="progress timer-progresso">
+                                <div class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%"></div>
                             </div>
+                            <input type="text" class="form-control timer-obs" name="obs_apontamento" id="obs_apontamento" value="" maxlength="255" placeholder="Observação do apontamento (opcional)" <?php echo $timer_ativo ? '' : 'readonly="readonly"' ?>>
+                            <p class="help-block timer-dica">A observação é salva ao clicar em Parar.</p>
+                            <?php if ($timer_ativo) { ?>
+                                <script type="text/javascript">
+                                    // Apontamento já em andamento: o relógio continua contando de onde está (antes ficava parado).
+                                    window.addEventListener('load', function() {
+                                        if (!$.fn.countimer) { return; }
+                                        $('.chamado-timer .duration-clock').countimer({
+                                            initHours: <?php echo ($diff->days * 24) + (int) $diff->format('%h') ?>,
+                                            initMinutes: <?php echo (int) $diff->format('%i') ?>,
+                                            initSeconds: <?php echo (int) $diff->format('%s') ?>
+                                        });
+                                        var segundos = <?php echo (int) $diff->format('%s') ?>;
+                                        var barra = $('.chamado-timer .progress-bar');
+                                        myTimer = window.setInterval(function() {
+                                            segundos = (segundos + 1) % 60;
+                                            barra.css('width', ((segundos / 60) * 100) + '%');
+                                        }, 1000);
+                                    });
+                                </script>
+                            <?php } ?>
                         </div>
                     </div>
                 <?php } ?>
@@ -1412,6 +1445,22 @@ $escalar_horas_previstas = ($chamado->horas_prevista !== null && $chamado->horas
     .chamado-message.from-requester .chamado-avatar {
         background: #00a65a;
     }
+    /* Com foto, o anel mantém a cor de equipe (azul) ou solicitante (verde). */
+    .chamado-avatar.has-foto {
+        overflow: hidden;
+        background: #d2d6de;
+        box-shadow: 0 0 0 2px #3c8dbc;
+    }
+    .chamado-message.from-requester .chamado-avatar.has-foto {
+        background: #d2d6de;
+        box-shadow: 0 0 0 2px #00a65a;
+    }
+    .chamado-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
     .chamado-bubble {
         flex: 1;
         min-width: 0;
@@ -1475,23 +1524,66 @@ $escalar_horas_previstas = ($chamado->horas_prevista !== null && $chamado->horas
     .chamado-actions-grid .btn {
         white-space: normal;
     }
-    .chamado-timer-row {
+    .chamado-timer .timer-painel {
         display: flex;
         align-items: center;
+        justify-content: space-between;
         gap: 12px;
-        margin-bottom: 8px;
     }
-    .chamado-timer-row .btn-app {
-        margin: 0;
-    }
-    .chamado-timer-row .duration-clock {
-        font-size: 26px;
-        font-weight: 600;
+    .chamado-timer .duration-clock {
+        font-size: 30px;
+        font-weight: 700;
+        line-height: 1.1;
+        letter-spacing: .5px;
         font-variant-numeric: tabular-nums;
+        color: #1d3557;
     }
-    .chamado-timer .progress {
-        margin: 6px 0 4px;
+    .chamado-timer .inicio-apontamento {
+        margin-top: 2px;
+        color: #777;
+        font-size: 12px;
     }
+    /* Botão compacto no lugar do .btn-app quadrado do AdminLTE (o JS troca só o ícone e o texto). */
+    .chamado-timer .btn-app {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex: 0 0 auto;
+        min-width: 0;
+        height: auto;
+        margin: 0;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+    .chamado-timer .btn-app > .fa {
+        display: inline-block;
+        font-size: 14px;
+    }
+    .chamado-timer .btn-app .fa-play { color: #00a65a; }
+    .chamado-timer .btn-app .fa-stop { color: #dd4b39; }
+    .chamado-timer .timer-progresso {
+        height: 3px;
+        margin: 12px 0;
+        border-radius: 2px;
+        box-shadow: none;
+        background: #eef1f4;
+    }
+    .chamado-timer .timer-obs[readonly] {
+        background: #f7f9fb;
+        cursor: not-allowed;
+    }
+    .chamado-timer .timer-dica {
+        margin: 6px 0 0;
+        font-size: 12px;
+    }
+    /* Em andamento: relógio verde. */
+    .chamado-timer:has(.fa-stop) .duration-clock { color: #00a65a; }
+    body.dark-mode .chamado-timer .duration-clock { color: #f1f5f9; }
+    body.dark-mode .chamado-timer:has(.fa-stop) .duration-clock { color: #3fd18a; }
+    body.dark-mode .chamado-timer .timer-progresso { background: #2d2d2d !important; }
+    body.dark-mode .chamado-timer .timer-obs[readonly] { background: #121212 !important; }
     .chamado-facts {
         margin: 0;
     }

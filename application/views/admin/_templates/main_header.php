@@ -67,30 +67,33 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
                 <?php echo $header_alert_file_install; ?>
 
-                <?php if ($admin_prefs['notifications_menu'] == TRUE): ?>
+                <?php
+                $novidades_lidas = isset($novidades_lidas) ? $novidades_lidas : array();
+                $novidades_pendentes = isset($novidades_pendentes) ? $novidades_pendentes : array();
+                // O sino aparece também quando há novidades, mesmo com o menu de notificações desligado nas preferências.
+                if ($admin_prefs['notifications_menu'] == TRUE || $novidades_lidas || $novidades_pendentes): ?>
                     <!-- Notifications -->
-                    <li class="dropdown notifications-menu modern-dropdown">
+                    <li class="dropdown notifications-menu modern-dropdown" id="notificacoes-menu">
                         <a href="#" class="dropdown-toggle modern-dropdown-toggle" data-toggle="dropdown">
                             <div class="nav-icon-wrapper">
                                 <i class="fa fa-bell-o"></i>
-                                <?php if ($notifications_count > 0): ?>
-                                    <span class="label label-warning modern-badge"><?php echo $notifications_count ?></span>
-                                <?php endif; ?>
+                                <span class="label label-warning modern-badge" id="notificacoes-badge"<?php echo $notifications_count > 0 ? '' : ' style="display:none;"' ?>><?php echo (int) $notifications_count ?></span>
                             </div>
                         </a>
                         <ul class="dropdown-menu modern-dropdown-menu">
-                            <li class="header modern-dropdown-header"><?php echo lang('header_you_have'); ?> <?php echo $notifications_count ?> <?php echo lang('header_notification'); ?></li>
-                            <?php if ($notifications_count > 0): ?>
-                                <li>
-                                    <ul class="menu modern-menu-list">
-                                        <?php
-                                        foreach ($notifications as $value) :
-                                            echo $value;
-                                        endforeach;
-                                        ?>
-                                    </ul>
-                                </li>
-                            <?php endif ?>
+                            <li class="header modern-dropdown-header"><?php echo lang('header_you_have'); ?> <span id="notificacoes-total"><?php echo (int) $notifications_count ?></span> <?php echo lang('header_notification'); ?></li>
+                            <li>
+                                <ul class="menu modern-menu-list" id="notificacoes-lista">
+                                    <?php foreach ($novidades_lidas as $novidade_lida) { ?>
+                                        <li><a href="#" class="js-novidade-abrir" data-id="<?php echo (int) $novidade_lida->id ?>" title="<?php echo html_escape($novidade_lida->titulo) ?>"><i class="fa fa-bullhorn text-aqua"></i> <?php echo html_escape($novidade_lida->titulo) ?></a></li>
+                                    <?php } ?>
+                                    <?php
+                                    foreach ($notifications as $value) :
+                                        echo $value;
+                                    endforeach;
+                                    ?>
+                                </ul>
+                            </li>
                         </ul>
                     </li>
                 <?php endif; ?>
@@ -1293,3 +1296,114 @@ defined('BASEPATH') or exit('No direct script access allowed');
     });
 })();
 </script>
+<!-- Novidades: janela mostrada uma vez por usuário durante o período (cadastro em novidades/). -->
+<div class="modal fade novidade-modal" id="novidade-modal" tabindex="-1" role="dialog" aria-labelledby="novidade-modal-titulo">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fechar"><span aria-hidden="true">&times;</span></button>
+                <span class="novidade-modal-selo"><i class="fa fa-bullhorn"></i> Novidade</span>
+                <h4 class="modal-title" id="novidade-modal-titulo"></h4>
+                <small class="novidade-modal-periodo" id="novidade-modal-periodo"></small>
+            </div>
+            <div class="modal-body">
+                <div class="novidade-modal-texto" id="novidade-modal-texto"></div>
+                <div class="novidade-modal-imagens" id="novidade-modal-imagens"></div>
+            </div>
+            <div class="modal-footer">
+                <span class="novidade-modal-contador" id="novidade-modal-contador"></span>
+                <button type="button" class="btn btn-primary" data-dismiss="modal"><i class="fa fa-check"></i> OK, entendi</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    window.addEventListener('load', function() {
+        if (typeof $ === 'undefined' || !$.fn.modal) { return; }
+        var baseUrl = <?php echo json_encode(base_url()) ?>;
+        var pendentes = <?php echo json_encode(array_values($novidades_pendentes), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        var totalPendentes = pendentes.length;
+        var $modal = $('#novidade-modal');
+        var atual = null;
+
+        // Também usada pela pré-visualização do cadastro (novidades/form).
+        window.mostrarNovidade = function(dados, opcoes) {
+            atual = { dados: dados, opcoes: opcoes || {} };
+            $('#novidade-modal-titulo').text(dados.titulo);
+            $('#novidade-modal-periodo').text(dados.periodo || '');
+            $('#novidade-modal-texto').html(dados.conteudo_html || '');
+            var $imagens = $('#novidade-modal-imagens').empty().toggleClass('is-unica', (dados.imagens || []).length === 1);
+            $.each(dados.imagens || [], function(i, imagem) {
+                $('<a target="_blank" rel="noopener" title="Abrir em tamanho original">').attr('href', imagem.original || imagem.url)
+                    .append($('<img alt="">').attr('src', imagem.url))
+                    .appendTo($imagens);
+            });
+            var contador = '';
+            if (atual.opcoes.pendente && totalPendentes > 1) {
+                contador = (totalPendentes - pendentes.length) + ' de ' + totalPendentes;
+            } else if (atual.opcoes.previa) {
+                contador = 'Pré-visualização: nada é registrado.';
+            }
+            $('#novidade-modal-contador').text(contador);
+            $modal.modal('show');
+        };
+
+        function adicionarNoSino(dados) {
+            var $lista = $('#notificacoes-lista');
+            if (!$lista.length || $lista.find('.js-novidade-abrir[data-id="' + dados.id + '"]').length) { return; }
+            $('<li>').append(
+                $('<a href="#" class="js-novidade-abrir">').attr({ 'data-id': dados.id, title: dados.titulo })
+                    .append('<i class="fa fa-bullhorn text-aqua"></i> ')
+                    .append(document.createTextNode(dados.titulo))
+            ).prependTo($lista);
+            var total = parseInt($('#notificacoes-total').text(), 10) + 1;
+            $('#notificacoes-total').text(total);
+            $('#notificacoes-badge').text(total).show();
+        }
+
+        $modal.on('hidden.bs.modal', function() {
+            var fechada = atual;
+            atual = null;
+            if (!fechada || !fechada.opcoes.pendente) { return; }
+            // Fechar (OK, X, Esc ou clique fora) conta como visto: não aparece mais na janela, só no sino.
+            $.post(baseUrl + 'novidades/marcar_lida', { id: fechada.dados.id });
+            adicionarNoSino(fechada.dados);
+            if (pendentes.length) {
+                setTimeout(function() { window.mostrarNovidade(pendentes.shift(), { pendente: true }); }, 250);
+            }
+        });
+
+        $(document).on('click', '.js-novidade-abrir', function(e) {
+            e.preventDefault();
+            $.getJSON(baseUrl + 'novidades/detalhe/' + parseInt($(this).data('id'), 10)).done(function(res) {
+                if (res && res.ok) { window.mostrarNovidade(res.novidade, {}); }
+            }).fail(function() {
+                window.alert('Esta novidade não está mais disponível.');
+            });
+        });
+
+        if (pendentes.length) {
+            window.mostrarNovidade(pendentes.shift(), { pendente: true });
+        }
+    });
+</script>
+<style>
+    .novidade-modal .modal-content { border-radius: 8px; overflow: hidden; }
+    .novidade-modal .modal-header { padding: 18px 20px 14px; border-bottom: 1px solid #eef1f4; }
+    .novidade-modal-selo { display: inline-block; margin-bottom: 6px; padding: 2px 10px; border-radius: 12px; background: #eaf2f8; color: #3c8dbc; font-size: 12px; font-weight: 600; }
+    .novidade-modal .modal-title { font-size: 20px; font-weight: 600; }
+    .novidade-modal-periodo { color: #888; }
+    .novidade-modal .modal-body { padding: 20px; max-height: 65vh; overflow-y: auto; }
+    .novidade-modal-texto { font-size: 15px; line-height: 1.6; word-wrap: break-word; }
+    .novidade-modal-imagens { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 16px; }
+    .novidade-modal-imagens:empty { display: none; }
+    .novidade-modal-imagens.is-unica { grid-template-columns: 1fr; }
+    .novidade-modal-imagens a { display: block; border: 1px solid #e5e8eb; border-radius: 6px; overflow: hidden; background: #f7f9fb; }
+    .novidade-modal-imagens img { display: block; width: 100%; max-height: 420px; object-fit: contain; }
+    .novidade-modal .modal-footer { display: flex; align-items: center; justify-content: space-between; }
+    .novidade-modal .modal-footer::before, .novidade-modal .modal-footer::after { display: none; }
+    .novidade-modal-contador { color: #888; font-size: 12px; }
+    body.dark-mode .novidade-modal .modal-header { border-color: #2d2d2d !important; }
+    body.dark-mode .novidade-modal-selo { background: #1f2b2b !important; color: #9cd7d4 !important; }
+    body.dark-mode .novidade-modal-imagens a { border-color: #2d2d2d !important; background: #181818 !important; }
+</style>
