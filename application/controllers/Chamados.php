@@ -3723,6 +3723,149 @@ class Chamados extends Admin_Controller
 		)));
 	}
 
+	/**
+	 * Cria um novo solicitante pela tela de abertura de chamado, já ativo (sem e-mail de ativação),
+	 * vinculado à empresa, à unidade selecionada e ao grupo "Clientes".
+	 */
+	public function criar_solicitante()
+	{
+		$this->output->set_content_type('application/json');
+
+		if (!$this->ion_auth->logged_in() || !$this->ion_auth->has_permissao('chamados', 'create') || !$this->chamados_model->is_full_create()) {
+			$this->output->set_status_header(403)->set_output(json_encode(array('ok' => false, 'message' => 'Sem permissão para cadastrar solicitantes.')));
+			return;
+		}
+
+		$logged_user_id = (int) $this->session->userdata('user_id');
+		$empresa_id = (int) $this->session->userdata('empresa_id');
+		$unidade_id = (int) $this->input->post('unidade_id');
+
+		$unidade = $this->chamados_model->get_unidade_acesso($unidade_id, $logged_user_id, $empresa_id);
+		if (!$unidade) {
+			$this->output->set_status_header(422)->set_output(json_encode(array('ok' => false, 'message' => 'Selecione um cliente (unidade) válido antes de cadastrar o solicitante.')));
+			return;
+		}
+
+		$first_name = trim((string) $this->input->post('first_name'));
+		$last_name = trim((string) $this->input->post('last_name'));
+		$email = strtolower(trim((string) $this->input->post('email')));
+		$cel_digits = preg_replace('/\D/', '', (string) $this->input->post('celular'));
+
+		$erro = '';
+		if ($first_name === '' || $last_name === '') {
+			$erro = 'Informe o nome e o sobrenome.';
+		} elseif (mb_strlen($first_name) > 50 || mb_strlen($last_name) > 50) {
+			$erro = 'Nome e sobrenome podem ter no máximo 50 caracteres cada.';
+		} elseif (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 254) {
+			$erro = 'Informe um e-mail válido.';
+		} elseif (strlen($cel_digits) < 10 || strlen($cel_digits) > 11) {
+			$erro = 'Informe um celular/WhatsApp válido com DDD.';
+		}
+		if ($erro !== '') {
+			$this->output->set_status_header(422)->set_output(json_encode(array('ok' => false, 'message' => $erro)));
+			return;
+		}
+
+		if ($this->ion_auth_model->email_check($email)) {
+			$this->output->set_status_header(409)->set_output(json_encode(array('ok' => false, 'message' => 'Já existe um usuário com este e-mail. Se ele não aparece na lista, vincule-o ao cliente em Usuários.')));
+			return;
+		}
+
+		$grupo = $this->chamados_model->get_grupo_clientes($empresa_id);
+		if (!$grupo) {
+			$this->output->set_status_header(422)->set_output(json_encode(array('ok' => false, 'message' => 'O grupo "Clientes" não foi encontrado nesta empresa. Cadastre-o em Grupos antes de continuar.')));
+			return;
+		}
+
+		$celular = strlen($cel_digits) === 11
+			? '(' . substr($cel_digits, 0, 2) . ') ' . substr($cel_digits, 2, 5) . '-' . substr($cel_digits, 7, 4)
+			: '(' . substr($cel_digits, 0, 2) . ') ' . substr($cel_digits, 2, 4) . '-' . substr($cel_digits, 6, 4);
+
+		$novo_id = $this->chamados_model->criar_solicitante(array(
+			'first_name' => $first_name,
+			'last_name' => $last_name,
+			'email' => $email,
+			'celular' => $celular,
+		), $empresa_id, (int) $unidade->id, (int) $grupo->id);
+
+		if (!$novo_id) {
+			$this->output->set_status_header(500)->set_output(json_encode(array('ok' => false, 'message' => 'Não foi possível cadastrar o solicitante.')));
+			return;
+		}
+
+		$this->ion_auth->create_auditoria(array(
+			'user_id' => $logged_user_id,
+			'empresa_id' => $empresa_id,
+			'controlador' => 'chamados',
+			'metodo' => 'criar_solicitante',
+			'obs' => 'Solicitante #' . $novo_id . ' (' . $email . ') criado na abertura de chamado, vinculado à unidade #' . (int) $unidade->id . ' e ao grupo #' . (int) $grupo->id . '.',
+		));
+
+		$email_enviado = $this->enviar_email_definir_senha($email, $first_name, $unidade->unidade);
+
+		$this->output->set_output(json_encode(array(
+			'ok' => true,
+			'id' => $novo_id,
+			'nome' => $first_name . ' ' . $last_name,
+			'email' => $email,
+			'email_enviado' => $email_enviado,
+			'message' => 'Solicitante cadastrado com sucesso.',
+		)));
+	}
+
+	/**
+	 * Envia ao solicitante recém-criado o link para cadastrar a senha.
+	 * Usa o mesmo código do "Esqueci minha senha" (auth/reset_password), que não expira.
+	 */
+	private function enviar_email_definir_senha($email, $first_name, $unidade_nome)
+	{
+		if (!$this->ion_auth_model->forgotten_password($email)) {
+			return false;
+		}
+		$link = base_url('auth/reset_password/' . $this->ion_auth_model->forgotten_password_code);
+
+		$email_config_db = $this->ion_auth->get_email_config()->row();
+		if ($email_config_db && $email_config_db->test == 1) {
+			$email_config = rowToConfigEmail($email_config_db);
+			$from_email = $email_config_db->from_email;
+			$from_name = $email_config_db->from_name;
+		} else {
+			$email_config = $this->config->item('email_config', 'ion_auth');
+			$from_email = $this->config->item('admin_email', 'ion_auth');
+			$from_name = $this->config->item('site_title', 'ion_auth');
+		}
+
+		$assunto = $from_name . ' - Cadastre sua senha de acesso';
+		$corpo = '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#333333;max-width:560px;">'
+			. '<p>Olá, <strong>' . html_escape($first_name) . '</strong>!</p>'
+			. '<p>Seu acesso ao <strong>' . html_escape($from_name) . '</strong> foi criado para o cliente <strong>' . html_escape($unidade_nome) . '</strong>, '
+			. 'para você acompanhar os chamados abertos em seu nome.</p>'
+			. '<p>Seu login é o e-mail <strong>' . html_escape($email) . '</strong>. Para entrar, cadastre sua senha no botão abaixo:</p>'
+			. '<p style="margin:24px 0;"><a href="' . html_escape($link) . '" style="background:#3c8dbc;color:#ffffff;padding:10px 18px;text-decoration:none;border-radius:3px;display:inline-block;">Cadastrar minha senha</a></p>'
+			. '<p style="font-size:12px;color:#777777;">Se o botão não funcionar, copie e cole este endereço no navegador:<br>' . html_escape($link) . '</p>'
+			. '</div>';
+
+		try {
+			$mail = $this->phpmailer_library->load();
+			$mail->isSMTP();
+			$mail->Host     = $email_config['smtp_host'];
+			$mail->SMTPAuth = true;
+			$mail->Username = $email_config['smtp_user'];
+			$mail->Password = $email_config['smtp_pass'];
+			$mail->SMTPSecure = 'tsl';
+			$mail->Port     = $email_config['smtp_port'];
+			$mail->setFrom($from_email, utf8_decode($from_name));
+			$mail->addAddress($email);
+			$mail->Subject = utf8_decode($assunto);
+			$mail->isHTML(true);
+			$mail->Body = utf8_decode($corpo);
+			return (bool) $mail->send();
+		} catch (Exception $e) {
+			log_message('error', 'Chamados::enviar_email_definir_senha - ' . $e->getMessage());
+			return false;
+		}
+	}
+
 	public function get_plano_acao()
 	{
 		$planos = $this->chamados_model->get_plano_acao("p.unidade_id = '" . $_POST["id"] . "' OR p.unidade_id IS NULL");

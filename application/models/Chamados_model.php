@@ -1123,4 +1123,95 @@ class Chamados_model extends CI_Model
 
         return $this->db->get()->result();
     }
+
+    /**
+     * Unidade da empresa à qual o usuário logado tem acesso (ou null).
+     *
+     * @param int $unidade_id
+     * @param int $logged_user_id
+     * @param int $empresa_id
+     * @return object|null
+     */
+    public function get_unidade_acesso($unidade_id, $logged_user_id, $empresa_id)
+    {
+        $unidade_id = (int) $unidade_id;
+        $logged_user_id = (int) $logged_user_id;
+        $empresa_id = (int) $empresa_id;
+
+        if ($unidade_id <= 0 || $logged_user_id <= 0 || $empresa_id <= 0) {
+            return null;
+        }
+
+        return $this->db->select('un.id, un.unidade, un.empresa_id')
+            ->from('unidades un')
+            ->join('user_unidade uu', 'uu.unidade_id = un.id AND uu.user_id = ' . $logged_user_id, 'inner')
+            ->where('un.id', $unidade_id)
+            ->where('un.empresa_id', $empresa_id)
+            ->limit(1)
+            ->get()
+            ->row();
+    }
+
+    /**
+     * Grupo "Clientes" da empresa, usado nos solicitantes criados pela abertura de chamado.
+     *
+     * @param int $empresa_id
+     * @return object|null
+     */
+    public function get_grupo_clientes($empresa_id)
+    {
+        $empresa_id = (int) $empresa_id;
+        if ($empresa_id <= 0) {
+            return null;
+        }
+
+        return $this->db->select('id, name')
+            ->where('empresa_id', $empresa_id)
+            ->where_in('LOWER(TRIM(name))', array('clientes', 'cliente'))
+            ->order_by('id', 'asc')
+            ->limit(1)
+            ->get('groups')
+            ->row();
+    }
+
+    /**
+     * Cria um solicitante já ativo (sem e-mail de ativação), vinculado à empresa,
+     * à unidade e ao grupo informados, com o celular na tabela pessoas.
+     *
+     * @return int|false id do novo usuário
+     */
+    public function criar_solicitante($dados, $empresa_id, $unidade_id, $grupo_id)
+    {
+        $empresa_id = (int) $empresa_id;
+        $unidade_id = (int) $unidade_id;
+        $grupo_id = (int) $grupo_id;
+
+        $this->db->trans_start();
+
+        // Sem senha: o controller envia em seguida o e-mail com o link para o usuário cadastrar a dele.
+        $user_id = $this->ion_auth_model->register('', '', $dados['email'], array(
+            'first_name' => $dados['first_name'],
+            'last_name' => $dados['last_name'],
+        ), array($empresa_id => 1), array($grupo_id), array(), array($unidade_id));
+
+        if ($user_id) {
+            // O register só grava nome e ativa conforme as preferências; aqui o cadastro já nasce ativo.
+            $this->db->update('users', array(
+                'first_name' => $dados['first_name'],
+                'last_name' => $dados['last_name'],
+                'active' => 1,
+                'activation_code' => null,
+            ), array('id' => (int) $user_id));
+
+            $this->db->insert('pessoas', array('user_id' => (int) $user_id, 'celular' => $dados['celular']));
+        }
+
+        $this->db->trans_complete();
+
+        if (!$user_id || $this->db->trans_status() === false) {
+            return false;
+        }
+
+        return (int) $user_id;
+    }
 }

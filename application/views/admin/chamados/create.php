@@ -45,6 +45,9 @@ $anexo_max_kb = (int) $anexo_config['max_size'];
     .anexo-list .anexo-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .anexo-list .anexo-info { color: #888; font-size: 12px; white-space: nowrap; }
     .anexo-list li.is-invalid .anexo-info { color: #a94442; }
+    .swal-novo-solicitante { text-align: left; margin-top: 10px; }
+    .swal-novo-solicitante .form-group { margin-bottom: 12px; }
+    .swal-novo-solicitante label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 4px; }
     @media (min-width: 992px) {
         .chamado-create .sticky-column { position: sticky; top: 60px; }
     }
@@ -190,8 +193,15 @@ $anexo_max_kb = (int) $anexo_config['max_size'];
                                 <?php if (@$dono): ?>
                                     <div class="form-group<?php echo $field_error_class('dono'); ?>">
                                         <label for="dono">Solicitante</label>
-                                        <?php echo form_dropdown($dono); ?>
-                                        <p class="help-block">Usuário do cliente que pediu o chamado. Em branco, fica você.</p>
+                                        <div class="input-group">
+                                            <?php echo form_dropdown($dono); ?>
+                                            <span class="input-group-btn">
+                                                <button type="button" class="btn btn-default btn-flat" id="btn-novo-solicitante" title="Cadastrar novo solicitante">
+                                                    <i class="fa fa-user-plus"></i>
+                                                </button>
+                                            </span>
+                                        </div>
+                                        <p class="help-block">Usuário do cliente que pediu o chamado. Em branco, fica você. Não está na lista? Cadastre pelo <i class="fa fa-user-plus"></i>.</p>
                                     </div>
                                 <?php endif ?>
                                 <div class="form-group<?php echo $field_error_class('responsavel'); ?>">
@@ -405,6 +415,170 @@ $anexo_max_kb = (int) $anexo_config['max_size'];
                 }
             });
         syncAnexos();
+
+        var $dono = $('#dono');
+
+        function aplicarMascaraFone($el) {
+            if ($.fn.inputmask) {
+                $el.inputmask({
+                    mask: ['(99) 9999-9999', '(99) 99999-9999'],
+                    keepStatic: true
+                });
+                return;
+            }
+            $el.on('input', function() {
+                var d = this.value.replace(/\D/g, '').slice(0, 11);
+                if (d.length > 10) {
+                    this.value = '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
+                } else if (d.length > 6) {
+                    this.value = '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
+                } else if (d.length > 2) {
+                    this.value = '(' + d.slice(0, 2) + ') ' + d.slice(2);
+                } else if (d.length > 0) {
+                    this.value = '(' + d;
+                } else {
+                    this.value = '';
+                }
+            });
+        }
+
+        function abrirNovoSolicitante() {
+            var unidadeId = $.trim($('#unidade').val() || '');
+            var baseUrl = $('#base_url').val() || '';
+
+            if (!unidadeId) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Selecione o cliente',
+                    text: 'Escolha o cliente (unidade) do chamado antes de cadastrar o solicitante.',
+                    confirmButtonColor: '#3c8dbc'
+                });
+                return;
+            }
+
+            var campo = function(id, label, type, placeholder, extra) {
+                return '<div class="form-group">' +
+                    '<label for="' + id + '">' + label + ' <span class="text-red">*</span></label>' +
+                    '<input type="' + type + '" id="' + id + '" class="form-control" placeholder="' + placeholder + '" autocomplete="off"' + (extra || '') + '>' +
+                '</div>';
+            };
+            var unidadeNome = $('<span>').text(selectedText('unidade')).html();
+            var htmlModal =
+                '<p style="margin:0 0 12px;font-size:14px;">O usuário será criado já ativo no cliente <strong>' + unidadeNome + '</strong> e no grupo Clientes, e receberá um e-mail para cadastrar a senha.</p>' +
+                '<div class="swal-novo-solicitante">' +
+                    '<div class="row">' +
+                        '<div class="col-sm-6">' + campo('swal-novo-nome', 'Nome', 'text', 'Nome', ' maxlength="50"') + '</div>' +
+                        '<div class="col-sm-6">' + campo('swal-novo-sobrenome', 'Sobrenome', 'text', 'Sobrenome', ' maxlength="50"') + '</div>' +
+                    '</div>' +
+                    campo('swal-novo-email', 'E-mail', 'email', 'nome@empresa.com.br', ' maxlength="254"') +
+                    campo('swal-novo-celular', 'Celular / WhatsApp', 'tel', '(00) 00000-0000', ' maxlength="15"') +
+                '</div>';
+
+            Swal.fire({
+                title: 'Novo solicitante',
+                html: htmlModal,
+                width: 560,
+                showCancelButton: true,
+                confirmButtonText: 'Cadastrar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#3c8dbc',
+                reverseButtons: true,
+                focusConfirm: false,
+                showLoaderOnConfirm: true,
+                allowOutsideClick: function() {
+                    return !Swal.isLoading();
+                },
+                didOpen: function() {
+                    aplicarMascaraFone($('#swal-novo-celular'));
+                    $('.swal-novo-solicitante input').on('keydown', function(ev) {
+                        if (ev.which === 13) {
+                            ev.preventDefault();
+                            Swal.clickConfirm();
+                        }
+                    });
+                    $('#swal-novo-nome').trigger('focus');
+                },
+                preConfirm: function() {
+                    var dados = {
+                        unidade_id: unidadeId,
+                        first_name: $.trim($('#swal-novo-nome').val() || ''),
+                        last_name: $.trim($('#swal-novo-sobrenome').val() || ''),
+                        email: $.trim($('#swal-novo-email').val() || ''),
+                        celular: $.trim($('#swal-novo-celular').val() || '')
+                    };
+                    var celDigits = dados.celular.replace(/\D/g, '');
+
+                    if (!dados.first_name || !dados.last_name) {
+                        Swal.showValidationMessage('Informe o nome e o sobrenome.');
+                        return false;
+                    }
+                    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dados.email)) {
+                        Swal.showValidationMessage('Informe um e-mail válido.');
+                        return false;
+                    }
+                    if (celDigits.length < 10 || celDigits.length > 11) {
+                        Swal.showValidationMessage('Informe um celular/WhatsApp válido com DDD.');
+                        return false;
+                    }
+
+                    return new Promise(function(resolve) {
+                        $.ajax({
+                            url: baseUrl + 'chamados/criar_solicitante',
+                            type: 'POST',
+                            dataType: 'json',
+                            data: dados
+                        }).done(function(res) {
+                            if (!res || !res.ok) {
+                                Swal.showValidationMessage((res && res.message) ? res.message : 'Não foi possível cadastrar o solicitante.');
+                                resolve(false);
+                                return;
+                            }
+                            resolve(res);
+                        }).fail(function(xhr) {
+                            var msg = (xhr && xhr.responseJSON && xhr.responseJSON.message)
+                                ? xhr.responseJSON.message
+                                : 'Erro ao cadastrar o solicitante.';
+                            Swal.showValidationMessage(msg);
+                            resolve(false);
+                        });
+                    });
+                }
+            }).then(function(result) {
+                if (!result || !result.isConfirmed || !result.value) {
+                    return;
+                }
+                var novo = result.value;
+                // Se o cliente foi trocado enquanto o modal estava aberto, as listas já são de outra unidade.
+                if (String($.trim($('#unidade').val() || '')) === String(unidadeId)) {
+                    // Unidade sem usuários vem só com a mensagem de lista vazia no lugar do "Selecione".
+                    $dono.find('option[value=""]').first().text('Selecione');
+                    $('#interessados').find('option[value=""]').remove();
+                    $('<option>').val(novo.id).text(novo.nome + ' (' + novo.email + ')').appendTo('#interessados');
+                    $('<option>').val(novo.id).text(novo.nome).appendTo($dono);
+                    $dono.val(String(novo.id)).trigger('change');
+                }
+                if (novo.email_enviado) {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: 'Solicitante cadastrado!',
+                        text: 'Enviamos o e-mail para ele cadastrar a senha.',
+                        showConfirmButton: false,
+                        timer: 3500
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Solicitante cadastrado',
+                        text: 'Não foi possível enviar o e-mail para cadastrar a senha. O solicitante pode usar o "Esqueci minha senha" na tela de login.',
+                        confirmButtonColor: '#3c8dbc'
+                    });
+                }
+            });
+        }
+
+        $('#btn-novo-solicitante').on('click', abrirNovoSolicitante);
 
         $form.on('submit', function(e) {
             var pending = $.grep(Object.keys(required), function(id) {
