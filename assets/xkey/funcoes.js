@@ -433,6 +433,9 @@ function add_resposta(tipo, chamado_id) {
       $('.dialogo-anexo').hide().html(html).fadeIn('slow');
     }
     if(tipo == 2) {
+      var html_anexo_interno = '';
+      if($('#acesso_interno').val() == "1")
+        html_anexo_interno = "<div class='form-group'><label for='anexo_interno'><input type='checkbox' id='anexo_interno' name='interno' value='1'> <i class='fa fa-lock'></i> Interno</label><div class='text-muted small'>O solicitante não vê os arquivos e o e-mail vai só para a equipe.</div></div>";
       var html = "<form enctype='multipart/form-data' id='resposta-chamado-form' action='"+$('#base_url').val()+"chamados/anexo/"+chamado_id+"' method='post'>"+
         "<div class='form-group'><br><label for='anexo_desc'>Descrição do Anexo</label><textarea id='anexo_desc' name='anexo_desc' class='form-control' rows='3' placeholder='Digite aqui...'></textarea></div>"+
         "<div class='form-group anexo-dialogo-drop' style='padding:12px;border:2px dashed #c9d3dd;border-radius:6px;background:#f9fbfc;text-align:center;'>"+
@@ -440,6 +443,7 @@ function add_resposta(tipo, chamado_id) {
           "<div class='text-muted small' style='margin-top:6px;'>Você pode adicionar quantos arquivos quiser, em várias seleções ou arrastando para cá. Todos ficam no mesmo diálogo.</div>"+
         "</div>"+
         "<ul class='list-group' id='anexo-dialogo-lista' style='margin-bottom:10px;'></ul>"+
+        html_anexo_interno+
         "<div class='form-group'><button type='submit' class='btn btn-primary btn-flat' id='anexo-dialogo-salvar' disabled>Salvar</button></div></form>";
       $('.dialogo-anexo').hide().html(html).fadeIn('slow');
       iniciarAnexosDialogo();

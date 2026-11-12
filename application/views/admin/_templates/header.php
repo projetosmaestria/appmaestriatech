@@ -69,7 +69,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
         <link rel="stylesheet" href="<?php echo base_url($frameworks_dir . '/domprojects/css/dp.min.css'); ?>">
         <link rel="stylesheet" href="<?php echo base_url('assets/xkey/estilo.css'); ?>">
         <link rel="stylesheet" href="<?php echo base_url('assets/xkey/modern-theme.css'); ?>">
-        <link rel="stylesheet" href="<?php echo base_url('assets/xkey/dark-theme.css'); ?>">
+        <link rel="stylesheet" href="<?php echo base_url('assets/xkey/dark-theme.css?v=' . (file_exists(FCPATH . 'assets/xkey/dark-theme.css') ? filemtime(FCPATH . 'assets/xkey/dark-theme.css') : '1')); ?>">
         <script src="<?php echo base_url('assets/xkey/theme-toggle.js'); ?>"></script>
         <link href="<?php echo base_url($plugins_dir . '/datetimepicker/build/css/bootstrap-datetimepicker.min.css'); ?>" rel="stylesheet">
 

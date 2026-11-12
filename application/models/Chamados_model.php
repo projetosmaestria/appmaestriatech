@@ -184,27 +184,8 @@ class Chamados_model extends CI_Model
             return false;
         }
 
-        $query_pref = $this->db->get_where('admin_preferences', array('empresa_id' => $this->session->userdata('empresa_id')))->row();
-
-        $where = 'd.chamado_id = ' . $id;
-        if (count(unserialize($query_pref->grupos_responsavel_chamado)) > 0 || count(unserialize($query_pref->grupos_dev_chamado)) > 0) {
-            $wheres = array_merge(unserialize($query_pref->grupos_responsavel_chamado), unserialize($query_pref->grupos_dev_chamado));
-            $where_in_responsavel = @implode(",", array_unique($wheres));
-            $q_responsavel = $this->db->select('u.id, u.first_name, u.last_name')
-                ->join('users u', 'ug.user_id = u.id')
-                ->join('groups g', 'g.id = ug.group_id')
-                ->where('ug.group_id IN (' . $where_in_responsavel . ')')
-                ->where('g.empresa_id', $this->session->userdata('empresa_id'))
-                ->where('u.id', $this->session->userdata('user_id'))
-                ->distinct()
-                ->get('users_groups ug');
-
-            if ($q_responsavel->num_rows() > 0) {
-                $where .= ' AND (d.interno = 0 OR d.interno = 1)';
-            } else {
-                $where .= ' AND d.interno = 0';
-            }
-        } else {
+        $where = 'd.chamado_id = ' . (int) $id;
+        if (!$this->usuario_ve_internos()) {
             $where .= ' AND d.interno = 0';
         }
 
@@ -213,6 +194,32 @@ class Chamados_model extends CI_Model
         $query->where($where);
         $query->order_by('d.data_envio', 'desc');
         return $query->get($this->table . "_dialogo d");
+    }
+
+    /**
+     * O usuário logado é dos grupos de responsável ou programador do chamado e enxerga
+     * os diálogos e anexos internos.
+     *
+     * @return bool
+     */
+    public function usuario_ve_internos()
+    {
+        $query_pref = $this->db->get_where('admin_preferences', array('empresa_id' => $this->session->userdata('empresa_id')))->row();
+        if (!$query_pref) {
+            return false;
+        }
+
+        $grupos = array_merge((array) @unserialize($query_pref->grupos_responsavel_chamado), (array) @unserialize($query_pref->grupos_dev_chamado));
+        $grupos = array_unique(array_filter(array_map('intval', $grupos)));
+        if (!$grupos) {
+            return false;
+        }
+
+        return $this->db->join('groups g', 'g.id = ug.group_id')
+            ->where_in('ug.group_id', $grupos)
+            ->where('g.empresa_id', (int) $this->session->userdata('empresa_id'))
+            ->where('ug.user_id', (int) $this->session->userdata('user_id'))
+            ->count_all_results('users_groups ug') > 0;
     }
 
     public function get_user_name($id)
@@ -257,14 +264,21 @@ class Chamados_model extends CI_Model
      * @return array
      * @author Ellan Garbelini
      **/
-    public function get_anexos($id = null)
+    public function get_anexos($id = null, $incluir_internos = null)
     {
         if ($id == null) {
             return false;
         }
+        // null: segue o usuário logado (equipe vê os internos, cliente não).
+        if ($incluir_internos === null) {
+            $incluir_internos = $this->usuario_ve_internos();
+        }
         $query = $this->db->select('a.*, u.first_name, u.last_name');
         $query->join('users u', 'u.id = a.responsavel_id', 'left');
         $query->where('a.chamado_id', $id);
+        if (!$incluir_internos) {
+            $query->where('a.interno', 0);
+        }
         $query->order_by('a.created', 'desc');
         return $query->get($this->table . "_anexo a");
     }

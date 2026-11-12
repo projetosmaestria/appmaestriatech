@@ -265,3 +265,1134 @@ body.dark-mode .list-group-item {
     border-color: #2d2d2d !important;
     color: #e2e8f0 !important;
 }
+
+/* ==========================================================================
+   Complemento do modo escuro (2026-11-12): componentes, plugins e telas
+   que ficavam claros. Mesma cobertura do saxwebv2, na paleta deste tema.
+   ========================================================================== */
+
+/* Mantém a faixa colorida no topo dos boxes tipados (a borda acima deixaria todos cinza). */
+body.dark-mode .box.box-primary { border-top: 3px solid #3c8dbc !important; }
+body.dark-mode .box.box-info { border-top: 3px solid #00c0ef !important; }
+body.dark-mode .box.box-success { border-top: 3px solid #00a65a !important; }
+body.dark-mode .box.box-warning { border-top: 3px solid #f39c12 !important; }
+body.dark-mode .box.box-danger { border-top: 3px solid #dd4b39 !important; }
+body.dark-mode .box.box-default { border-top: 3px solid #3d3d3d !important; }
+body.dark-mode .box.box-solid { border-top-width: 1px !important; }
+
+
+/* Chamados Pendentes Dark Mode */
+body.dark-mode .chamados-dropdown-menu {
+    background: #1e1e1e !important;
+    border: 1px solid #2d2d2d !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important;
+}
+
+body.dark-mode .chamados-dropdown-header {
+    background: #181818 !important;
+    border-bottom: 1px solid #262626 !important;
+}
+
+body.dark-mode .chamados-cards-scroll {
+    background: #121212 !important;
+}
+
+body.dark-mode .chamados-cards-scroll::-webkit-scrollbar-thumb {
+    background: #333333 !important;
+}
+
+body.dark-mode .chamado-card-item {
+    background: #252525 !important;
+    border: 1px solid #2d2d2d !important;
+    border-left: 3.5px solid #516480 !important;
+}
+
+body.dark-mode .chamado-card-item:hover {
+    background: #2c2c2c !important;
+    border-left-color: #3498db !important;
+}
+
+body.dark-mode .chamado-card-title {
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .chamado-card-desc {
+    color: #94a3b8 !important;
+}
+
+body.dark-mode .chamado-card-footer {
+    border-top: 1px dashed #2d2d2d !important;
+    color: #64748b !important;
+}
+
+body.dark-mode .chamado-empty-state p {
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .chamado-empty-state span {
+    color: #94a3b8 !important;
+}
+
+/* ==========================================================================
+   Tipografia e textos auxiliares
+   ========================================================================== */
+body.dark-mode .content-header > h1,
+body.dark-mode legend {
+    color: #f1f5f9;
+}
+
+body.dark-mode .text-muted,
+body.dark-mode .help-block,
+body.dark-mode .content-header > h1 > small,
+body.dark-mode .content-header > .breadcrumb > li > a,
+body.dark-mode .content-header > .breadcrumb > li,
+body.dark-mode .breadcrumb > .active {
+    color: #9ca3af !important;
+}
+
+body.dark-mode .has-error .help-block {
+    color: #f0a59a !important;
+}
+
+body.dark-mode hr,
+body.dark-mode legend,
+body.dark-mode .page-header {
+    border-color: #2d2d2d !important;
+}
+
+body.dark-mode .text-black,
+body.dark-mode .text-dark {
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode code {
+    background-color: #3a2b30 !important;
+    color: #f0a3b5 !important;
+}
+
+body.dark-mode pre,
+body.dark-mode .well {
+    background-color: #181818 !important;
+    border-color: #2d2d2d !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode ::placeholder {
+    color: #777777 !important;
+}
+
+/* ==========================================================================
+   Boxes: rodapé, cabeçalho sólido, ferramentas e overlay
+   ========================================================================== */
+body.dark-mode .box-footer,
+body.dark-mode .card-footer {
+    background-color: transparent !important;
+    border-top: 1px solid #2d2d2d !important;
+}
+
+body.dark-mode .box.box-solid.box-default > .box-header,
+body.dark-mode .box.box-solid > .box-header {
+    background-color: #262626 !important;
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .btn-box-tool,
+body.dark-mode .box-header .box-tools .btn {
+    color: #9ca3af !important;
+}
+
+body.dark-mode .btn-box-tool:hover {
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .box .overlay,
+body.dark-mode .modal-body .overlay,
+body.dark-mode .overlay-wrapper .overlay,
+body.dark-mode .container-fluid .overlay {
+    background: rgba(0, 0, 0, 0.55) !important;
+}
+
+body.dark-mode .info-box-content,
+body.dark-mode .info-box-text,
+body.dark-mode .info-box-number {
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .bg-gray,
+body.dark-mode .bg-gray-light,
+body.dark-mode .bg-white,
+body.dark-mode .bg-light {
+    background-color: #2d2d2d !important;
+    color: #f1f5f9 !important;
+}
+
+/* ==========================================================================
+   Botões
+   ========================================================================== */
+body.dark-mode .btn-default,
+body.dark-mode .btn-app,
+body.dark-mode .btn-light,
+body.dark-mode .btn-white {
+    background-color: #2d2d2d !important;
+    border-color: #3d3d3d !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .btn-default:hover,
+body.dark-mode .btn-default:focus,
+body.dark-mode .btn-app:hover,
+body.dark-mode .btn-light:hover,
+body.dark-mode .btn-white:hover {
+    background-color: #333333 !important;
+    border-color: #4a4a4a !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .btn-default.active,
+body.dark-mode .btn-default:active,
+body.dark-mode .open > .dropdown-toggle.btn-default {
+    background-color: #1f2b2b !important;
+    border-color: #3c8dbc !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .btn-default[disabled],
+body.dark-mode .btn-default.disabled {
+    background-color: #232323 !important;
+    color: #777777 !important;
+}
+
+body.dark-mode .btn-link {
+    color: #6bb3e0 !important;
+}
+
+/* Botões de opção (segmentos) dos formulários no padrão novo */
+body.dark-mode .cadastro-segmentos .btn.active,
+body.dark-mode .categoria-form .categoria-status .btn.active,
+body.dark-mode .nivel-form .nivel-status .btn.active,
+body.dark-mode .projeto-form .projeto-tipo .btn.active,
+body.dark-mode .habil-tipo .btn.active,
+body.dark-mode .habil-por-hora .btn.active {
+    background-color: #1f2b2b !important;
+    border-color: #3c8dbc !important;
+    color: #ffffff !important;
+}
+
+/* ==========================================================================
+   Campos de formulário complementares
+   ========================================================================== */
+body.dark-mode .input-group-addon,
+body.dark-mode .datetimepicker-modal-inline .input-group-addon,
+body.dark-mode .datetimepicker-checklist-inline .input-group-addon {
+    background-color: #262626 !important;
+    border-color: #333333 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .form-control[disabled],
+body.dark-mode .form-control[readonly],
+body.dark-mode fieldset[disabled] .form-control,
+body.dark-mode .datetimepicker-modal-inline input,
+body.dark-mode .datetimepicker-modal-inline input:read-only,
+body.dark-mode .datetimepicker-checklist-inline input {
+    background-color: #121212 !important;
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode input[type="text"],
+body.dark-mode input[type="email"],
+body.dark-mode input[type="tel"],
+body.dark-mode input[type="number"],
+body.dark-mode input[type="password"],
+body.dark-mode input[type="search"],
+body.dark-mode input[type="date"],
+body.dark-mode textarea,
+body.dark-mode select {
+    background-color: #262626;
+    border-color: #333333;
+    color: #e2e8f0;
+}
+
+body.dark-mode option {
+    background-color: #262626;
+    color: #e2e8f0;
+}
+
+/* Fastselect */
+body.dark-mode .fstElement,
+body.dark-mode .fstControls,
+body.dark-mode .fstQueryInput,
+body.dark-mode .fstResults {
+    background-color: #262626 !important;
+    border-color: #333333 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .fstResultItem {
+    background-color: #262626 !important;
+    border-color: #2d2d2d !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .fstResultItem.fstFocused,
+body.dark-mode .fstResultItem:hover {
+    background-color: #3c8dbc !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .fstResultItem.fstSelected {
+    background-color: #1f2b2b !important;
+}
+
+body.dark-mode .fstChoiceItem {
+    background-color: #1f2b2b !important;
+    border-color: #3c8dbc !important;
+    color: #f1f5f9 !important;
+}
+
+/* ==========================================================================
+   Abas, pills, dropdowns e breadcrumb
+   ========================================================================== */
+body.dark-mode .nav-tabs-custom {
+    background-color: #1e1e1e !important;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.4) !important;
+}
+
+body.dark-mode .nav-tabs-custom > .tab-content,
+body.dark-mode .tab-content {
+    background-color: transparent !important;
+    color: #e2e8f0;
+}
+
+body.dark-mode .nav-tabs,
+body.dark-mode .nav-tabs-custom > .nav-tabs {
+    border-bottom-color: #2d2d2d !important;
+}
+
+body.dark-mode .nav-tabs > li > a,
+body.dark-mode .nav-tabs-custom > .nav-tabs > li > a {
+    color: #9ca3af !important;
+}
+
+body.dark-mode .nav-tabs > li > a:hover,
+body.dark-mode .nav-tabs-custom > .nav-tabs > li > a:hover {
+    background-color: #262626 !important;
+    border-color: #2d2d2d !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .nav-tabs > li.active > a,
+body.dark-mode .nav-tabs > li.active > a:hover,
+body.dark-mode .nav-tabs > li.active > a:focus,
+body.dark-mode .nav-tabs-custom > .nav-tabs > li.active > a,
+body.dark-mode .nav-tabs-custom > .nav-tabs > li.active:hover > a {
+    background-color: #1e1e1e !important;
+    border-color: #2d2d2d #2d2d2d transparent !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .nav-pills > li > a,
+body.dark-mode .nav-stacked > li > a {
+    color: #9ca3af !important;
+    border-color: #2d2d2d !important;
+}
+
+body.dark-mode .nav-pills > li > a:hover,
+body.dark-mode .nav-stacked > li > a:hover {
+    background-color: #262626 !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .nav-pills > li.active > a,
+body.dark-mode .nav-pills > li.active > a:hover {
+    background-color: #3c8dbc !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .dropdown-menu {
+    background-color: #232323 !important;
+    border-color: #333333 !important;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.5) !important;
+}
+
+body.dark-mode .dropdown-menu > li > a,
+body.dark-mode .dropdown-menu > li > button {
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .dropdown-menu > li > a:hover,
+body.dark-mode .dropdown-menu > li > a:focus {
+    background-color: #2d2d2d !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .dropdown-menu > .active > a,
+body.dark-mode .dropdown-menu > .active > a:hover {
+    background-color: #3c8dbc !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .dropdown-menu .divider {
+    background-color: #333333 !important;
+}
+
+body.dark-mode .dropdown-header {
+    color: #9ca3af !important;
+}
+
+body.dark-mode .breadcrumb {
+    background-color: transparent !important;
+}
+
+/* ==========================================================================
+   Modais, popovers, listas, painéis, paginação e rótulos
+   ========================================================================== */
+body.dark-mode .modal-content {
+    background-color: #1e1e1e !important;
+    border-color: #2d2d2d !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .modal-header,
+body.dark-mode .modal-footer {
+    border-color: #2d2d2d !important;
+}
+
+body.dark-mode .modal-title {
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .close {
+    color: #e2e8f0 !important;
+    text-shadow: none !important;
+    opacity: 0.7;
+}
+
+body.dark-mode .close:hover {
+    opacity: 1;
+}
+
+body.dark-mode .popover {
+    background-color: #232323 !important;
+    border-color: #333333 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .popover-title {
+    background-color: #262626 !important;
+    border-color: #333333 !important;
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .list-group-item {
+    background-color: #1e1e1e !important;
+    border-color: #2d2d2d !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode a.list-group-item:hover,
+body.dark-mode button.list-group-item:hover {
+    background-color: #1f2b2b !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .list-group-item.active,
+body.dark-mode .list-group-item.active:hover {
+    background-color: #3c8dbc !important;
+    border-color: #3c8dbc !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .panel {
+    background-color: #1e1e1e !important;
+    border-color: #2d2d2d !important;
+}
+
+body.dark-mode .panel-default > .panel-heading,
+body.dark-mode .panel-footer {
+    background-color: #262626 !important;
+    border-color: #2d2d2d !important;
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .pagination > li > a,
+body.dark-mode .pagination > li > span {
+    background-color: #1e1e1e !important;
+    border-color: #2d2d2d !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .pagination > li > a:hover {
+    background-color: #2d2d2d !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .pagination > .active > a,
+body.dark-mode .pagination > .active > span,
+body.dark-mode .pagination > .active > a:hover {
+    background-color: #3c8dbc !important;
+    border-color: #3c8dbc !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .pagination > .disabled > a,
+body.dark-mode .pagination > .disabled > span {
+    background-color: #181818 !important;
+    color: #666666 !important;
+}
+
+body.dark-mode .label-default,
+body.dark-mode .badge.bg-gray {
+    background-color: #333333 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .progress,
+body.dark-mode .progress-sm,
+body.dark-mode .modern-progress {
+    background-color: #2d2d2d !important;
+}
+
+/* Linhas de tabela com estado (Bootstrap) */
+/* Só topo e base: a borda esquerda colorida marca status/prioridade em várias listagens. */
+body.dark-mode .table > tbody > tr > td,
+body.dark-mode .table > tbody > tr > th,
+body.dark-mode .table > tfoot > tr > td,
+body.dark-mode .table > thead > tr > td {
+    border-top-color: #2d2d2d !important;
+    border-bottom-color: #2d2d2d !important;
+}
+
+body.dark-mode .table > tbody > tr.active > td,
+body.dark-mode .table > tbody > tr > td.active {
+    background-color: #262626 !important;
+}
+
+body.dark-mode .table > tbody > tr.success > td,
+body.dark-mode .table > tbody > tr > td.success,
+body.dark-mode tr.success,
+body.dark-mode .success td {
+    background-color: rgba(0, 166, 90, 0.18) !important;
+}
+
+body.dark-mode .table > tbody > tr.danger > td,
+body.dark-mode .table > tbody > tr > td.danger,
+body.dark-mode tr.danger,
+body.dark-mode .danger td {
+    background-color: rgba(221, 75, 57, 0.18) !important;
+}
+
+body.dark-mode .table > tbody > tr.warning > td,
+body.dark-mode .table > tbody > tr > td.warning {
+    background-color: rgba(243, 156, 18, 0.16) !important;
+}
+
+body.dark-mode .table > tbody > tr.info > td,
+body.dark-mode .table > tbody > tr > td.info {
+    background-color: rgba(60, 141, 188, 0.18) !important;
+}
+
+/* DataTables */
+body.dark-mode .dataTables_wrapper,
+body.dark-mode .dataTables_info,
+body.dark-mode .dataTables_length,
+body.dark-mode .dataTables_filter {
+    color: #9ca3af !important;
+}
+
+body.dark-mode .dataTables_processing {
+    background: #262626 !important;
+    border-color: #333333 !important;
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode table.dataTable tbody tr {
+    background-color: transparent;
+}
+
+body.dark-mode table.dataTable tbody tr.selected,
+body.dark-mode table.dataTable tbody tr.selected > td {
+    background-color: #1f2b2b !important;
+}
+
+/* Timeline, listas do AdminLTE */
+body.dark-mode .timeline > li > .timeline-item {
+    background-color: #1e1e1e !important;
+    border: 1px solid #2d2d2d;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .timeline > li > .timeline-item > .timeline-header {
+    border-color: #2d2d2d !important;
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .timeline:before {
+    background-color: #2d2d2d !important;
+}
+
+body.dark-mode .todo-list > li,
+body.dark-mode .products-list > .item {
+    background-color: #232323 !important;
+    border-color: #2d2d2d !important;
+    color: #e2e8f0 !important;
+}
+
+/* ==========================================================================
+   Plugins: datas, calendário, upload, gráficos e SweetAlert
+   ========================================================================== */
+body.dark-mode .bootstrap-datetimepicker-widget,
+body.dark-mode .bootstrap-datetimepicker-widget.dropdown-menu,
+body.dark-mode .datepicker,
+body.dark-mode .daterangepicker,
+body.dark-mode .daterangepicker .calendar-table {
+    background-color: #232323 !important;
+    border-color: #333333 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .bootstrap-datetimepicker-widget table td.day:hover,
+body.dark-mode .bootstrap-datetimepicker-widget table td.hour:hover,
+body.dark-mode .bootstrap-datetimepicker-widget table td.minute:hover,
+body.dark-mode .bootstrap-datetimepicker-widget table thead tr:first-child th:hover,
+body.dark-mode .bootstrap-datetimepicker-widget table td span:hover,
+body.dark-mode .daterangepicker td.available:hover,
+body.dark-mode .daterangepicker th.available:hover {
+    background-color: #2d2d2d !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .bootstrap-datetimepicker-widget table td.old,
+body.dark-mode .bootstrap-datetimepicker-widget table td.new,
+body.dark-mode .daterangepicker td.off {
+    background-color: transparent !important;
+    color: #666666 !important;
+}
+
+body.dark-mode .daterangepicker .ranges li:hover,
+body.dark-mode .daterangepicker td.in-range {
+    background-color: #1f2b2b !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode .fc-unthemed th,
+body.dark-mode .fc-unthemed td,
+body.dark-mode .fc-unthemed thead,
+body.dark-mode .fc-unthemed tbody,
+body.dark-mode .fc-unthemed .fc-divider,
+body.dark-mode .fc-unthemed .fc-row,
+body.dark-mode .fc-unthemed .fc-popover {
+    border-color: #2d2d2d !important;
+}
+
+body.dark-mode .fc-unthemed .fc-popover,
+body.dark-mode .fc-unthemed .fc-divider,
+body.dark-mode .fc-unthemed .fc-list-heading td {
+    background-color: #232323 !important;
+}
+
+body.dark-mode .fc-unthemed td.fc-today {
+    background-color: rgba(60, 141, 188, 0.15) !important;
+}
+
+body.dark-mode .file-preview,
+body.dark-mode .file-drop-zone,
+body.dark-mode .file-preview-frame,
+body.dark-mode .file-caption {
+    background-color: #121212 !important;
+    border-color: #333333 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .morris-hover.morris-default-style {
+    background: rgba(38, 38, 38, 0.95) !important;
+    border-color: #333333 !important;
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .swal2-popup {
+    background-color: #1e1e1e !important;
+    color: #e2e8f0 !important;
+    border: 1px solid #2d2d2d;
+}
+
+body.dark-mode .swal2-title,
+body.dark-mode .swal2-html-container,
+body.dark-mode .swal2-content {
+    color: #e0e0e0 !important;
+}
+
+body.dark-mode .swal2-validation-message {
+    background-color: #2d2d2d !important;
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .swal2-input,
+body.dark-mode .swal2-textarea,
+body.dark-mode .swal2-select {
+    background-color: #262626 !important;
+    border-color: #333333 !important;
+    color: #e2e8f0 !important;
+}
+
+/* ==========================================================================
+   Cabeçalho: menus suspensos (notificações e usuário)
+   ========================================================================== */
+body.dark-mode .modern-dropdown-menu {
+    background: #1e1e1e !important;
+    border: 1px solid #2d2d2d !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important;
+}
+
+body.dark-mode .modern-menu-list a {
+    border-bottom-color: #2d2d2d !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .modern-menu-list a:hover {
+    background: #1f2b2b !important;
+    color: #6bb3e0 !important;
+}
+
+body.dark-mode .modern-dropdown-footer,
+body.dark-mode .modern-profile-btn,
+body.dark-mode .modern-logout-btn {
+    background: #262626 !important;
+    border-color: #2d2d2d !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .modern-user-body {
+    background: #1e1e1e !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .prioridade-alta,
+body.dark-mode .prioridade-urgente {
+    background: rgba(221, 75, 57, 0.18) !important;
+}
+
+body.dark-mode .prioridade-normal,
+body.dark-mode .prioridade-media {
+    background: rgba(60, 141, 188, 0.18) !important;
+}
+
+body.dark-mode .prioridade-baixa {
+    background: rgba(0, 166, 90, 0.18) !important;
+}
+
+body.dark-mode .main-footer-modules {
+    background: #18202a !important;
+}
+
+/* ==========================================================================
+   Padrão de listagem: cards de KPI, filtros e tabela zebrada
+   (lista_estilos, chamados, usuários, projetos, níveis, categorias, apontamentos, habilitações)
+   ========================================================================== */
+body.dark-mode .lista-kpi,
+body.dark-mode .dash-kpi,
+body.dark-mode .usuarios-kpi,
+body.dark-mode .apontamentos-kpi,
+body.dark-mode .habil-kpi,
+body.dark-mode .habil-card {
+    background: #1e1e1e !important;
+    border: 1px solid #2d2d2d;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4) !important;
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode a.lista-kpi:hover,
+body.dark-mode .dash-kpi:hover {
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.6) !important;
+}
+
+body.dark-mode .lista-kpi span,
+body.dark-mode .lista-kpi small,
+body.dark-mode .dash-kpi-hint,
+body.dark-mode .dash-section-title,
+body.dark-mode .lista-detalhe,
+body.dark-mode .dash-empty,
+body.dark-mode .lista-vazio {
+    color: #9ca3af !important;
+}
+
+body.dark-mode .lista-tabela > thead > tr > th,
+body.dark-mode .chamados-table > thead > tr > th,
+body.dark-mode .usuarios-table > thead > tr > th,
+body.dark-mode .projetos-table > thead > tr > th,
+body.dark-mode .niveis-table > thead > tr > th,
+body.dark-mode .categorias-table > thead > tr > th,
+body.dark-mode .apontamentos-table > thead > tr > th,
+body.dark-mode .habil-tabela > thead > tr > th,
+body.dark-mode .checklists-table > thead > tr > th {
+    background: #262626 !important;
+    border-bottom-color: #333333 !important;
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .lista-tabela > tbody > tr > td,
+body.dark-mode .chamados-table > tbody > tr > td,
+body.dark-mode .usuarios-table > tbody > tr > td,
+body.dark-mode .projetos-table > tbody > tr > td,
+body.dark-mode .niveis-table > tbody > tr > td,
+body.dark-mode .categorias-table > tbody > tr > td,
+body.dark-mode .apontamentos-table > tbody > tr > td,
+body.dark-mode .habil-tabela > tbody > tr > td {
+    background-color: #1e1e1e;
+    border-bottom-color: #2d2d2d !important;
+}
+
+body.dark-mode .lista-tabela > tbody > tr:nth-child(even) > td,
+body.dark-mode .chamados-table > tbody > tr:nth-child(even) > td,
+body.dark-mode .usuarios-table > tbody > tr:nth-child(even) > td,
+body.dark-mode .projetos-table > tbody > tr:nth-child(even) > td,
+body.dark-mode .niveis-table > tbody > tr:nth-child(even) > td,
+body.dark-mode .categorias-table > tbody > tr:nth-child(even) > td,
+body.dark-mode .apontamentos-table > tbody > tr:nth-child(even) > td,
+body.dark-mode .habil-tabela > tbody > tr:nth-child(even) > td,
+body.dark-mode .usuario-unidades > tbody > tr:nth-child(even) > td,
+body.dark-mode .habil-tabela-historico > tbody > tr.habil-historico-linha > td,
+body.dark-mode .dash-list li:nth-child(even) a {
+    background-color: #232323 !important;
+}
+
+body.dark-mode .lista-tabela > tbody > tr:hover > td,
+body.dark-mode .chamados-table > tbody > tr:hover > td,
+body.dark-mode .usuarios-table > tbody > tr:hover > td,
+body.dark-mode .projetos-table > tbody > tr:hover > td,
+body.dark-mode .niveis-table > tbody > tr:hover > td,
+body.dark-mode .categorias-table > tbody > tr:hover > td,
+body.dark-mode .apontamentos-table > tbody > tr:hover > td,
+body.dark-mode .habil-tabela > tbody > tr:hover > td,
+body.dark-mode .dash-list li a:hover,
+body.dark-mode .clickable-row:hover,
+body.dark-mode .permissoes-tela-topo:hover {
+    background-color: #1f2b2b !important;
+}
+
+body.dark-mode .lista-tabela > tbody > tr.is-inativo > td,
+body.dark-mode .habil-tabela-historico > tbody > tr.situacao-desabilitada > td,
+body.dark-mode .habil-card.situacao-desabilitada {
+    background-color: #181818 !important;
+    color: #777777 !important;
+}
+
+body.dark-mode .dash-list li a {
+    color: #e2e8f0 !important;
+    border-color: #2d2d2d !important;
+}
+
+body.dark-mode .lista-chip {
+    background: #1f2b2b !important;
+    border-color: #2f4545 !important;
+    color: #cfe9e7 !important;
+}
+
+body.dark-mode .habil-chip {
+    background: rgba(0, 166, 90, 0.18) !important;
+    color: #9fdcbc !important;
+}
+
+body.dark-mode .habil-chip.is-vencendo {
+    background: rgba(243, 156, 18, 0.18) !important;
+    color: #f5c97a !important;
+}
+
+body.dark-mode .habil-chip.is-vencida {
+    background: rgba(221, 75, 57, 0.2) !important;
+    color: #f0a59a !important;
+}
+
+body.dark-mode .habil-chip.is-inativa {
+    background: #2d2d2d !important;
+    color: #9ca3af !important;
+}
+
+body.dark-mode .habil-chip.is-demo {
+    background: rgba(60, 141, 188, 0.2) !important;
+    color: #9cc9e6 !important;
+}
+
+body.dark-mode .chamados-advanced,
+body.dark-mode .projetos-advanced {
+    background: #181818 !important;
+    border-color: #2d2d2d !important;
+}
+
+/* ==========================================================================
+   Padrão de formulário: opções, dicas, resumo e anexos
+   ========================================================================== */
+body.dark-mode .cadastro-opcao,
+body.dark-mode .cadastro-dica,
+body.dark-mode .projeto-dica,
+body.dark-mode .usuario-vinculo,
+body.dark-mode .usuario-dica {
+    background: #232323 !important;
+    border-color: #2d2d2d !important;
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .usuario-grupo.is-checked {
+    background: #1f2b2b !important;
+    border-color: #3c8dbc !important;
+}
+
+body.dark-mode .cadastro-resumo dd.is-empty,
+body.dark-mode .chamado-summary dd.is-empty {
+    color: #666666 !important;
+}
+
+body.dark-mode .anexo-dropzone {
+    background: #181818 !important;
+    border-color: #333333 !important;
+    color: #9ca3af !important;
+}
+
+body.dark-mode .anexo-dropzone:hover,
+body.dark-mode .anexo-dropzone.is-dragover,
+body.dark-mode .anexo-dialogo-drop {
+    background: #1c2626 !important;
+    border-color: #3c8dbc !important;
+}
+
+body.dark-mode .anexo-list li {
+    border-color: #2d2d2d !important;
+}
+
+body.dark-mode .anexo-list li.is-invalid,
+body.dark-mode .apontar-stat.is-over {
+    background: rgba(221, 75, 57, 0.15) !important;
+    border-color: rgba(221, 75, 57, 0.45) !important;
+}
+
+/* ==========================================================================
+   Detalhes do chamado: conversa, escalar e apontar
+   ========================================================================== */
+body.dark-mode .chamado-day {
+    border-bottom-color: #2d2d2d !important;
+}
+
+body.dark-mode .chamado-day span {
+    background: #1e1e1e !important;
+    color: #9ca3af !important;
+}
+
+body.dark-mode .chamado-bubble {
+    background: #262626 !important;
+    border-color: #333333 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .chamado-message.from-requester .chamado-bubble {
+    background: #233029 !important;
+    border-color: #2f5a43 !important;
+}
+
+body.dark-mode .chamado-message.is-internal .chamado-bubble {
+    background: #33291a !important;
+    border-color: #6b5320 !important;
+}
+
+body.dark-mode .chamado-role,
+body.dark-mode .chamado-time,
+body.dark-mode .chamado-number,
+body.dark-mode .chamado-facts dt,
+body.dark-mode .escalar-current-title,
+body.dark-mode .escalar-current-grid span,
+body.dark-mode .apontar-stat span,
+body.dark-mode .apontar-stat small,
+body.dark-mode .apontar-stat strong em,
+body.dark-mode .escalar-modal .escalar-subtitle,
+body.dark-mode .apontar-modal .apontar-subtitle {
+    color: #9ca3af !important;
+}
+
+body.dark-mode .chamado-file {
+    background: #121212 !important;
+    border-color: #333333 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .chamado-rating,
+body.dark-mode .chamado-entries li,
+body.dark-mode .escalar-section,
+body.dark-mode .escalar-current-path,
+body.dark-mode .apontar-history {
+    border-color: #2d2d2d !important;
+}
+
+body.dark-mode .escalar-current,
+body.dark-mode .apontar-stat {
+    background: #232323 !important;
+    border-color: #2d2d2d !important;
+}
+
+body.dark-mode .escalar-restrito {
+    background: rgba(243, 156, 18, 0.12) !important;
+    border-color: rgba(243, 156, 18, 0.4) !important;
+}
+
+body.dark-mode .apontar-history-list tr.is-mine > td {
+    background: #1f2b2b !important;
+}
+
+/* Checklists */
+body.dark-mode .etapa-item {
+    background: #232323 !important;
+    border-color: #2d2d2d !important;
+}
+
+/* ==========================================================================
+   Kanban e planejamento da equipe
+   ========================================================================== */
+body.dark-mode .card-comments,
+body.dark-mode .kanban-tarefa-info,
+body.dark-mode .card-light:not(.card-outline) > .card-header,
+body.dark-mode .card-white:not(.card-outline) > .card-header {
+    background: #262626 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .planning-calendar td {
+    background: #1e1e1e !important;
+    border-color: #2d2d2d !important;
+}
+
+body.dark-mode .planning-calendar td.is-outside {
+    background: #161616 !important;
+}
+
+body.dark-mode .planning-calendar td.is-unavailable,
+body.dark-mode .planning-calendar-swatch.is-over {
+    background: rgba(221, 75, 57, 0.15) !important;
+}
+
+body.dark-mode .planning-calendar-tasks li,
+body.dark-mode .planning-calendar-swatch.is-planned {
+    background: #1f2b2b !important;
+    color: #cfe9e7 !important;
+}
+
+body.dark-mode .gantt-legend-estimated {
+    background: #1e1e1e !important;
+}
+
+/* ==========================================================================
+   Menus (árvore de cadastro de menus)
+   ========================================================================== */
+body.dark-mode .menu-tree-wrapper,
+body.dark-mode .menu-tree-search-bar,
+body.dark-mode .tree-root-card,
+body.dark-mode .tree-node-row {
+    background: #1e1e1e !important;
+    border-color: #2d2d2d !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .menu-tree-header,
+body.dark-mode .menu-tree-scroll-container,
+body.dark-mode .tree-node-row.disabled,
+body.dark-mode .tree-toggle {
+    background: #181818 !important;
+    border-color: #2d2d2d !important;
+}
+
+body.dark-mode .tree-root-card:hover,
+body.dark-mode .tree-node-row:hover:not(.disabled) {
+    background: #1f2b2b !important;
+}
+
+body.dark-mode .tree-root-card.is-selected,
+body.dark-mode .tree-node-row.selected {
+    background: #1f3333 !important;
+    border-color: #3c8dbc !important;
+}
+
+/* ==========================================================================
+   Fundos e textos claros definidos direto no HTML (style="...")
+   ========================================================================== */
+body.dark-mode [style*="background:#fff;"],
+body.dark-mode [style*="background: #fff;"],
+body.dark-mode [style$="background:#fff"],
+body.dark-mode [style$="background: #fff"],
+body.dark-mode [style*="background-color:#fff"],
+body.dark-mode [style*="background-color: #fff"],
+body.dark-mode [style*="background:#ffffff"],
+body.dark-mode [style*="background: #ffffff"],
+body.dark-mode [style*="background:white"],
+body.dark-mode [style*="background: white"],
+body.dark-mode [style*="background-color:white"],
+body.dark-mode [style*="background-color: white"],
+body.dark-mode [style*="background:#f8fafc"],
+body.dark-mode [style*="background: #f8fafc"],
+body.dark-mode [style*="background:#fafafa"],
+body.dark-mode [style*="background: #fafafa"],
+body.dark-mode [style*="background-color:#fafafa"],
+body.dark-mode [style*="background-color: #fafafa"],
+body.dark-mode [style*="background:#f5f5f5"],
+body.dark-mode [style*="background: #f5f5f5"],
+body.dark-mode [style*="background-color: #f5f5f5"],
+body.dark-mode [style*="background-color:#f4f4f4"],
+body.dark-mode [style*="background-color: #f4f4f4"],
+body.dark-mode [style*="background:#f9f9f9"],
+body.dark-mode [style*="background: #f9f9f9"],
+body.dark-mode [style*="background:#f9fbfc"],
+body.dark-mode [style*="background: #f9fbfc"],
+body.dark-mode [style*="background:#f7f9fb"],
+body.dark-mode [style*="background: #f7f9fb"],
+body.dark-mode [style*="background:#f1f5f9"],
+body.dark-mode [style*="background: #f1f5f9"],
+body.dark-mode [style*="background:#eef2f5"],
+body.dark-mode [style*="background: #eef2f5"],
+body.dark-mode [style*="background:#e2e8f0"],
+body.dark-mode [style*="background: #e2e8f0"] {
+    background: #232323 !important;
+    border-top-color: #2d2d2d !important;
+    border-right-color: #2d2d2d !important;
+    border-bottom-color: #2d2d2d !important;
+    color: #e2e8f0;
+}
+
+body.dark-mode [style*="background:#f0fdf4"],
+body.dark-mode [style*="background: #f0fdf4"],
+body.dark-mode [style*="background-color:#f0fdf4"],
+body.dark-mode [style*="background-color: #f0fdf4"] {
+    background: rgba(0, 166, 90, 0.15) !important;
+}
+
+body.dark-mode [style*="background-color:#eff6ff"],
+body.dark-mode [style*="background-color: #eff6ff"] {
+    background: rgba(60, 141, 188, 0.15) !important;
+}
+
+body.dark-mode [style*="background:#fffff0"],
+body.dark-mode [style*="background: #fffff0"] {
+    background: rgba(243, 156, 18, 0.12) !important;
+}
+
+body.dark-mode [style*="border: 1px solid #d2d6de"],
+body.dark-mode [style*="border:1px solid #d2d6de"],
+body.dark-mode [style*="border: 1px solid #eee"],
+body.dark-mode [style*="border:1px solid #eee"],
+body.dark-mode [style*="border: 1px solid #ddd"],
+body.dark-mode [style*="border:1px solid #ddd"] {
+    border-color: #2d2d2d !important;
+}
+
+body.dark-mode [style*="color:#333"],
+body.dark-mode [style*="color: #333"],
+body.dark-mode [style*="color:#444"],
+body.dark-mode [style*="color: #444"],
+body.dark-mode [style*="color:#555"],
+body.dark-mode [style*="color: #555"],
+body.dark-mode [style*="color:#222"],
+body.dark-mode [style*="color: #222"],
+body.dark-mode [style*="color:#000"],
+body.dark-mode [style*="color: #000"],
+body.dark-mode [style*="color:#1e293b"],
+body.dark-mode [style*="color: #1e293b"],
+body.dark-mode [style*="color:#2c3e50"],
+body.dark-mode [style*="color: #2c3e50"] {
+    color: #e2e8f0 !important;
+}

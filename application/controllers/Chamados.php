@@ -297,6 +297,7 @@ class Chamados extends Admin_Controller
 		if (! $this->ion_auth->logged_in() or ! $this->ion_auth->has_permissao("chamados", "create")) {
 			redirect('auth', 'refresh');
 		}
+		$this->data['pode_anexo_interno'] = $this->pode_marcar_interno();
 
 		$grupos_usuarios_chamado = $this->chamados_model->get_groups();
 		if (! @$grupos_usuarios_chamado) {
@@ -362,7 +363,8 @@ class Chamados extends Admin_Controller
 			$this->kanban_model->atualizarKanban($this->input->post(), $id, true);
 			/** fim kanban **/
 
-			$erros_anexos = $this->salvar_anexos_abertura($id);
+			$anexos_internos = $this->input->post('anexos_internos') && $this->pode_marcar_interno();
+			$erros_anexos = $this->salvar_anexos_abertura($id, 'Anexo enviado na abertura do chamado.', $anexos_internos);
 
 			$chamado = $this->chamados_model->get(array(
 				'select' => 'c.id, c.categoria_id, c.catalogoservico_id, c.modulo_id, c.resposta, c.referencia_id, c.unidade_id, c.produto_id, c.modulo_id, c.protocolo, c.titulo, c.descricao, c.horas, c.reincidencia, c.created, c.data_finalizacao, c.data_inicio, c.data_prazo, c.modified, c.status_id, c.prioridade_id, c.dono_id, c.responsavel_id, u.first_name, u.last_name, cs.descricao as catalogo_desc, un.unidade as cliente, cst.descricao as status, cp.descricao as prioridade, un.empresa_id, p.nome as produto_desc, m.nome as modulo_desc, mc.nome as mcategoria_desc, ud.first_name as first_name_dono, ud.last_name as last_name_dono, u.email as email_resp, ud.email as email_dono, c.interessados, r.id as chamado_referencia_id, r.titulo as chamado_referencia_titulo, c.plano_acao, n.descricao as nivel_desc, c.desenvolvedor_id, udev.first_name as first_name_dev, udev.last_name as last_name_dev, udev.email as email_dev',
@@ -832,11 +834,14 @@ class Chamados extends Admin_Controller
 			$this->db->where('d.interno', 0);
 		}
 		$itens = $this->db->order_by('d.data_envio', 'desc')->limit($limite + $pular_recentes)->get()->result_array();
-		$anexos = $this->db->select('a.descricao, a.created, 0 AS interno, u.first_name, u.last_name, a.anexo', false)
+		$this->db->select('a.descricao, a.created, a.interno, u.first_name, u.last_name, a.anexo', false)
 			->from('chamado_anexo a')
 			->join('users u', 'u.id = a.responsavel_id', 'left')
-			->where('a.chamado_id', (int) $chamado_id)
-			->order_by('a.created', 'desc')
+			->where('a.chamado_id', (int) $chamado_id);
+		if (!$incluir_internos) {
+			$this->db->where('a.interno', 0);
+		}
+		$anexos = $this->db->order_by('a.created', 'desc')
 			->limit($limite + $pular_recentes)
 			->get()
 			->result_array();
@@ -1051,7 +1056,8 @@ class Chamados extends Admin_Controller
 	 */
 	private function bloco_anexos_email($chamado_id)
 	{
-		$anexos = $this->chamados_model->get_anexos($chamado_id)->result();
+		// O e-mail de abertura vai também para o cliente: anexos internos ficam de fora.
+		$anexos = $this->chamados_model->get_anexos($chamado_id, false)->result();
 		$titulo = '<p style="margin:24px 0 8px;font-size:12px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#3c8dbc;">Anexos (' . count($anexos) . ')</p>';
 		if (!$anexos) {
 			return $titulo . '<p style="margin:0;font-size:14px;color:#999999;">Nenhum arquivo anexado na abertura.</p>';
@@ -1077,7 +1083,7 @@ class Chamados extends Admin_Controller
 	 * Grava os arquivos enviados no campo anexo[] da abertura do chamado.
 	 * Retorna a lista de erros, sem impedir a criação do chamado.
 	 */
-	private function salvar_anexos_abertura($chamado_id, $descricao = 'Anexo enviado na abertura do chamado.')
+	private function salvar_anexos_abertura($chamado_id, $descricao = 'Anexo enviado na abertura do chamado.', $interno = 0)
 	{
 		if (empty($_FILES['anexo']['name']) || !is_array($_FILES['anexo']['name'])) {
 			return array();
@@ -1113,6 +1119,7 @@ class Chamados extends Admin_Controller
 					'descricao' => $descricao,
 					'anexo' => $this->upload->data('file_name'),
 					'created' => $created_envio,
+					'interno' => $interno ? 1 : 0,
 				));
 			} else {
 				$erros[] = html_escape($nome) . ': ' . strip_tags($this->upload->display_errors('', ''));
@@ -2137,6 +2144,8 @@ class Chamados extends Admin_Controller
 			$count_upload = 0;
 			$upload_msgs = "";
 			$erros_upload = array();
+			// Interno: o solicitante não vê o anexo na conversa e o e-mail vai só para a equipe.
+			$eh_interno = $this->input->post('interno') && $this->pode_marcar_interno();
 			// Todos os arquivos do mesmo envio compartilham data/descrição: a conversa os agrupa em uma única mensagem.
 			$created_envio = date("Y-m-d H:i:s");
 			foreach ($_FILES['anexo']['name'] as $key => $anexo) {
@@ -2157,6 +2166,7 @@ class Chamados extends Admin_Controller
 					$dados["descricao"] = $this->input->post('anexo_desc');
 					$dados["anexo"] = $this->upload->data('file_name');
 					$dados["created"] = $created_envio;
+					$dados["interno"] = $eh_interno ? 1 : 0;
 
 					$anexo_create = $this->chamados_model->create_anexo($dados);
 
@@ -2216,14 +2226,15 @@ class Chamados extends Admin_Controller
 					'{anexo_autor}' => html_escape(trim($this->chamados_model->get_user_name($this->session->userdata('user_id')))),
 					'{anexo_data}' => date('d/m/Y') . ' &agrave;s ' . date('H:i'),
 					'{anexo_arquivos}' => $arquivos_email,
-					'{anexo_descricao}' => trim((string) $this->input->post('anexo_desc')) !== '' ? '<div style="margin-top:8px;font-size:14px;line-height:1.5;color:#444444;">' . nl2br(html_escape($this->input->post('anexo_desc'))) . '</div>' : '',
-				), false, $count_upload);
+					'{anexo_descricao}' => (trim((string) $this->input->post('anexo_desc')) !== '' ? '<div style="margin-top:8px;font-size:14px;line-height:1.5;color:#444444;">' . nl2br(html_escape($this->input->post('anexo_desc'))) . '</div>' : '')
+						. ($eh_interno ? '<div style="margin-top:8px;"><span style="display:inline-block;padding:1px 6px;border-radius:3px;background:#f39c12;color:#ffffff;font-size:11px;">Interno</span></div>' : ''),
+				), $eh_interno, $count_upload);
 
 				$this->email->clear();
 				$this->email->from($from_email, utf8_decode($from_name));
 
 				$chamado = $this->chamados_model->get(array(
-					'select' => 'c.id, c.dono_id, u.email as email_dono, c.responsavel_id, c.interessados, u.first_name, u.last_name, us.email as email_resp, c.plano_acao, udev.email as email_dev',
+					'select' => 'c.id, c.dono_id, u.email as email_dono, c.responsavel_id, c.desenvolvedor_id, c.interessados, u.first_name, u.last_name, us.email as email_resp, c.plano_acao, udev.email as email_dev',
 					'join' => array(array('users u', 'u.id = c.dono_id', 'left'), array('users us', 'us.id = c.responsavel_id', 'left'), array('users udev', 'udev.id = c.desenvolvedor_id', 'left')),
 					'where' => 'c.id = "' . $id . '"',
 					'order_by' => array('c.id', 'desc')
@@ -2254,22 +2265,43 @@ class Chamados extends Admin_Controller
 
 				$mail->setFrom($from_email, utf8_decode($from_name));
 
+				// Mesmos grupos que o diálogo interno deixa de fora do e-mail.
+				$grupos_excluidos = array(2, 11, 35, 58, 68);
+				$pode_receber = function ($user_id) use ($eh_interno, $grupos_excluidos) {
+					if (!$eh_interno || !$user_id) {
+						return true;
+					}
+					foreach ($grupos_excluidos as $grupo_id) {
+						if ($this->ion_auth->in_group($grupo_id, $user_id)) {
+							return false;
+						}
+					}
+					return true;
+				};
+
 				if (is_array(unserialize($chamado->interessados))) {
 					foreach (unserialize($chamado->interessados) as $int) {
-						$mail->addAddress($this->chamados_model->get_email($int));
+						if ($pode_receber($int)) {
+							$mail->addAddress($this->chamados_model->get_email($int));
+						}
 					}
 				}
-				$mail->addAddress($chamado->email_dono);
-				$mail->addAddress($chamado->email_resp);
-				$mail->addAddress($chamado->email_dev);
+				if ($pode_receber($chamado->dono_id))
+					$mail->addAddress($chamado->email_dono);
+				if ($pode_receber($chamado->responsavel_id))
+					$mail->addAddress($chamado->email_resp);
+				if ($pode_receber($chamado->desenvolvedor_id))
+					$mail->addAddress($chamado->email_dev);
 
 				$mail->Subject = utf8_decode($padrao_email_ass);
 				$mail->isHTML(true);
 
 				$mail->Body = utf8_decode($padrao_email_msg);
-				$mail->send();
+				if (count($mail->getToAddresses()) > 0) {
+					$mail->send();
+				}
 
-				$mensagem_upload = show_alert_success(($count_upload > 1 ? "Anexos " : "Anexo ") . html_escape($upload_msgs) . ($count_upload > 1 ? " adicionados" : " adicionado") . " com sucesso.");
+				$mensagem_upload = show_alert_success(($count_upload > 1 ? "Anexos " : "Anexo ") . html_escape($upload_msgs) . ($count_upload > 1 ? " adicionados" : " adicionado") . " com sucesso" . ($eh_interno ? " (interno)." : "."));
 				if ($erros_upload) {
 					$mensagem_upload .= show_alert_error('Alguns anexos não foram enviados:<br>' . implode('<br>', $erros_upload));
 				}
@@ -3199,6 +3231,7 @@ class Chamados extends Admin_Controller
 						$dados_anexo["responsavel_id"] = $this->session->userdata('user_id');
 						$dados_anexo["anexo"] = $this->upload->data('file_name');
 						$dados_anexo["created"] = date("Y-m-d H:i:s");
+						$dados_anexo["interno"] = $restrito ? 1 : 0;
 
 						$anexo_create = $this->chamados_model->create_anexo($dados_anexo);
 					}

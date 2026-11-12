@@ -728,6 +728,8 @@ class Crons_model extends CI_Model {
         $query = $this->db->select('a.*, u.first_name, u.last_name');
         $query->join('users u', 'u.id = a.responsavel_id', 'left');
         $query->where('a.chamado_id', $id);
+        // A linha do tempo do cron vai por e-mail para o cliente: anexos internos ficam de fora.
+        $query->where('a.interno', 0);
         $query->order_by('a.created', 'desc');
         return $query->get("chamado_anexo a");
     }

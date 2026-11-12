@@ -172,6 +172,15 @@ $anexo_max_kb = (int) $anexo_config['max_size'];
                             Até <?php echo $anexo_max_kb / 1024; ?> MB por arquivo. Formatos: <?php echo html_escape(implode(', ', $anexo_tipos)); ?>.
                         </p>
                         <ul class="anexo-list" id="anexo-list"></ul>
+                        <?php if (!empty($pode_anexo_interno)) { ?>
+                            <div class="checkbox" style="margin-bottom:0;">
+                                <label for="anexos_internos">
+                                    <input type="checkbox" name="anexos_internos" id="anexos_internos" value="1"<?php echo set_checkbox('anexos_internos', '1'); ?>>
+                                    <i class="fa fa-lock"></i> Anexos internos
+                                </label>
+                                <p class="help-block">O solicitante não vê esses arquivos na conversa nem no e-mail de abertura.</p>
+                            </div>
+                        <?php } ?>
                     </div>
                 </div>
 
@@ -382,9 +391,13 @@ $anexo_max_kb = (int) $anexo_config['max_size'];
             });
             // Só os arquivos válidos vão no envio; os inválidos ficam listados para o usuário ver o motivo.
             anexoInput.files = transfer.files;
-            $('#summary-anexos').text(validCount ? validCount + (validCount === 1 ? ' arquivo' : ' arquivos') : 'Nenhum')
+            var internos = validCount && $('#anexos_internos').is(':checked') ? (validCount === 1 ? ' (interno)' : ' (internos)') : '';
+            $('#summary-anexos').text(validCount ? validCount + (validCount === 1 ? ' arquivo' : ' arquivos') + internos : 'Nenhum')
                 .toggleClass('is-empty', !validCount);
         }
+        $('#anexos_internos').on('change', function() {
+            syncAnexos();
+        });
 
         function addAnexos(fileList) {
             $.each(fileList, function(i, file) {

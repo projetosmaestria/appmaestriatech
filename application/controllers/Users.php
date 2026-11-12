@@ -848,138 +848,154 @@ class Users extends Admin_Controller {
 		}
 	}
 	
-	public function profile($id)
+	public function profile($id = null)
 	{
 		if ( ! $this->ion_auth->logged_in() OR ! $this->ion_auth->has_permissao("users", "profile"))
 		{
 			redirect('auth', 'refresh');
 		}
-		
+
+		$id = (int) $id;
+		$logado_id = (int) $this->session->userdata('user_id');
+		$url_perfil = 'users/profile/' . $id;
+
 		$this->data['message'] = $this->session->flashdata('message');
-		
+
         /* Breadcrumbs */
-        $this->breadcrumbs->unshift(2, lang('menu_users_profile'), 'groups/profile');
+        $this->breadcrumbs->unshift(2, lang('menu_users_profile'), $url_perfil);
         $this->data['breadcrumb'] = $this->breadcrumbs->show();
         $this->load->model('app_alunos_model');
         $this->load->model('dashboard_model');
-		
-		$this->data['can_edit'] = $this->ion_auth->has_permissao("users", "edit");
-        
-        /* Data */
-        $id = (int) $id;
+        $this->load->library('foto_usuario');
 
-        $this->data['user_info'] = $this->ion_auth->user($id)->row();
+        $user = $id > 0 ? $this->ion_auth->user($id)->row() : null;
+        if (!$user) {
+        	$this->session->set_flashdata('message', show_alert_error("Usuário não encontrado."));
+        	redirect($this->ion_auth->has_permissao("users", "index") ? 'users' : '/', 'refresh');
+        }
+
+		$can_edit = $this->ion_auth->has_permissao("users", "edit");
+		$is_self = $id === $logado_id;
+		// Foto e senha: o próprio usuário ou quem pode editar usuários. Os demais dados são só leitura.
+		$pode_alterar = $is_self || $can_edit;
+		$this->data['can_edit'] = $can_edit;
+		$this->data['is_self'] = $is_self;
+		$this->data['pode_alterar'] = $pode_alterar;
+
+        $this->data['user_info'] = $user;
         $this->data['user_info']->groups = $this->ion_auth->get_users_groups($id)->result();
         $this->data['user_info']->empresas_unidades = $this->ion_auth->get_empresas_unidades_user($id)->result();
     	$this->data['user_info']->pessoa = $this->ion_auth_model->get_pessoa($id)->row();
-		
-		if($this->data['user_info']->active == '0') {
-    		if ( ! $this->ion_auth->has_permissao("users", "index"))
-			{
-				$this->session->set_flashdata('message', show_alert_error("Usuário não pode ser acessado."));
-				redirect('users/index_ativos', 'refresh');
-			}
+
+		if ($user->active == '0' && !$this->ion_auth->has_permissao("users", "index")) {
+			$this->session->set_flashdata('message', show_alert_error("Usuário não pode ser acessado."));
+			redirect('users/index_ativos', 'refresh');
     	}
 
-        $unidades_logado = $this->ion_auth->get_empresas_unidades_user($this->session->userdata('user_id'))->result();
-        $unidades_logado_array = array();
-        foreach ($unidades_logado as $key => $value) {
-        	$unidades_logado_array[] = $value->id;
-        }
-        
-        $verificar_unidade_logado = false;
-        $unidade_logado_padrao = null;
-        foreach ($this->data['user_info']->empresas_unidades as $key => $value) {
-        	if(in_array($value->id, $unidades_logado_array))
-        		$verificar_unidade_logado = true;
-
-        	if($value->padrao == 1)
-        		$unidade_logado_padrao = $value->id;
-        }
-        if($verificar_unidade_logado == false)
-        	redirect('auth', 'refresh');
-
-
-        if($_POST) {
-        	if($this->data['can_edit'] == false && $this->session->userdata('user_id') != $id) {
-	        	$this->session->set_flashdata('message', show_alert_error("Seu usuário não possui acesso à outros perfis."));
-				redirect('users/profile/'.$id, 'refresh');
+        // Outros perfis só abrem para quem compartilha ao menos uma unidade com o usuário.
+        if (!$is_self) {
+	        $unidades_logado = array();
+	        foreach ($this->ion_auth->get_empresas_unidades_user($logado_id)->result() as $value) {
+	        	$unidades_logado[] = (int) $value->id;
 	        }
+	        $compartilha_unidade = false;
+	        foreach ($this->data['user_info']->empresas_unidades as $value) {
+	        	if (in_array((int) $value->id, $unidades_logado, true)) {
+	        		$compartilha_unidade = true;
+	        		break;
+	        	}
+	        }
+	        if (!$compartilha_unidade) {
+	        	$this->session->set_flashdata('message', show_alert_error("Você não tem acesso a este perfil."));
+	        	redirect('/', 'refresh');
+	        }
+        }
 
-	        if(@$_POST["tentativas_acesso"]) {
-	        	$this->ion_auth->clear_login_attempts($this->data['user_info']->email, 0);
+        if ($this->input->method() === 'post') {
+        	$acao = (string) $this->input->post('acao');
+        	$auditar = function ($obs) use ($logado_id) {
+        		$this->ion_auth->create_auditoria(array("user_id" => $logado_id, "empresa_id" => $this->session->userdata('empresa_id'), "controlador" => "users", "metodo" => "profile", "obs" => $obs));
+        	};
 
-	        	$this->ion_auth->create_auditoria(array("user_id" => $this->session->userdata('user_id'), "empresa_id" => $this->session->userdata('empresa_id'), "controlador" => "users", "metodo" => "profile", "obs" => "Removida(s) tentativa(s) de acesso(s) do usuário #".$id." - ".$this->data['user_info']->email));
-
+        	if ($acao === 'tentativas_acesso') {
+        		if (!$can_edit) {
+        			$this->session->set_flashdata('message', show_alert_error("Seu usuário não pode limpar tentativas de acesso."));
+        			redirect($url_perfil, 'refresh');
+        		}
+	        	$this->ion_auth->clear_login_attempts($user->email, 0);
+	        	$auditar("Removida(s) tentativa(s) de acesso(s) do usuário #" . $id . " - " . $user->email);
 	        	$this->session->set_flashdata('message', show_alert_success("Tentativa(s) de acesso removida(s)."));
-				redirect('users/profile/'.$id, 'refresh');
+				redirect($url_perfil, 'refresh');
 	        }
 
-        	if ($this->input->post('password'))
-			{
-				if($this->ion_auth->check_login($this->session->userdata('email'), $this->input->post('senha_atual')) == false) {
-					$this->session->set_flashdata('message', show_alert_error("Senha atual do seu usuário incorreta."));
-					redirect('users/profile/'.$id, 'refresh');
+        	if (!$pode_alterar) {
+	        	$this->session->set_flashdata('message', show_alert_error("Seu usuário não pode alterar outros perfis."));
+				redirect($url_perfil, 'refresh');
+	        }
+
+	        if ($acao === 'foto') {
+	        	$foto_anterior = !empty($user->foto) ? $user->foto : '';
+	        	$nova_foto = $this->foto_usuario->salvar(isset($_FILES['foto']) ? $_FILES['foto'] : null, $id);
+	        	if ($nova_foto === false) {
+	        		$this->session->set_flashdata('message', show_alert_error($this->foto_usuario->erro()));
+	        	} elseif (!$this->db->update('users', array('foto' => $nova_foto), array('id' => $id))) {
+	        		$this->foto_usuario->remover($nova_foto);
+	        		$this->session->set_flashdata('message', show_alert_error("Não foi possível salvar a foto. Verifique se o script sql/2026-11-12_users_foto.sql foi aplicado no banco."));
+	        	} else {
+	        		if ($foto_anterior !== '' && $foto_anterior !== $nova_foto) {
+	        			$this->foto_usuario->remover($foto_anterior);
+	        		}
+	        		$auditar("Foto do usuário #" . $id . " alterada.");
+	        		$this->session->set_flashdata('message', show_alert_success("Foto atualizada."));
+	        	}
+	        	redirect($url_perfil, 'refresh');
+	        }
+
+	        if ($acao === 'remover_foto') {
+	        	if (!empty($user->foto) && $this->db->update('users', array('foto' => null), array('id' => $id))) {
+	        		$this->foto_usuario->remover($user->foto);
+	        		$auditar("Foto do usuário #" . $id . " removida.");
+	        		$this->session->set_flashdata('message', show_alert_success("Foto removida."));
+	        	}
+	        	redirect($url_perfil, 'refresh');
+	        }
+
+	        if ($acao === 'senha') {
+	        	$this->form_validation->set_rules('password', 'Nova senha', 'required|min_length[' . $this->config->item('min_password_length', 'ion_auth') . ']|max_length[' . $this->config->item('max_password_length', 'ion_auth') . ']|matches[password_confirm]|is_password_strong');
+				$this->form_validation->set_rules('password_confirm', 'Confirmar nova senha', 'required');
+				$this->form_validation->set_rules('senha_atual', 'Sua senha atual', 'required');
+
+				if ($this->form_validation->run() == TRUE) {
+					// A senha atual confirma quem está alterando: o próprio usuário ou quem edita o perfil de outro.
+					$email_logado = $this->ion_auth->user($logado_id)->row()->email;
+					if (!$this->ion_auth->check_login($email_logado, $this->input->post('senha_atual'))) {
+						$this->data['message'] = show_alert_error("Sua senha atual está incorreta.");
+					} elseif ($this->ion_auth->check_login($user->email, $this->input->post('password'))) {
+						$this->data['message'] = show_alert_error("A nova senha deve ser diferente da senha atual do usuário.");
+					} elseif ($this->ion_auth->update($id, array('password' => $this->input->post('password'), 'password_updated' => date('Y-m-d H:i:s')))) {
+						$auditar("Senha do usuário #" . $id . " alterada pelo perfil.");
+						$this->session->set_flashdata('message', show_alert_success("Senha alterada com sucesso."));
+						redirect($url_perfil, 'refresh');
+					} else {
+						$this->data['message'] = show_alert_error($this->ion_auth->errors() ? $this->ion_auth->errors() : "Não foi possível alterar a senha.");
+					}
+				} else {
+					$this->data['message'] = show_alert_error(validation_errors());
 				}
-
-				if($this->ion_auth->check_login($this->data['user_info']->email, $this->input->post('password'))) {
-                    $this->session->set_flashdata('message', show_alert_error("A nova senha deverá ser diferente da antiga."));
-                    redirect('users/profile/'.$id, 'refresh');
-                }
-
-				$this->form_validation->set_rules('password', $this->lang->line('users_password'), 'required|min_length[' . $this->config->item('min_password_length', 'ion_auth') . ']|max_length[' . $this->config->item('max_password_length', 'ion_auth') . ']|matches[password_confirm]|is_password_strong');
-				$this->form_validation->set_rules('password_confirm', $this->lang->line('users_password_confirm'), 'required');
-			}
-
-			$this->ion_auth->update_unidade_padrao(array("unidades_usuario" => $this->data['user_info']->empresas_unidades, "unidade_padrao" => @$_POST["unidade_padrao"], "user_id" => $id));
-        	$unidade_logado_padrao = @$_POST["unidade_padrao"];
-
-			if ($this->form_validation->run() == TRUE)
-			{
-                if ($this->input->post('password'))
-				{
-					$data['password'] = $this->input->post('password');
-					$data['password_updated'] = date('Y-m-d H:i:s');
-				}
-
-                if($this->ion_auth->update($id, $data))
-			    {
-			    	$msg_edicao_usuario = "Usuário ".$id." alterado.";
-			    	if ($this->input->post('password'))
-			    		$msg_edicao_usuario .= " Senha do usuário ".$id." alterada.";
-
-			    	$this->ion_auth->create_auditoria(array("user_id" => $this->session->userdata('user_id'), "empresa_id" => $this->session->userdata('empresa_id'), "controlador" => "users", "metodo" => "profile", "obs" => $msg_edicao_usuario));
-
-			    	$this->session->set_flashdata('message', show_alert_success("Perfil alterado com sucesso."));
-					redirect('users/profile/'.$id, 'refresh');
-			    }
-			    else
-			    {
-                    $this->session->set_flashdata('message', show_alert_error($this->ion_auth->errors()));
-
-					redirect('auth', 'refresh');
-			    }
-			} else {
-				$mensagem = show_alert_success('Perfil alterado com sucesso.');
-				if(validation_errors()){
-					$mensagem = show_alert_error(validation_errors());
-				}else if($this->ion_auth->errors()){
-					$mensagem = show_alert_error($this->ion_auth->errors());
-				}else if($this->session->flashdata('message')){
-					$mensagem = show_alert_error($this->session->flashdata('message'));
-				}
-				$this->data['message'] = $mensagem;
-
-				// $this->data['message'] = (
-				// 	validation_errors() ? show_alert_error(validation_errors()) : (
-				// 		$this->ion_auth->errors() ? show_alert_error($this->ion_auth->errors()) : (
-				// 			$this->session->flashdata('message')) ? show_alert_error($this->session->flashdata('message')) : show_alert_success('Perfil alterado com sucesso.')
-				// 		)
-				// 	);
-			}
+				$this->data['abrir_senha'] = true;
+	        }
         }
 
-        $this->data['unidade_padrao'] = $unidade_logado_padrao;
+        // Expiração da senha (a política é trocar a cada 90 dias; o login avisa a partir de 80).
+        $this->data['senha_dias_restantes'] = null;
+        if (!empty($user->password_updated) && strtotime($user->password_updated)) {
+        	$dias_desde = (int) floor((time() - strtotime($user->password_updated)) / 86400);
+        	$this->data['senha_dias_restantes'] = 90 - $dias_desde;
+        }
+
+        $this->data['foto_url'] = !empty($user->foto) ? $this->foto_usuario->url($user->foto) : null;
+        $this->data['foto_original_url'] = !empty($user->foto) ? $this->foto_usuario->url($user->foto, false) : null;
+        $this->data['foto_limite_envio'] = ini_get('upload_max_filesize');
 
         if($this->ion_auth->is_aluno($id)) {
         	$this->data['user_info']->is_aluno = true;
@@ -1141,32 +1157,9 @@ class Users extends Admin_Controller {
 
             $this->data['user_info']->cancelamentos = $this->dashboard_model->get_contratos_ead_cancelados_por_tutor($id);
         }
-		
-		$this->data['password'] = array(
-			'name' => 'password',
-			'id'   => 'password',
-            'class' => 'form-control',
-			'type' => 'password'
-		);
 
-		$this->data['password_confirm'] = array(
-			'name' => 'password_confirm',
-			'id'   => 'password_confirm',
-            'class' => 'form-control',
-			'type' => 'password'
-		);
+		$this->data['user_info']->tentativas_acesso = $can_edit ? (array) $this->ion_auth->get_attempts($user->email) : array();
 
-		$this->data['senha_atual'] = array(
-			'name' => 'senha_atual',
-			'id'   => 'senha_atual',
-            'class' => 'form-control',
-			'type' => 'password'
-		);
-
-		if($this->data['can_edit']) {
-			$this->data['user_info']->tentativas_acesso = $this->ion_auth->get_attempts($this->data['user_info']->email);
-		}
-		
         /* Load Template */
 		$this->template->admin_render('admin/users/profile', $this->data);
 	}

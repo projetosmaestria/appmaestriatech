@@ -44,6 +44,13 @@ class Prefs_model extends CI_Model {
         $data['firstname']  = ! empty($user->first_name) ? htmlspecialchars($user->first_name, ENT_QUOTES, 'UTF-8') : NULL;
         $data['lastname']   = ! empty($user->last_name) ? ' '.htmlspecialchars($user->last_name, ENT_QUOTES, 'UTF-8') : NULL;
 
+        // Miniatura da foto de perfil (null sem foto: o cabeçalho usa o avatar padrão).
+        $data['foto_url'] = NULL;
+        if ( ! empty($user->foto)) {
+            $this->load->library('foto_usuario');
+            $data['foto_url'] = $this->foto_usuario->url($user->foto);
+        }
+
         return $data;
     }
 

@@ -696,7 +696,7 @@ $escalar_horas_previstas = ($chamado->horas_prevista !== null && $chamado->horas
                                 <input type="checkbox" id="escalar-restrito" name="restrito" value="1">
                                 <i class="fa fa-lock"></i> Marcar como restrito
                             </label>
-                            <p class="help-block">Os registros desta escalada ficam como <strong>Interno</strong>: o solicitante não vê na conversa e o e-mail não vai para o cliente. O anexo continua visível.</p>
+                            <p class="help-block">Os registros desta escalada ficam como <strong>Interno</strong>: o solicitante não vê na conversa (nem o anexo) e o e-mail não vai para o cliente.</p>
                         </div>
                     <?php } ?>
                 </div>

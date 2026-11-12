@@ -229,14 +229,14 @@ defined('BASEPATH') or exit('No direct script access allowed');
                     <li class="dropdown user user-menu modern-dropdown">
                         <a href="#" class="dropdown-toggle modern-dropdown-toggle user-toggle" data-toggle="dropdown">
                             <div class="user-info-wrapper">
-                                <img src="<?php echo base_url($avatar_dir . '/m_001.png'); ?>" class="user-image modern-user-image" alt="User Image">
+                                <img src="<?php echo !empty($user_login['foto_url']) ? html_escape($user_login['foto_url']) : base_url($avatar_dir . '/m_001.png'); ?>" class="user-image modern-user-image" alt="User Image">
                                 <span class="hidden-xs modern-username"><?php echo $user_login['firstname'] . " " . $user_login['lastname']; ?></span>
                                 <i class="fa fa-chevron-down user-chevron"></i>
                             </div>
                         </a>
                         <ul class="dropdown-menu modern-dropdown-menu user-dropdown-menu">
                             <li class="user-header modern-user-header">
-                                <img src="<?php echo base_url($avatar_dir . '/m_001.png'); ?>" class="img-circle modern-user-avatar" alt="User Image">
+                                <img src="<?php echo !empty($user_login['foto_url']) ? html_escape($user_login['foto_url']) : base_url($avatar_dir . '/m_001.png'); ?>" class="img-circle modern-user-avatar" alt="User Image">
                                 <p class="modern-user-info">
                                     <span class="modern-user-name"><?php echo $user_login['firstname'] . " " . $user_login['lastname']; ?></span>
                                     <small class="modern-user-since"><?php echo lang('header_member_since'); ?> <?php echo date('d/m/Y', $user_login['created_on']); ?></small>

@@ -31,6 +31,9 @@ $selected_user = ($current_board && isset($filtros['filtro_usuarios'][$quadros_s
           </ul>
         <?php } ?>
         <div class="kanban-shortcuts">
+          <?php if ($this->ion_auth->has_permissao('chamados', 'create')) { ?>
+            <a href="<?php echo base_url('chamados/create?quadro=' . (int) $quadros_sel) ?>" target="_blank" class="btn btn-primary btn-sm" title="Abrir um novo chamado neste quadro"><i class="fa fa-plus" aria-hidden="true"></i> Novo chamado</a>
+          <?php } ?>
           <?php if ($can_metricas) { ?>
             <a href="<?= base_url('kanban/metricas') ?>" class="btn btn-default btn-sm"><i class="fa fa-line-chart" aria-hidden="true"></i> Métricas</a>
           <?php } ?>
