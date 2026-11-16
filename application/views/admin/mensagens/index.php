@@ -4252,6 +4252,7 @@ if ($meu_nome === '' && isset($user_login)) {
                 var listaPart = res.chamada.participantes || [];
                 if (listaPart.length >= 2) {
                     chamadaAtiva.jaTeveOutro = true;
+                    pararSomChamando();
                 }
                 if (res.chamada.status !== 'ativa' || (chamadaAtiva.ehDireta && chamadaAtiva.jaTeveOutro && listaPart.length < 2)) {
                     var aguardandoResposta = !chamadaAtiva.jaTeveOutro;
@@ -4346,7 +4347,64 @@ if ($meu_nome === '' && isset($user_login)) {
             });
         }
 
+        /* Tom de chamada para quem liga ("tuuu… tuuu…"), no padrão de telefone do Brasil: 425 Hz, 1 s de tom e 4 s de silêncio.
+           Toca enquanto ninguém atendeu e para quando alguém entra, quando desliga ou depois de 60 s. */
+        var somChamando = { ctx: null, timer: null, limite: null };
+
+        function prepararSomChamando() {
+            // Criado no clique do botão de ligar: o navegador só libera áudio a partir de um gesto do usuário.
+            var Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) { return; }
+            try {
+                if (!somChamando.ctx || somChamando.ctx.state === 'closed') { somChamando.ctx = new Ctx(); }
+                if (somChamando.ctx.state === 'suspended' && typeof somChamando.ctx.resume === 'function') { somChamando.ctx.resume().catch(function() {}); }
+            } catch (e) { somChamando.ctx = null; }
+        }
+
+        function tocarPulsoChamando() {
+            var ctx = somChamando.ctx;
+            if (!ctx || ctx.state === 'closed') { return; }
+            try {
+                var t = ctx.currentTime;
+                var osc = ctx.createOscillator();
+                var ganho = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = 425;
+                // Rampa curta na entrada e na saída para o tom não "estalar".
+                ganho.gain.setValueAtTime(0.0001, t);
+                ganho.gain.exponentialRampToValueAtTime(0.16, t + 0.04);
+                ganho.gain.setValueAtTime(0.16, t + 0.96);
+                ganho.gain.exponentialRampToValueAtTime(0.0001, t + 1);
+                osc.connect(ganho);
+                ganho.connect(ctx.destination);
+                osc.start(t);
+                osc.stop(t + 1.02);
+            } catch (e) {}
+        }
+
+        function iniciarSomChamando() {
+            if (somChamando.timer) { return; }
+            prepararSomChamando();
+            if (!somChamando.ctx) { return; }
+            tocarPulsoChamando();
+            somChamando.timer = setInterval(tocarPulsoChamando, 5000);
+            somChamando.limite = setTimeout(pararSomChamando, 60000);
+        }
+
+        function pararSomChamando() {
+            clearInterval(somChamando.timer);
+            clearTimeout(somChamando.limite);
+            somChamando.timer = null;
+            somChamando.limite = null;
+            if (somChamando.ctx && somChamando.ctx.state !== 'closed') {
+                // Fechar o contexto corta na hora o pulso que estiver tocando.
+                try { somChamando.ctx.close(); } catch (e) {}
+            }
+            somChamando.ctx = null;
+        }
+
         function encerrarChamadaLocal() {
+            pararSomChamando();
             pararDetectorFala();
             if (chamadaAtiva) {
                 clearInterval(chamadaAtiva.pollTimer);
@@ -4380,6 +4438,7 @@ if ($meu_nome === '' && isset($user_login)) {
                 avisar('error', 'Navegador incompatível', 'Seu navegador não possui suporte a áudio WebRTC.');
                 return;
             }
+            prepararSomChamando();
             navigator.mediaDevices.getUserMedia({ audio: true }).then(function(micStream) {
                 $.ajax({
                     url: api + '/chamada_entrar',
@@ -4424,11 +4483,19 @@ if ($meu_nome === '' && isset($user_login)) {
                     });
                     processarSinaisChamada(res.chamada.sinais || []);
                     chamadaAtiva.pollTimer = setInterval(sincronizarEstadoChamada, 1500);
+                    // Quem liga e ainda está sozinho na ligação ouve o tom de chamada até alguém atender.
+                    if (!chamadaAtiva.jaTeveOutro) {
+                        iniciarSomChamando();
+                    } else {
+                        pararSomChamando();
+                    }
                 }).fail(function(xhr) {
+                    pararSomChamando();
                     $.each(micStream.getTracks(), function(i, t) { t.stop(); });
                     avisar('error', 'Não foi possível iniciar a chamada', erroDe(xhr));
                 });
             }).catch(function(err) {
+                pararSomChamando();
                 avisar('error', 'Microfone indisponível', erroMicrofone(err));
             });
         }
