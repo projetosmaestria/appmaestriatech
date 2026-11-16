@@ -1033,6 +1033,30 @@ class Chamados extends Admin_Controller
 		return $this->is_admin_ou_desenvolvedor() || $this->vinculado_ao_chamado($chamado);
 	}
 
+	// A edição não grava diálogo: avisa os vinculados direto, destacando quem passou a ser responsável/desenvolvedor.
+	private function notificar_edicao($anterior, $dados)
+	{
+		if (!$anterior) {
+			return;
+		}
+		$this->load->model('chamado_notificacoes_model');
+		$escalado = false;
+		$mudancas = array(
+			'responsavel_id' => 'Chamado escalado para: ',
+			'desenvolvedor_id' => 'Desenvolvedor responsável: ',
+		);
+		foreach ($mudancas as $campo => $texto) {
+			$novo = isset($dados[$campo]) ? (int) $dados[$campo] : 0;
+			if ($novo > 0 && $novo !== (int) $anterior->$campo) {
+				$this->chamado_notificacoes_model->registrar($anterior->id, 'escalado', $texto . $this->chamados_model->get_user_name($novo) . '.', null, false, $campo);
+				$escalado = true;
+			}
+		}
+		if (!$escalado) {
+			$this->chamado_notificacoes_model->registrar($anterior->id, 'alteracao', 'Dados do chamado editados.');
+		}
+	}
+
 	private function registrar_aviso_whatsapp($chamado_id, $descricao)
 	{
 		$this->chamados_model->create_dialogo(array(
@@ -1041,7 +1065,7 @@ class Chamados extends Admin_Controller
 			'descricao' => $descricao,
 			'data_envio' => date('Y-m-d H:i:s'),
 			'interno' => 1,
-		));
+		), false); // registro técnico do envio: não vira notificação
 	}
 
 	private function cor_prioridade_email($prioridade)
@@ -1197,6 +1221,7 @@ class Chamados extends Admin_Controller
 		}
 
 		if ($this->form_validation->run() == TRUE && $this->chamados_model->update($id, $dados)) {
+			$this->notificar_edicao($chamado, $dados);
 			$erros_anexos = $this->salvar_anexos_abertura($id, 'Anexo enviado na edição do chamado.');
 
 			//kanban----

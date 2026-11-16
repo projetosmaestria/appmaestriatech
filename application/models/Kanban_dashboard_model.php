@@ -822,6 +822,10 @@ class Kanban_dashboard_model extends CI_Model
             ));
         $this->save_planned_date($company_id, $ticket_id, $scheduled_date, $updated_by);
         $this->db->trans_complete();
+        if ($this->db->trans_status()) {
+            $this->load->model('chamado_notificacoes_model');
+            $this->chamado_notificacoes_model->registrar($ticket_id, 'alteracao', 'Planejamento atualizado: planejado para ' . date('d/m/Y', strtotime($scheduled_date)) . ', previsão ' . date('d/m/Y H:i', strtotime($deadline)) . '.', $updated_by);
+        }
         return $this->db->trans_status();
     }
 

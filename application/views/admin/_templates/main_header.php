@@ -35,7 +35,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
                 <?php if ($admin_prefs['messages_menu'] == TRUE): ?>
                     <!-- Messages -->
                     <li class="dropdown messages-menu modern-dropdown">
-                        <a href="#" class="dropdown-toggle modern-dropdown-toggle" data-toggle="dropdown">
+                        <a href="#" class="modern-dropdown-toggle" data-drawer="mensagens" aria-controls="header-drawer" aria-expanded="false" aria-label="Mensagens">
                             <div class="nav-icon-wrapper">
                                 <i class="fa fa-envelope-o"></i>
                                 <?php if ($messages_count > 0): ?>
@@ -43,25 +43,6 @@ defined('BASEPATH') or exit('No direct script access allowed');
                                 <?php endif; ?>
                             </div>
                         </a>
-                        <ul class="dropdown-menu modern-dropdown-menu">
-                            <li class="header modern-dropdown-header"><?php echo lang('header_you_have'); ?> <?php echo $messages_count ?> <?php echo lang('header_message'); ?></li>
-                            <?php if ($messages_count > 0): ?>
-                                <li>
-                                    <ul class="menu modern-menu-list">
-                                        <?php
-                                        foreach ($messages as $value) :
-                                            echo $value;
-                                        endforeach;
-                                        ?>
-                                    </ul>
-                                </li>
-                            <?php endif ?>
-                            <li class="footer modern-dropdown-footer">
-                                <a href="<?php echo base_url('contatos_interno/index') ?>" class="modern-dropdown-link">
-                                    <?php echo lang('header_view_all'); ?>
-                                </a>
-                            </li>
-                        </ul>
                     </li>
                 <?php endif; ?>
 
@@ -70,63 +51,31 @@ defined('BASEPATH') or exit('No direct script access allowed');
                 <?php
                 $novidades_lidas = isset($novidades_lidas) ? $novidades_lidas : array();
                 $novidades_pendentes = isset($novidades_pendentes) ? $novidades_pendentes : array();
-                // O sino aparece também quando há novidades, mesmo com o menu de notificações desligado nas preferências.
-                if ($admin_prefs['notifications_menu'] == TRUE || $novidades_lidas || $novidades_pendentes): ?>
+                $apontamento_aberto = isset($apontamento_aberto) ? $apontamento_aberto : null;
+                $notificacoes_chamado = isset($notificacoes_chamado) ? $notificacoes_chamado : array();
+                $notificacoes_chamado_nao_lidas = isset($notificacoes_chamado_nao_lidas) ? (int) $notificacoes_chamado_nao_lidas : 0;
+                // O sino aparece sempre: as notificações de chamado (e o alerta de apontamento) valem para todos os usuários,
+                // mesmo com o menu de notificações desligado nas preferências.
+                ?>
                     <!-- Notifications -->
                     <li class="dropdown notifications-menu modern-dropdown" id="notificacoes-menu">
-                        <a href="#" class="dropdown-toggle modern-dropdown-toggle" data-toggle="dropdown">
+                        <a href="#" class="modern-dropdown-toggle" data-drawer="notificacoes" aria-controls="header-drawer" aria-expanded="false" aria-label="Notificações">
                             <div class="nav-icon-wrapper">
                                 <i class="fa fa-bell-o"></i>
                                 <span class="label label-warning modern-badge" id="notificacoes-badge"<?php echo $notifications_count > 0 ? '' : ' style="display:none;"' ?>><?php echo (int) $notifications_count ?></span>
                             </div>
                         </a>
-                        <ul class="dropdown-menu modern-dropdown-menu">
-                            <li class="header modern-dropdown-header"><?php echo lang('header_you_have'); ?> <span id="notificacoes-total"><?php echo (int) $notifications_count ?></span> <?php echo lang('header_notification'); ?></li>
-                            <li>
-                                <ul class="menu modern-menu-list" id="notificacoes-lista">
-                                    <?php foreach ($novidades_lidas as $novidade_lida) { ?>
-                                        <li><a href="#" class="js-novidade-abrir" data-id="<?php echo (int) $novidade_lida->id ?>" title="<?php echo html_escape($novidade_lida->titulo) ?>"><i class="fa fa-bullhorn text-aqua"></i> <?php echo html_escape($novidade_lida->titulo) ?></a></li>
-                                    <?php } ?>
-                                    <?php
-                                    foreach ($notifications as $value) :
-                                        echo $value;
-                                    endforeach;
-                                    ?>
-                                </ul>
-                            </li>
-                        </ul>
                     </li>
-                <?php endif; ?>
 
                 <?php if ($admin_prefs['tasks_menu'] == TRUE): ?>
                     <!-- Tasks -->
                     <li class="dropdown tasks-menu modern-dropdown">
-                        <a href="#" class="dropdown-toggle modern-dropdown-toggle" data-toggle="dropdown">
+                        <a href="#" class="modern-dropdown-toggle" data-drawer="tarefas" aria-controls="header-drawer" aria-expanded="false" aria-label="Tarefas">
                             <div class="nav-icon-wrapper">
                                 <i class="fa fa-flag-o"></i>
                                 <span class="label label-danger modern-badge">0</span>
                             </div>
                         </a>
-                        <ul class="dropdown-menu modern-dropdown-menu">
-                            <li class="header modern-dropdown-header"><?php echo lang('header_you_have'); ?> 0 <?php echo lang('header_task'); ?></li>
-                            <li>
-                                <ul class="menu modern-menu-list">
-                                    <li>
-                                        <a href="#" class="modern-task-item">
-                                            <h3>Design some buttons<small class="pull-right">20%</small></h3>
-                                            <div class="progress xs modern-progress">
-                                                <div class="progress-bar progress-bar-aqua modern-progress-bar" style="width: 20%" role="progressbar" aria-valuenow="20" aria-valuemin="0" aria-valuemax="100">
-                                                    <span class="sr-only">20% <?php echo lang('header_complete'); ?></span>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </li>
-                                </ul>
-                            </li>
-                            <li class="footer modern-dropdown-footer">
-                                <a href="#" class="modern-dropdown-link"><?php echo lang('header_view_all'); ?></a>
-                            </li>
-                        </ul>
                     </li>
                 <?php endif; ?>
 
@@ -141,7 +90,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
                     <!-- Chamados Pendentes -->
                     <li class="dropdown tasks-menu modern-dropdown chamados-pendentes-menu" id="menu-chamados-pendentes">
-                        <a href="#" class="dropdown-toggle modern-dropdown-toggle" data-toggle="dropdown" title="Chamados Pendentes">
+                        <a href="#" class="modern-dropdown-toggle" data-drawer="chamados" aria-controls="header-drawer" aria-expanded="false" aria-label="Chamados pendentes" title="Chamados Pendentes">
                             <div class="nav-icon-wrapper">
                                 <i class="fa fa-ticket"></i>
                                 <span class="label label-warning modern-badge" id="chamados-pendentes-badge" style="<?php echo (isset($chamados_pendentes_count) && $chamados_pendentes_count > 0) ? '' : 'display: none;'; ?>">
@@ -149,82 +98,6 @@ defined('BASEPATH') or exit('No direct script access allowed');
                                 </span>
                             </div>
                         </a>
-                        <ul class="dropdown-menu modern-dropdown-menu chamados-dropdown-menu">
-                            <li class="header modern-dropdown-header chamados-dropdown-header">
-                                <div class="chamados-header-content">
-                                    <span><i class="fa fa-ticket"></i> Chamados Pendentes (<b id="chamados-count-text"><?php echo isset($chamados_pendentes_count) ? $chamados_pendentes_count : 0; ?></b>)</span>
-                                    <button type="button" class="btn-refresh-chamados" id="btn-refresh-chamados" title="Atualizar chamados">
-                                        <i class="fa fa-refresh" id="icon-refresh-chamados"></i>
-                                    </button>
-                                </div>
-                            </li>
-                            <li>
-                                <div class="chamados-cards-scroll" id="chamados-cards-container">
-                                    <?php if (isset($chamados_pendentes_user) && !empty($chamados_pendentes_user)): ?>
-                                        <?php foreach ($chamados_pendentes_user as $c): ?>
-                                            <?php 
-                                                $desc_limpa = trim(strip_tags($c->descricao));
-                                                if (mb_strlen($desc_limpa, 'UTF-8') > 105) {
-                                                    $desc_resumo = mb_substr($desc_limpa, 0, 105, 'UTF-8') . '...';
-                                                } else {
-                                                    $desc_resumo = $desc_limpa ?: ($c->titulo ?: 'Sem descrição informada');
-                                                }
-
-                                                $pri_class = 'prioridade-normal';
-                                                if (!empty($c->prioridade_desc)) {
-                                                    $pri_lower = mb_strtolower($c->prioridade_desc, 'UTF-8');
-                                                    if (strpos($pri_lower, 'alta') !== false) $pri_class = 'prioridade-alta';
-                                                    elseif (strpos($pri_lower, 'baixa') !== false) $pri_class = 'prioridade-baixa';
-                                                    elseif (strpos($pri_lower, 'urg') !== false) $pri_class = 'prioridade-urgente';
-                                                }
-                                            ?>
-                                            <a href="<?php echo site_url('chamados/details/' . $c->id); ?>" class="chamado-card-item" data-id="<?php echo $c->id; ?>">
-                                                <div class="chamado-card-top">
-                                                    <span class="chamado-code">#<?php echo $c->id; ?></span>
-                                                    <?php if (!empty($c->prioridade_desc)): ?>
-                                                        <span class="chamado-badge-prioridade <?php echo $pri_class; ?>">
-                                                            <?php echo htmlspecialchars($c->prioridade_desc, ENT_QUOTES, 'UTF-8'); ?>
-                                                        </span>
-                                                    <?php endif; ?>
-                                                    <?php if (!empty($c->cliente)): ?>
-                                                        <span class="chamado-cliente" title="<?php echo htmlspecialchars($c->cliente, ENT_QUOTES, 'UTF-8'); ?>">
-                                                            <i class="fa fa-building-o"></i> <?php echo htmlspecialchars(mb_strimwidth($c->cliente, 0, 20, '...'), ENT_QUOTES, 'UTF-8'); ?>
-                                                        </span>
-                                                    <?php endif; ?>
-                                                </div>
-                                                <div class="chamado-card-title">
-                                                    <?php echo htmlspecialchars($c->titulo, ENT_QUOTES, 'UTF-8'); ?>
-                                                </div>
-                                                <div class="chamado-card-desc">
-                                                    <?php echo htmlspecialchars($desc_resumo, ENT_QUOTES, 'UTF-8'); ?>
-                                                </div>
-                                                <div class="chamado-card-footer">
-                                                    <span class="chamado-card-date">
-                                                        <i class="fa fa-calendar-o"></i> <?php echo date('d/m/Y H:i', strtotime($c->created)); ?>
-                                                    </span>
-                                                    <?php if (!empty($c->data_prazo)): ?>
-                                                        <span class="chamado-card-prazo <?php echo (strtotime($c->data_prazo) < time()) ? 'text-danger' : ''; ?>">
-                                                            <i class="fa fa-clock-o"></i> Prazo: <?php echo date('d/m/Y H:i', strtotime($c->data_prazo)); ?>
-                                                        </span>
-                                                    <?php endif; ?>
-                                                </div>
-                                            </a>
-                                        <?php endforeach; ?>
-                                    <?php else: ?>
-                                        <div class="chamado-empty-state" id="chamados-empty-state">
-                                            <i class="fa fa-check-circle-o"></i>
-                                            <p>Nenhum chamado pendente</p>
-                                            <span>Você não possui chamados em aberto no momento.</span>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-                            </li>
-                            <li class="footer modern-dropdown-footer">
-                                <a href="<?php echo site_url('chamados'); ?>" class="modern-dropdown-link">
-                                    Ver todos os chamados <i class="fa fa-arrow-right"></i>
-                                </a>
-                            </li>
-                        </ul>
                     </li>
 
                 <?php if ($admin_prefs['user_menu'] == TRUE): ?>
@@ -262,6 +135,184 @@ defined('BASEPATH') or exit('No direct script access allowed');
         </div>
     </nav>
 </header>
+<!-- Gaveta lateral do cabeçalho: mensagens, notificações e chamados pendentes (e tarefas, se ativo) abrem aqui, puxando da direita. O perfil continua em dropdown. -->
+<div class="header-drawer-fundo" id="header-drawer-fundo" hidden></div>
+<aside class="header-drawer" id="header-drawer" role="dialog" aria-label="Painel do cabeçalho" aria-hidden="true" tabindex="-1">
+    <div class="header-drawer-topo">
+        <div class="header-drawer-abas" role="tablist">
+<?php if ($admin_prefs['messages_menu'] == TRUE): ?>
+            <button type="button" class="header-drawer-aba" role="tab" id="header-drawer-aba-mensagens" data-drawer="mensagens" aria-controls="header-drawer-painel-mensagens" aria-selected="false"><i class="fa fa-envelope-o"></i><span>Mensagens</span></button>
+<?php endif; ?>
+            <button type="button" class="header-drawer-aba" role="tab" id="header-drawer-aba-notificacoes" data-drawer="notificacoes" aria-controls="header-drawer-painel-notificacoes" aria-selected="false"><i class="fa fa-bell-o"></i><span>Notificações</span></button>
+<?php if ($admin_prefs['tasks_menu'] == TRUE): ?>
+            <button type="button" class="header-drawer-aba" role="tab" id="header-drawer-aba-tarefas" data-drawer="tarefas" aria-controls="header-drawer-painel-tarefas" aria-selected="false"><i class="fa fa-flag-o"></i><span>Tarefas</span></button>
+<?php endif; ?>
+            <button type="button" class="header-drawer-aba" role="tab" id="header-drawer-aba-chamados" data-drawer="chamados" aria-controls="header-drawer-painel-chamados" aria-selected="false"><i class="fa fa-ticket"></i><span>Chamados</span></button>
+        </div>
+        <button type="button" class="header-drawer-fechar" id="header-drawer-fechar" aria-label="Fechar painel">&times;</button>
+    </div>
+    <div class="header-drawer-corpo">
+<?php if ($admin_prefs['messages_menu'] == TRUE): ?>
+        <section class="header-drawer-painel" role="tabpanel" id="header-drawer-painel-mensagens" data-painel="mensagens" aria-labelledby="header-drawer-aba-mensagens" hidden>
+            <ul class="modern-dropdown-menu header-drawer-conteudo">
+                <li class="header modern-dropdown-header"><?php echo lang('header_you_have'); ?> <?php echo $messages_count ?> <?php echo lang('header_message'); ?></li>
+                <?php if ($messages_count > 0): ?>
+                    <li>
+                        <ul class="menu modern-menu-list">
+                            <?php
+                            foreach ($messages as $value) :
+                                echo $value;
+                            endforeach;
+                            ?>
+                        </ul>
+                    </li>
+                <?php endif ?>
+                <li class="footer modern-dropdown-footer">
+                    <a href="<?php echo base_url('contatos_interno/index') ?>" class="modern-dropdown-link">
+                        <?php echo lang('header_view_all'); ?>
+                    </a>
+                </li>
+            </ul>
+        </section>
+<?php endif; ?>
+        <section class="header-drawer-painel" role="tabpanel" id="header-drawer-painel-notificacoes" data-painel="notificacoes" aria-labelledby="header-drawer-aba-notificacoes" hidden>
+            <ul class="modern-dropdown-menu header-drawer-conteudo">
+                <li class="header modern-dropdown-header"><?php echo lang('header_you_have'); ?> <span id="notificacoes-total"><?php echo (int) $notifications_count ?></span> <?php echo lang('header_notification'); ?></li>
+                <li>
+                    <ul class="menu modern-menu-list" id="notificacoes-lista">
+                        <?php foreach ($notificacoes_chamado as $notif) { ?>
+                            <li class="notif-chamado<?php echo $notif['lida'] ? '' : ' is-nao-lida' ?>" data-id="<?php echo (int) $notif['id'] ?>">
+                                <a href="<?php echo html_escape($notif['url']) ?>" title="<?php echo html_escape($notif['titulo'] . ($notif['chamado_titulo'] !== '' ? ' - ' . $notif['chamado_titulo'] : '')) ?>">
+                                    <span class="notif-chamado-icone" style="background: <?php echo html_escape($notif['cor']) ?>;"><i class="fa <?php echo html_escape($notif['icone']) ?>"></i></span>
+                                    <span class="notif-chamado-corpo">
+                                        <strong class="notif-chamado-titulo"><?php echo html_escape($notif['titulo']) ?></strong>
+                                        <span class="notif-chamado-texto"><?php echo html_escape($notif['texto']) ?></span>
+                                        <small class="notif-chamado-meta"><?php echo html_escape($notif['autor']) ?> · <span title="<?php echo html_escape($notif['data']) ?>"><?php echo html_escape($notif['quando']) ?></span></small>
+                                    </span>
+                                </a>
+                            </li>
+                        <?php } ?>
+                        <?php foreach ($novidades_lidas as $novidade_lida) { ?>
+                            <li><a href="#" class="js-novidade-abrir" data-id="<?php echo (int) $novidade_lida->id ?>" title="<?php echo html_escape($novidade_lida->titulo) ?>"><i class="fa fa-bullhorn text-aqua"></i> <?php echo html_escape($novidade_lida->titulo) ?></a></li>
+                        <?php } ?>
+                        <?php
+                        foreach ($notifications as $value) :
+                            echo $value;
+                        endforeach;
+                        ?>
+                        <li class="notificacoes-vazio">Nenhuma notificação por enquanto.</li>
+                    </ul>
+                </li>
+                <li class="footer modern-dropdown-footer" id="notificacoes-marcar-todas-li"<?php echo $notificacoes_chamado_nao_lidas > 0 ? '' : ' style="display:none;"' ?>>
+                    <a href="#" class="modern-dropdown-link" id="notificacoes-marcar-todas"><i class="fa fa-check"></i> Marcar todas como lidas</a>
+                </li>
+            </ul>
+        </section>
+<?php if ($admin_prefs['tasks_menu'] == TRUE): ?>
+        <section class="header-drawer-painel" role="tabpanel" id="header-drawer-painel-tarefas" data-painel="tarefas" aria-labelledby="header-drawer-aba-tarefas" hidden>
+            <ul class="modern-dropdown-menu header-drawer-conteudo">
+                <li class="header modern-dropdown-header"><?php echo lang('header_you_have'); ?> 0 <?php echo lang('header_task'); ?></li>
+                <li>
+                    <ul class="menu modern-menu-list">
+                        <li>
+                            <a href="#" class="modern-task-item">
+                                <h3>Design some buttons<small class="pull-right">20%</small></h3>
+                                <div class="progress xs modern-progress">
+                                    <div class="progress-bar progress-bar-aqua modern-progress-bar" style="width: 20%" role="progressbar" aria-valuenow="20" aria-valuemin="0" aria-valuemax="100">
+                                        <span class="sr-only">20% <?php echo lang('header_complete'); ?></span>
+                                    </div>
+                                </div>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                <li class="footer modern-dropdown-footer">
+                    <a href="#" class="modern-dropdown-link"><?php echo lang('header_view_all'); ?></a>
+                </li>
+            </ul>
+        </section>
+<?php endif; ?>
+        <section class="header-drawer-painel" role="tabpanel" id="header-drawer-painel-chamados" data-painel="chamados" aria-labelledby="header-drawer-aba-chamados" hidden>
+            <ul class="modern-dropdown-menu header-drawer-conteudo chamados-dropdown-menu">
+                <li class="header modern-dropdown-header chamados-dropdown-header">
+                    <div class="chamados-header-content">
+                        <span><i class="fa fa-ticket"></i> Chamados Pendentes (<b id="chamados-count-text"><?php echo isset($chamados_pendentes_count) ? $chamados_pendentes_count : 0; ?></b>)</span>
+                        <button type="button" class="btn-refresh-chamados" id="btn-refresh-chamados" title="Atualizar chamados">
+                            <i class="fa fa-refresh" id="icon-refresh-chamados"></i>
+                        </button>
+                    </div>
+                </li>
+                <li>
+                    <div class="chamados-cards-scroll" id="chamados-cards-container">
+                        <?php if (isset($chamados_pendentes_user) && !empty($chamados_pendentes_user)): ?>
+                            <?php foreach ($chamados_pendentes_user as $c): ?>
+                                <?php 
+                                    $desc_limpa = trim(strip_tags($c->descricao));
+                                    if (mb_strlen($desc_limpa, 'UTF-8') > 105) {
+                                        $desc_resumo = mb_substr($desc_limpa, 0, 105, 'UTF-8') . '...';
+                                    } else {
+                                        $desc_resumo = $desc_limpa ?: ($c->titulo ?: 'Sem descrição informada');
+                                    }
+
+                                    $pri_class = 'prioridade-normal';
+                                    if (!empty($c->prioridade_desc)) {
+                                        $pri_lower = mb_strtolower($c->prioridade_desc, 'UTF-8');
+                                        if (strpos($pri_lower, 'alta') !== false) $pri_class = 'prioridade-alta';
+                                        elseif (strpos($pri_lower, 'baixa') !== false) $pri_class = 'prioridade-baixa';
+                                        elseif (strpos($pri_lower, 'urg') !== false) $pri_class = 'prioridade-urgente';
+                                    }
+                                ?>
+                                <a href="<?php echo site_url('chamados/details/' . $c->id); ?>" class="chamado-card-item" data-id="<?php echo $c->id; ?>">
+                                    <div class="chamado-card-top">
+                                        <span class="chamado-code">#<?php echo $c->id; ?></span>
+                                        <?php if (!empty($c->prioridade_desc)): ?>
+                                            <span class="chamado-badge-prioridade <?php echo $pri_class; ?>">
+                                                <?php echo htmlspecialchars($c->prioridade_desc, ENT_QUOTES, 'UTF-8'); ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if (!empty($c->cliente)): ?>
+                                            <span class="chamado-cliente" title="<?php echo htmlspecialchars($c->cliente, ENT_QUOTES, 'UTF-8'); ?>">
+                                                <i class="fa fa-building-o"></i> <?php echo htmlspecialchars(mb_strimwidth($c->cliente, 0, 20, '...'), ENT_QUOTES, 'UTF-8'); ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="chamado-card-title">
+                                        <?php echo htmlspecialchars($c->titulo, ENT_QUOTES, 'UTF-8'); ?>
+                                    </div>
+                                    <div class="chamado-card-desc">
+                                        <?php echo htmlspecialchars($desc_resumo, ENT_QUOTES, 'UTF-8'); ?>
+                                    </div>
+                                    <div class="chamado-card-footer">
+                                        <span class="chamado-card-date">
+                                            <i class="fa fa-calendar-o"></i> <?php echo date('d/m/Y H:i', strtotime($c->created)); ?>
+                                        </span>
+                                        <?php if (!empty($c->data_prazo)): ?>
+                                            <span class="chamado-card-prazo <?php echo (strtotime($c->data_prazo) < time()) ? 'text-danger' : ''; ?>">
+                                                <i class="fa fa-clock-o"></i> Prazo: <?php echo date('d/m/Y H:i', strtotime($c->data_prazo)); ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                </a>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="chamado-empty-state" id="chamados-empty-state">
+                                <i class="fa fa-check-circle-o"></i>
+                                <p>Nenhum chamado pendente</p>
+                                <span>Você não possui chamados em aberto no momento.</span>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </li>
+                <li class="footer modern-dropdown-footer">
+                    <a href="<?php echo site_url('chamados'); ?>" class="modern-dropdown-link">
+                        Ver todos os chamados <i class="fa fa-arrow-right"></i>
+                    </a>
+                </li>
+            </ul>
+        </section>
+    </div>
+</aside>
+
 
 <style>
     /* Transições suaves sincronizadas com a barra lateral */
@@ -627,6 +678,33 @@ defined('BASEPATH') or exit('No direct script access allowed');
         min-width: 280px !important;
     }
 
+    /* Abertura e fechamento suaves dos menus do cabeçalho: o menu fica montado, mas invisível, e o .open do Bootstrap só troca opacidade e posição. */
+    .modern-nav > .modern-dropdown > .dropdown-menu {
+        display: block;
+        visibility: hidden;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-8px) scale(0.98);
+        transform-origin: top right;
+        transition: opacity 0.2s ease, transform 0.22s cubic-bezier(0.25, 0.8, 0.25, 1), visibility 0s linear 0.22s;
+    }
+
+    .modern-nav > .modern-dropdown.open > .dropdown-menu {
+        visibility: visible;
+        opacity: 1;
+        pointer-events: auto;
+        transform: none;
+        transition: opacity 0.2s ease, transform 0.22s cubic-bezier(0.25, 0.8, 0.25, 1), visibility 0s;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .modern-nav > .modern-dropdown > .dropdown-menu,
+        .modern-nav > .modern-dropdown.open > .dropdown-menu {
+            transform: none;
+            transition: opacity 0.01s, visibility 0s;
+        }
+    }
+
     .modern-dropdown-header {
         background: linear-gradient(135deg, #1E1D3F 0%, #2a2952 100%) !important;
         color: white !important;
@@ -718,6 +796,8 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
     .user-dropdown-menu {
         width: 280px !important;
+        padding: 0 !important;
+        overflow: hidden;
     }
 
     .modern-user-header {
@@ -771,6 +851,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
     .modern-user-footer {
         padding: 15px !important;
+        border-radius: 0 0 12px 12px !important;
     }
 
     .modern-footer-buttons {
@@ -1406,4 +1487,513 @@ defined('BASEPATH') or exit('No direct script access allowed');
     body.dark-mode .novidade-modal .modal-header { border-color: #2d2d2d !important; }
     body.dark-mode .novidade-modal-selo { background: #1f2b2b !important; color: #9cd7d4 !important; }
     body.dark-mode .novidade-modal-imagens a { border-color: #2d2d2d !important; background: #181818 !important; }
+</style>
+<!-- Apontamento esquecido: depois de 4 horas seguidas avisa e deixa o alerta no sino até o apontamento ser parado. -->
+<script type="text/javascript">
+    window.addEventListener('load', function() {
+        if (typeof $ === 'undefined') { return; }
+        var baseUrl = <?php echo json_encode(base_url()) ?>;
+        var limite = <?php echo (int) (isset($apontamento_alerta_segundos) ? $apontamento_alerta_segundos : 4 * 3600) ?>;
+        var lembrarACada = 30 * 60 * 1000;
+        var atual = null;
+        var timer = null;
+        var lembrete = null;
+
+        function decorrido() {
+            return atual ? atual.segundos + Math.floor((Date.now() - atual.recebido) / 1000) : 0;
+        }
+
+        function duracao(segundos) {
+            var h = Math.floor(segundos / 3600);
+            var m = Math.floor((segundos % 3600) / 60);
+            return h + 'h' + (m < 10 ? '0' : '') + m + 'min';
+        }
+
+        function nomeChamado() {
+            return 'chamado #' + atual.chamado_id + (atual.titulo ? ' - ' + atual.titulo : '');
+        }
+
+        function urlChamado() {
+            return atual.url || (baseUrl + 'chamados/details/' + atual.chamado_id);
+        }
+
+        // Na própria tela do chamado o botão só rola até o cronômetro.
+        function estaNoChamado() {
+            return String($('#chamado_id').val() || '') === String(atual.chamado_id) && $('.chamado-timer').length > 0;
+        }
+
+        function somarNotificacoes(delta) {
+            var total = Math.max(0, (parseInt($('#notificacoes-total').text(), 10) || 0) + delta);
+            $('#notificacoes-total').text(total);
+            $('#notificacoes-badge').text(total).toggle(total > 0);
+        }
+
+        function textoSino() {
+            return 'Apontamento rodando há ' + duracao(decorrido()) + ' no ' + nomeChamado();
+        }
+
+        function adicionarNoSino() {
+            var $lista = $('#notificacoes-lista');
+            if (!$lista.length) { return; }
+            var $item = $lista.find('.js-apontamento-alerta');
+            if (!$item.length) {
+                $item = $('<li class="js-apontamento-alerta apontamento-alerta-item">').append(
+                    $('<a>').append('<i class="fa fa-clock-o text-yellow"></i> ').append($('<span class="apontamento-alerta-item-texto">'))
+                ).prependTo($lista);
+                somarNotificacoes(1);
+            }
+            $item.find('a').attr({ href: urlChamado(), title: textoSino() });
+            $item.find('.apontamento-alerta-item-texto').text(textoSino());
+            $('#notificacoes-menu').addClass('has-apontamento-alerta');
+        }
+
+        function removerDoSino() {
+            var $item = $('#notificacoes-lista .js-apontamento-alerta');
+            if ($item.length) {
+                $item.remove();
+                somarNotificacoes(-1);
+            }
+            $('#notificacoes-menu').removeClass('has-apontamento-alerta');
+        }
+
+        function fecharAviso() {
+            $('#apontamento-alerta').remove();
+        }
+
+        function chaveLembrete() {
+            return 'apontamento_alerta_' + atual.id;
+        }
+
+        // Entre abas e recarregamentos o aviso flutuante aparece no máximo a cada 30 minutos; o sino fica sempre.
+        function podeLembrar() {
+            try {
+                var ultimo = parseInt(window.localStorage.getItem(chaveLembrete()), 10) || 0;
+                return Date.now() - ultimo >= lembrarACada - 5000;
+            } catch (e) {
+                return true;
+            }
+        }
+
+        function registrarLembrete() {
+            try { window.localStorage.setItem(chaveLembrete(), String(Date.now())); } catch (e) {}
+        }
+
+        function mostrarAviso() {
+            fecharAviso();
+            registrarLembrete();
+            var noChamado = estaNoChamado();
+            var $botao = $('<a class="btn btn-warning btn-sm apontamento-alerta-acao">')
+                .attr('href', noChamado ? '#' : urlChamado())
+                .append(noChamado ? '<i class="fa fa-stop"></i> Ver o apontamento' : '<i class="fa fa-external-link"></i> Ir para o chamado');
+            if (noChamado) {
+                $botao.on('click', function(e) {
+                    e.preventDefault();
+                    fecharAviso();
+                    $('html, body').animate({ scrollTop: Math.max(0, $('.chamado-timer').offset().top - 80) }, 300);
+                });
+            }
+            $('<div id="apontamento-alerta" class="apontamento-alerta" role="alert" aria-live="assertive">')
+                .append('<span class="apontamento-alerta-icone"><i class="fa fa-clock-o"></i></span>')
+                .append($('<div class="apontamento-alerta-corpo">')
+                    .append($('<strong class="apontamento-alerta-titulo">').text('Apontamento rodando há ' + duracao(decorrido())))
+                    .append($('<p>').text('Você iniciou um apontamento no ' + nomeChamado() + (atual.inicio ? ' em ' + atual.inicio : '') + ' e ele ainda não foi parado. Se já terminou, pare o apontamento para conseguir iniciar em outro chamado.'))
+                    .append($botao))
+                .append($('<button type="button" class="apontamento-alerta-fechar" aria-label="Fechar aviso">&times;</button>').on('click', fecharAviso))
+                .appendTo('body');
+
+            // Notificação do navegador só quando o usuário já tiver autorizado o site e estiver em outra aba.
+            if (!document.hasFocus() && 'Notification' in window && window.Notification.permission === 'granted') {
+                try {
+                    var nativa = new window.Notification('Apontamento rodando há ' + duracao(decorrido()), { body: 'Pare o apontamento do ' + nomeChamado() + ' se já terminou.', tag: chaveLembrete() });
+                    nativa.onclick = function() { window.focus(); window.location.href = urlChamado(); };
+                } catch (e) {}
+            }
+        }
+
+        function disparar(forcarAviso) {
+            if (!atual) { return; }
+            adicionarNoSino();
+            if (forcarAviso || podeLembrar()) { mostrarAviso(); }
+            clearInterval(lembrete);
+            // A cada minuto atualiza o tempo no sino e, a cada 30 minutos, repete o aviso.
+            lembrete = setInterval(function() {
+                adicionarNoSino();
+                if (podeLembrar()) { mostrarAviso(); }
+            }, 60 * 1000);
+        }
+
+        function parar() {
+            clearTimeout(timer);
+            clearInterval(lembrete);
+            if (atual) {
+                try { window.localStorage.removeItem(chaveLembrete()); } catch (e) {}
+            }
+            atual = null;
+            removerDoSino();
+            fecharAviso();
+        }
+
+        function acompanhar(dados) {
+            parar();
+            if (!dados || !dados.chamado_id) { return; }
+            atual = $.extend({ segundos: 0 }, dados, { recebido: Date.now() });
+            var restante = limite - atual.segundos;
+            if (restante <= 0) {
+                disparar(false);
+            } else {
+                timer = setTimeout(function() { disparar(true); }, restante * 1000);
+            }
+        }
+
+        // Disparados pelo cronômetro da tela do chamado (startApontamento / stopApontamento em funcoes.js).
+        $(document).on('apontamento:iniciado', function(e, dados) { acompanhar(dados); });
+        $(document).on('apontamento:parado', parar);
+
+        acompanhar(<?php echo json_encode(isset($apontamento_aberto) ? $apontamento_aberto : null, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>);
+    });
+</script>
+<style>
+    .apontamento-alerta { position: fixed; right: 20px; bottom: 20px; z-index: 1060; display: flex; align-items: flex-start; gap: 12px; width: 380px; max-width: calc(100vw - 32px); padding: 14px 36px 14px 14px; background: #fff; border-left: 4px solid #f39c12; border-radius: 6px; box-shadow: 0 6px 24px rgba(0, 0, 0, .18); animation: apontamento-alerta-entrar .25s ease-out; }
+    .apontamento-alerta-icone { flex: 0 0 36px; height: 36px; border-radius: 50%; background: #fff4e0; color: #f39c12; font-size: 20px; line-height: 36px; text-align: center; }
+    .apontamento-alerta-corpo { flex: 1; min-width: 0; }
+    .apontamento-alerta-titulo { display: block; margin-bottom: 4px; font-size: 15px; color: #333; }
+    .apontamento-alerta-corpo p { margin: 0 0 10px; font-size: 13px; line-height: 1.45; color: #555; word-wrap: break-word; }
+    .apontamento-alerta-fechar { position: absolute; top: 6px; right: 8px; padding: 0 4px; border: 0; background: transparent; color: #999; font-size: 22px; line-height: 1; cursor: pointer; }
+    .apontamento-alerta-fechar:hover, .apontamento-alerta-fechar:focus { color: #333; }
+    .apontamento-alerta-item a { white-space: normal !important; }
+    #notificacoes-menu.has-apontamento-alerta .fa-bell-o { color: #f39c12; animation: apontamento-alerta-sino 1.6s ease-in-out infinite; transform-origin: 50% 0; }
+    @keyframes apontamento-alerta-entrar { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+    @keyframes apontamento-alerta-sino { 0%, 70%, 100% { transform: rotate(0); } 75% { transform: rotate(14deg); } 85% { transform: rotate(-12deg); } 95% { transform: rotate(6deg); } }
+    @media (prefers-reduced-motion: reduce) { .apontamento-alerta, #notificacoes-menu.has-apontamento-alerta .fa-bell-o { animation: none; } }
+    @media (max-width: 480px) { .apontamento-alerta { right: 16px; bottom: 16px; } }
+    body.dark-mode .apontamento-alerta { background: #1e1e1e !important; box-shadow: 0 6px 24px rgba(0, 0, 0, .5); }
+    body.dark-mode .apontamento-alerta-icone { background: #2d2716 !important; }
+    body.dark-mode .apontamento-alerta-titulo { color: #f1f5f9 !important; }
+    body.dark-mode .apontamento-alerta-corpo p { color: #cbd5e1 !important; }
+    body.dark-mode .apontamento-alerta-fechar:hover, body.dark-mode .apontamento-alerta-fechar:focus { color: #f1f5f9; }
+</style>
+<!-- Notificações de chamado: busca as novas a cada minuto, mostra o aviso na tela e mantém no sino. -->
+<div class="notif-avisos" id="notif-avisos" aria-live="polite"></div>
+<script type="text/javascript">
+    window.addEventListener('load', function() {
+        if (typeof $ === 'undefined') { return; }
+        var baseUrl = <?php echo json_encode(base_url()) ?>;
+        var naoLidas = <?php echo (int) (isset($notificacoes_chamado_nao_lidas) ? $notificacoes_chamado_nao_lidas : 0) ?>;
+        var intervalo = 60 * 1000;
+        var duracaoAviso = 9000;
+        var ultimaBusca = 0;
+        var $lista = $('#notificacoes-lista');
+        var $avisos = $('#notif-avisos');
+
+        function somarNotificacoes(delta) {
+            var total = Math.max(0, (parseInt($('#notificacoes-total').text(), 10) || 0) + delta);
+            $('#notificacoes-total').text(total);
+            $('#notificacoes-badge').text(total).toggle(total > 0);
+        }
+
+        function atualizarRodape() {
+            $('#notificacoes-marcar-todas-li').toggle(naoLidas > 0);
+        }
+
+        function icone(n) {
+            return $('<span class="notif-chamado-icone">').css('background', n.cor).append($('<i class="fa">').addClass(n.icone));
+        }
+
+        function corpo(n) {
+            return $('<span class="notif-chamado-corpo">')
+                .append($('<strong class="notif-chamado-titulo">').text(n.titulo))
+                .append($('<span class="notif-chamado-texto">').text(n.texto))
+                .append($('<small class="notif-chamado-meta">').text(n.autor + ' · ' + n.quando));
+        }
+
+        function adicionarNoSino(n) {
+            if (!$lista.length || $lista.find('.notif-chamado[data-id="' + n.id + '"]').length) { return false; }
+            $('<li class="notif-chamado">').toggleClass('is-nao-lida', !n.lida).attr('data-id', n.id)
+                .append($('<a>').attr({ href: n.url, title: n.titulo + (n.chamado_titulo ? ' - ' + n.chamado_titulo : '') }).append(icone(n), corpo(n)))
+                .prependTo($lista);
+            return true;
+        }
+
+        function fecharAviso($aviso) {
+            clearTimeout($aviso.data('timer'));
+            $aviso.addClass('is-saindo');
+            setTimeout(function() { $aviso.remove(); }, 250);
+        }
+
+        // O aviso some sozinho, mas espera enquanto o mouse estiver em cima.
+        function agendarSaida($aviso) {
+            clearTimeout($aviso.data('timer'));
+            $aviso.data('timer', setTimeout(function() { fecharAviso($aviso); }, duracaoAviso));
+        }
+
+        function mostrarAviso(n, resumo) {
+            var $aviso = $('<div class="notif-aviso" role="status">');
+            if (resumo) {
+                $aviso.append($('<a class="notif-aviso-link" href="#">').append(
+                    $('<span class="notif-chamado-icone">').css('background', '#3c8dbc').append('<i class="fa fa-bell"></i>'),
+                    $('<span class="notif-chamado-corpo">').append($('<strong class="notif-chamado-titulo">').text(resumo)).append($('<span class="notif-chamado-texto">').text('Veja todas no sino de notificações.'))
+                ).on('click', function(e) {
+                    e.preventDefault();
+                    fecharAviso($aviso);
+                    if (window.headerDrawer) { window.headerDrawer.abrir('notificacoes'); }
+                }));
+            } else {
+                $aviso.css('border-left-color', n.cor).append($('<a class="notif-aviso-link">').attr('href', n.url).append(icone(n), corpo(n)));
+            }
+            $aviso.append($('<button type="button" class="notif-aviso-fechar" aria-label="Fechar aviso">&times;</button>').on('click', function() { fecharAviso($aviso); }));
+            $aviso.on('mouseenter', function() { clearTimeout($aviso.data('timer')); }).on('mouseleave', function() { agendarSaida($aviso); });
+            $aviso.appendTo($avisos);
+            agendarSaida($aviso);
+        }
+
+        function receber(res) {
+            if (!res || !res.ok) { return; }
+            var itens = res.itens || [];
+            var novos = 0;
+            // Do mais antigo para o mais novo, para o mais recente ficar no topo do sino.
+            for (var i = itens.length - 1; i >= 0; i--) {
+                if (adicionarNoSino(itens[i]) && !itens[i].lida) { novos++; }
+            }
+            if (novos) {
+                somarNotificacoes(novos);
+                naoLidas += novos;
+            }
+            if (typeof res.nao_lidas === 'number' && res.nao_lidas < naoLidas) {
+                // Lidas em outra aba: corrige a contagem.
+                somarNotificacoes(res.nao_lidas - naoLidas);
+                naoLidas = res.nao_lidas;
+            }
+            atualizarRodape();
+            if (!itens.length) { return; }
+
+            // No máximo três avisos de uma vez; o resto fica resumido.
+            var mostrar = itens.length > 3 ? itens.slice(0, 2) : itens;
+            $.each(mostrar, function(i, n) { mostrarAviso(n); });
+            if (itens.length > 3) {
+                mostrarAviso(null, 'Mais ' + (itens.length - 2) + ' notificações de chamados');
+            }
+            // Em outra aba, usa a notificação do navegador se o usuário já tiver autorizado.
+            if (document.hidden && 'Notification' in window && window.Notification.permission === 'granted') {
+                try {
+                    var primeiro = itens[0];
+                    var nativa = new window.Notification(itens.length > 1 ? itens.length + ' novas notificações de chamados' : primeiro.titulo, { body: itens.length > 1 ? primeiro.titulo : primeiro.texto, tag: 'notif-chamado' });
+                    nativa.onclick = function() { window.focus(); window.location.href = primeiro.url; };
+                } catch (e) {}
+            }
+        }
+
+        function buscar() {
+            if (document.hidden) { return; }
+            ultimaBusca = Date.now();
+            $.ajax({ url: baseUrl + 'notificacoes/novas', dataType: 'json', cache: false, global: false }).done(receber);
+        }
+
+        $(document).on('click', '#notificacoes-marcar-todas', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            $.post(baseUrl + 'notificacoes/marcar_todas').done(function(res) {
+                if (!res || !res.ok) { return; }
+                somarNotificacoes(-naoLidas);
+                naoLidas = 0;
+                $lista.find('.notif-chamado.is-nao-lida').removeClass('is-nao-lida');
+                atualizarRodape();
+            });
+        });
+
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden && Date.now() - ultimaBusca > 30000) { buscar(); }
+        });
+        setInterval(buscar, intervalo);
+        buscar();
+    });
+</script>
+<style>
+    #notificacoes-lista > .notificacoes-vazio { padding: 14px 20px; color: #999; font-size: 13px; text-align: center; }
+    #notificacoes-lista > .notificacoes-vazio:not(:only-child) { display: none; }
+    #notificacoes-lista > .notif-chamado > a { display: flex !important; align-items: flex-start; gap: 10px; white-space: normal !important; }
+    #notificacoes-lista > .notif-chamado.is-nao-lida > a { background: #eef8f7 !important; box-shadow: inset 3px 0 0 #9CD7D4; }
+    .notif-chamado-icone { flex: 0 0 30px; width: 30px; height: 30px; border-radius: 50%; color: #fff; font-size: 13px; line-height: 30px; text-align: center; }
+    .notif-chamado-corpo { flex: 1; min-width: 0; display: block; }
+    .notif-chamado-titulo { display: block; font-size: 13px; color: #1E1D3F; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .notif-chamado:not(.is-nao-lida) .notif-chamado-titulo { font-weight: 600; color: #555; }
+    .notif-chamado-texto { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 2px; font-size: 12px; line-height: 1.4; color: #666; word-break: break-word; }
+    .notif-chamado-meta { display: block; margin-top: 3px; font-size: 11px; color: #999; }
+    .notif-avisos { position: fixed; top: 62px; right: 16px; z-index: 1060; display: flex; flex-direction: column; gap: 10px; width: 360px; max-width: calc(100vw - 32px); pointer-events: none; }
+    .notif-aviso { position: relative; pointer-events: auto; background: #fff; border-left: 4px solid #3c8dbc; border-radius: 6px; box-shadow: 0 6px 24px rgba(0, 0, 0, .16); animation: notif-aviso-entrar .25s ease-out; transition: opacity .25s, transform .25s; }
+    .notif-aviso.is-saindo { opacity: 0; transform: translateX(16px); }
+    .notif-aviso-link { display: flex; align-items: flex-start; gap: 10px; padding: 12px 34px 12px 12px; color: inherit; text-decoration: none; }
+    .notif-aviso-link:hover, .notif-aviso-link:focus { color: inherit; text-decoration: none; }
+    .notif-aviso-link:hover .notif-chamado-titulo { color: #2a2952; text-decoration: underline; }
+    .notif-aviso .notif-chamado-titulo { white-space: normal; }
+    .notif-aviso-fechar { position: absolute; top: 4px; right: 6px; padding: 0 4px; border: 0; background: transparent; color: #999; font-size: 20px; line-height: 1; cursor: pointer; }
+    .notif-aviso-fechar:hover, .notif-aviso-fechar:focus { color: #333; }
+    @keyframes notif-aviso-entrar { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .notif-aviso { animation: none; transition: opacity .01s; } .notif-aviso.is-saindo { transform: none; } }
+    body.dark-mode #notificacoes-lista > .notificacoes-vazio { color: #888; }
+    body.dark-mode #notificacoes-lista > .notif-chamado.is-nao-lida > a { background: #1f2b2b !important; box-shadow: inset 3px 0 0 #9cd7d4; }
+    body.dark-mode .notif-chamado-titulo { color: #f1f5f9 !important; }
+    body.dark-mode .notif-chamado:not(.is-nao-lida) .notif-chamado-titulo { color: #cbd5e1 !important; }
+    body.dark-mode .notif-chamado-texto { color: #94a3b8 !important; }
+    body.dark-mode .notif-chamado-meta { color: #888 !important; }
+    body.dark-mode .notif-aviso { background: #1e1e1e !important; box-shadow: 0 6px 24px rgba(0, 0, 0, .5); }
+    body.dark-mode .notif-aviso-link:hover .notif-chamado-titulo { color: #9cd7d4 !important; }
+    body.dark-mode .notif-aviso-fechar:hover, body.dark-mode .notif-aviso-fechar:focus { color: #f1f5f9; }
+</style>
+<!-- Gaveta lateral: os botões do cabeçalho (menos o de tema e o de perfil) abrem o painel correspondente, e as abas trocam entre eles. -->
+<script type="text/javascript">
+    (function() {
+        var gaveta = document.getElementById('header-drawer');
+        var fundo = document.getElementById('header-drawer-fundo');
+        if (!gaveta || !fundo) { return; }
+        var atual = null;
+        var origem = null;
+        var timerFundo = null;
+
+        function todos(seletor) {
+            return Array.prototype.slice.call(document.querySelectorAll(seletor));
+        }
+
+        function marcar(nome) {
+            var achou = false;
+            todos('#header-drawer .header-drawer-painel').forEach(function(painel) {
+                var ativo = painel.getAttribute('data-painel') === nome;
+                painel.hidden = !ativo;
+                achou = achou || ativo;
+            });
+            todos('#header-drawer .header-drawer-aba').forEach(function(aba) {
+                var ativo = aba.getAttribute('data-drawer') === nome;
+                aba.setAttribute('aria-selected', ativo ? 'true' : 'false');
+                aba.tabIndex = ativo ? 0 : -1;
+            });
+            return achou;
+        }
+
+        // Destaca no cabeçalho o botão do painel aberto (null: nenhum).
+        function marcarBotoes(nome) {
+            todos('.modern-nav [data-drawer]').forEach(function(botao) {
+                var ativo = botao.getAttribute('data-drawer') === nome;
+                botao.setAttribute('aria-expanded', ativo ? 'true' : 'false');
+                botao.parentNode.classList.toggle('is-drawer-ativo', ativo);
+            });
+        }
+
+        function abrir(nome) {
+            if (!marcar(nome)) { return; }
+            marcarBotoes(nome);
+            if (!atual) { origem = document.activeElement; }
+            atual = nome;
+            clearTimeout(timerFundo);
+            fundo.hidden = false;
+            void fundo.offsetWidth; // aplica o estado inicial antes da transição
+            fundo.classList.add('is-visivel');
+            gaveta.classList.add('is-aberto');
+            gaveta.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('header-drawer-aberto');
+            try { gaveta.focus({ preventScroll: true }); } catch (e) { gaveta.focus(); }
+        }
+
+        function fechar() {
+            if (!atual) { return; }
+            atual = null;
+            marcarBotoes(null); // o painel continua visível enquanto a gaveta desliza para fora
+            gaveta.classList.remove('is-aberto');
+            gaveta.setAttribute('aria-hidden', 'true');
+            fundo.classList.remove('is-visivel');
+            timerFundo = setTimeout(function() { fundo.hidden = true; }, 300);
+            document.body.classList.remove('header-drawer-aberto');
+            if (origem && origem.focus) { origem.focus(); }
+        }
+
+        document.addEventListener('click', function(e) {
+            var alvo = e.target.closest ? e.target.closest('[data-drawer]') : null;
+            if (!alvo) { return; }
+            var naGaveta = gaveta.contains(alvo);
+            if (!naGaveta && !alvo.closest('.modern-nav')) { return; }
+            e.preventDefault();
+            var nome = alvo.getAttribute('data-drawer');
+            // Botão do cabeçalho do painel que já está aberto: fecha.
+            if (!naGaveta && atual === nome) {
+                fechar();
+                return;
+            }
+            abrir(nome);
+            // A aba de chamados atualiza a lista, como o botão do cabeçalho já faz.
+            if (naGaveta && nome === 'chamados') {
+                var atualizar = document.getElementById('btn-refresh-chamados');
+                if (atualizar) { atualizar.click(); }
+            }
+        });
+
+        fundo.addEventListener('click', fechar);
+        document.getElementById('header-drawer-fechar').addEventListener('click', fechar);
+        document.addEventListener('keydown', function(e) {
+            // Com a janela de novidade aberta por cima, o Esc fecha só a janela.
+            if (atual && (e.key === 'Escape' || e.keyCode === 27) && !document.querySelector('.modal.in')) {
+                fechar();
+            }
+        });
+
+        window.headerDrawer = { abrir: abrir, fechar: fechar };
+    })();
+</script>
+<style>
+    .header-drawer-fundo { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 1037; background: rgba(30, 29, 63, .4); opacity: 0; transition: opacity .3s ease; }
+    .header-drawer-fundo.is-visivel { opacity: 1; }
+    .header-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 1038; display: flex; flex-direction: column; width: 420px; max-width: 100vw; background: #fff; box-shadow: -8px 0 30px rgba(0, 0, 0, .2); outline: none; visibility: hidden; transform: translateX(100%); transition: transform .3s cubic-bezier(.25, .8, .25, 1), visibility 0s linear .3s; }
+    .header-drawer.is-aberto { visibility: visible; transform: none; transition: transform .3s cubic-bezier(.25, .8, .25, 1), visibility 0s; }
+    body.header-drawer-aberto { overflow: hidden; }
+
+    .header-drawer-topo { display: flex; align-items: flex-end; gap: 6px; min-height: 50px; padding: 6px 8px 0 10px; background: #1E1D3F; }
+    .header-drawer-abas { display: flex; flex: 1; min-width: 0; gap: 2px; overflow-x: auto; }
+    .header-drawer-aba { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 2px 8px; border: 0; border-bottom: 3px solid transparent; border-radius: 6px 6px 0 0; background: transparent; color: rgba(255, 255, 255, .7); font-size: 10.5px; font-weight: 600; line-height: 1.2; cursor: pointer; transition: color .2s, background .2s, border-color .2s; }
+    .header-drawer-aba span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .header-drawer-aba .fa { font-size: 17px; }
+    .header-drawer-aba:hover, .header-drawer-aba:focus { color: #fff; background: rgba(255, 255, 255, .06); outline: none; }
+    .header-drawer-aba[aria-selected="true"] { color: #fff; background: rgba(255, 255, 255, .1); border-bottom-color: #9CD7D4; }
+    .header-drawer-fechar { flex: 0 0 36px; height: 36px; align-self: center; margin-bottom: 3px; border: 0; border-radius: 50%; background: transparent; color: rgba(255, 255, 255, .8); font-size: 26px; line-height: 1; cursor: pointer; transition: background .2s, color .2s; }
+    .header-drawer-fechar:hover, .header-drawer-fechar:focus { color: #fff; background: rgba(255, 255, 255, .12); outline: none; }
+
+    .header-drawer-corpo { position: relative; flex: 1; min-height: 0; }
+    .header-drawer-painel { position: absolute; top: 0; right: 0; bottom: 0; left: 0; overflow-y: auto; overscroll-behavior: contain; }
+    .header-drawer-painel[hidden] { display: none; }
+
+    /* O conteúdo que era dropdown passa a ocupar a gaveta inteira. */
+    .header-drawer .header-drawer-painel > .header-drawer-conteudo { position: static !important; display: block !important; float: none !important; width: auto !important; min-width: 0 !important; max-width: none !important; margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; overflow: visible !important; background: transparent !important; list-style: none; }
+    .header-drawer .header-drawer-conteudo > .modern-dropdown-header { position: sticky; top: 0; z-index: 2; border-radius: 0 !important; }
+    .header-drawer .header-drawer-conteudo > .modern-dropdown-footer { position: sticky; bottom: 0; z-index: 2; border-radius: 0 !important; border-top: 1px solid #eef1f4; }
+    .header-drawer .header-drawer-conteudo .menu { max-height: none !important; overflow: visible !important; margin: 0; padding: 0 !important; list-style: none; }
+    .header-drawer .header-drawer-conteudo .menu > li > a { white-space: normal; }
+    .header-drawer .chamados-cards-scroll { max-height: none !important; overflow: visible !important; }
+
+    /* Mensagens: o AdminLTE só estiliza esses itens dentro do dropdown. */
+    .header-drawer [data-painel="mensagens"] .menu > li > a { display: block; padding: 10px 16px !important; }
+    .header-drawer [data-painel="mensagens"] .menu > li > a::after { content: ""; display: table; clear: both; }
+    .header-drawer [data-painel="mensagens"] .menu > li > a > div > img { width: 40px; height: 40px; margin: auto 10px auto auto; }
+    .header-drawer [data-painel="mensagens"] .menu > li > a > h4 { position: relative; margin: 0 0 0 50px; padding: 0; font-size: 14px; color: #444; }
+    .header-drawer [data-painel="mensagens"] .menu > li > a > h4 > small { position: absolute; top: 0; right: 0; font-size: 10px; color: #999; }
+    .header-drawer [data-painel="mensagens"] .menu > li > a > p { margin: 2px 0 0 50px; font-size: 12px; color: #888; }
+
+    /* Botão do cabeçalho cujo painel está aberto. */
+    .modern-nav > li.is-drawer-ativo > .modern-dropdown-toggle { background: rgba(30, 29, 63, .08) !important; }
+    body.dark-mode .modern-nav > li.is-drawer-ativo > .modern-dropdown-toggle { background: rgba(255, 255, 255, .08) !important; }
+    .modern-nav .user-toggle .user-chevron { transition: transform .25s ease; }
+    .modern-nav .user-toggle[aria-expanded="true"] .user-chevron { transform: rotate(-90deg); }
+
+    @media (max-width: 480px) {
+        .header-drawer { width: 100vw; }
+        .header-drawer-aba span { display: none; }
+        .header-drawer-aba .fa { font-size: 19px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .header-drawer, .header-drawer.is-aberto { transform: none; transition: visibility 0s; }
+        .header-drawer-fundo { transition: none; }
+    }
+
+    body.dark-mode .header-drawer { background: #1e1e1e !important; box-shadow: -8px 0 30px rgba(0, 0, 0, .55); }
+    body.dark-mode .header-drawer-topo { background: #181818 !important; }
+    body.dark-mode .header-drawer-aba[aria-selected="true"] { border-bottom-color: #9cd7d4; }
+    body.dark-mode .header-drawer-fundo { background: rgba(0, 0, 0, .6); }
+    body.dark-mode .header-drawer .header-drawer-conteudo > .modern-dropdown-footer { border-top-color: #2d2d2d !important; }
+    body.dark-mode .header-drawer [data-painel="mensagens"] .menu > li > a > h4 { color: #f1f5f9; }
+    body.dark-mode .header-drawer [data-painel="mensagens"] .menu > li > a > p { color: #94a3b8; }
 </style>

@@ -610,6 +610,12 @@ class Kanban_model extends CI_Model {
                 }
                 $this->db->update("chamado", ["status_id" => $status_change], ["id" => $post['tarefa']]);
             }
+            // Card movido para coluna de outro status: avisa os vinculados com o mesmo texto do diálogo de status
+            // (quando a mudança vem da tela do chamado, o aviso repetido é descartado).
+            if (isset($status_change) && (int) $status_change !== (int) $tarefa->row()->status_id) {
+                $this->load->model('chamado_notificacoes_model');
+                $this->chamado_notificacoes_model->registrar($post['tarefa'], 'status', 'Status do chamado alterado para ' . $this->chamado_notificacoes_model->nome_status($status_change) . '.');
+            }
             foreach(array_values($array_aux_users) as $key => $aux) {
                 if(@!$aux->user) 
                     $aux->user = $aux->responsavel_id;

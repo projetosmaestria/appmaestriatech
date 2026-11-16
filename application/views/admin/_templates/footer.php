@@ -19,7 +19,8 @@ defined('BASEPATH') OR exit('No direct script access allowed');
         <script src="<?php echo base_url('assets/xkey/moment.min.js'); ?>"></script>
         <script src="<?php echo base_url('assets/xkey/pt-br.js'); ?>"></script>
         <script src="<?php echo base_url($plugins_dir . '/datetimepicker/build/js/bootstrap-datetimepicker.min.js'); ?>"></script>
-        <script src="<?php echo base_url('assets/xkey/funcoes.js?v=4.2'); ?>"></script>
+        <script src="<?php echo base_url('assets/xkey/funcoes.js?v=4.3'); ?>"></script>
+        <script src="<?php echo base_url('assets/xkey/tag_select.js?v=' . (file_exists(FCPATH . 'assets/xkey/tag_select.js') ? filemtime(FCPATH . 'assets/xkey/tag_select.js') : '1')); ?>"></script>
         <script src="<?php echo base_url($frameworks_dir . '/jquery-ui/jquery-ui.min.js'); ?>"></script>
         <script src="<?php echo base_url($frameworks_dir . '/bootstrap/js/bootstrap.min.js'); ?>"></script>
         <script src="<?php echo base_url($plugins_dir . '/slimscroll/slimscroll.min.js'); ?>"></script>

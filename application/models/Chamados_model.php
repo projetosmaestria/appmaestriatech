@@ -246,13 +246,19 @@ class Chamados_model extends CI_Model
      * @return array
      * @author Ellan Garbelini
      **/
-    public function create_dialogo($data = null)
+    public function create_dialogo($data = null, $notificar = true)
     {
         if ($data == null) {
             return false;
         }
         $this->db->insert('chamado_dialogo', $data);
         $id = $this->db->insert_id();
+
+        // Avisa solicitante, responsável e desenvolvedor (notificação na tela e no sino).
+        if ($id && $notificar) {
+            $this->load->model('chamado_notificacoes_model');
+            $this->chamado_notificacoes_model->registrar_dialogo($data);
+        }
 
         $this->set_message('creation_dialog_successful');
         return $id;
@@ -296,6 +302,11 @@ class Chamados_model extends CI_Model
         }
         $this->db->insert('chamado_anexo', $data);
         $id = $this->db->insert_id();
+
+        if ($id) {
+            $this->load->model('chamado_notificacoes_model');
+            $this->chamado_notificacoes_model->registrar_anexo($data);
+        }
 
         $this->set_message('creation_anexo_successful');
         return $id;
@@ -814,6 +825,24 @@ class Chamados_model extends CI_Model
         return $res;
     }
 
+    // Apontamento automático em andamento do usuário (em qualquer chamado), com os dados para o alerta do cabeçalho.
+    public function get_apontamento_aberto_usuario($user_id)
+    {
+        $user_id = (int) $user_id;
+        if (!$user_id) {
+            return null;
+        }
+        return $this->db->select('a.id, a.chamado_id, a.data, a.hora_inicio, c.protocolo, c.titulo')
+            ->join('chamado c', 'c.id = a.chamado_id', 'left')
+            ->where('a.user_id', $user_id)
+            ->where('a.esforco', '00:00:00')
+            ->where('a.hora_termino', '00:00:00')
+            ->order_by('a.created_at', 'desc')
+            ->limit(1)
+            ->get('chamado_apontamento a')
+            ->row();
+    }
+
     public function activate($id = NULL)
     {
         if (!isset($id)) {
@@ -862,6 +891,11 @@ class Chamados_model extends CI_Model
     public function salvar_prioridade($chamado_id, $prioridade)
     {
         $this->db->update('chamado', array("prioridade_id" => $prioridade), array('id' => $chamado_id));
+        if ($this->db->affected_rows() > 0) {
+            $nome = $this->db->select('descricao')->where('id', (int) $prioridade)->get('chamado_prioridade')->row();
+            $this->load->model('chamado_notificacoes_model');
+            $this->chamado_notificacoes_model->registrar($chamado_id, 'alteracao', 'Prioridade alterada para ' . ($nome ? $nome->descricao : $prioridade) . '.');
+        }
     }
 
     public function atualizar_plano_acao($data, $id)

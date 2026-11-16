@@ -218,6 +218,42 @@ class Admin_Controller extends MY_Controller
             $this->data['novidades_lidas'] = $novidades_usuario['lidas'];
             $this->data['notifications_count'] += count($novidades_usuario['lidas']);
 
+            // Apontamento automático em andamento: após 4 horas seguidas o cabeçalho avisa e mantém o alerta no sino.
+            $this->data['apontamento_aberto'] = null;
+            $this->data['apontamento_alerta_segundos'] = 4 * 3600;
+            $this->load->model('chamados_model');
+            $apontamento_aberto = $this->chamados_model->get_apontamento_aberto_usuario($this->session->userdata('user_id'));
+            if ($apontamento_aberto) {
+                $inicio_apontamento = strtotime($apontamento_aberto->data . ' ' . $apontamento_aberto->hora_inicio);
+                if ($inicio_apontamento) {
+                    $this->data['apontamento_aberto'] = array(
+                        'id' => (int) $apontamento_aberto->id,
+                        'chamado_id' => (int) $apontamento_aberto->chamado_id,
+                        'protocolo' => (string) $apontamento_aberto->protocolo,
+                        'titulo' => (string) $apontamento_aberto->titulo,
+                        'inicio' => date('d/m H:i', $inicio_apontamento),
+                        'segundos' => max(0, time() - $inicio_apontamento),
+                        'url' => site_url('chamados/details/' . (int) $apontamento_aberto->chamado_id),
+                    );
+                }
+            }
+
+            // Notificações de chamado (escalado, mensagem, anexo, status...) para solicitante, responsável e desenvolvedor.
+            $this->data['notificacoes_chamado'] = array();
+            $this->data['notificacoes_chamado_nao_lidas'] = 0;
+            if (!$this->input->is_ajax_request()) {
+                $this->load->model('chamado_notificacoes_model');
+                $notif_user_id = (int) $this->session->userdata('user_id');
+                $notif_empresa_id = (int) $this->session->userdata('empresa_id');
+                // Abrir o chamado conta como leitura das notificações dele.
+                if (strtolower($this->router->fetch_class()) == 'chamados' && strtolower($this->router->fetch_method()) == 'details' && (int) $this->uri->segment(3) > 0) {
+                    $this->chamado_notificacoes_model->marcar_lidas_chamado((int) $this->uri->segment(3), $notif_user_id);
+                }
+                $this->data['notificacoes_chamado'] = $this->chamado_notificacoes_model->listar($notif_user_id, $notif_empresa_id);
+                $this->data['notificacoes_chamado_nao_lidas'] = $this->chamado_notificacoes_model->contar_nao_lidas($notif_user_id, $notif_empresa_id);
+                $this->data['notifications_count'] += $this->data['notificacoes_chamado_nao_lidas'];
+            }
+
             /* Data */
             $this->data['session']     = $this->session;
             $this->data['title']       = $this->config->item('title');

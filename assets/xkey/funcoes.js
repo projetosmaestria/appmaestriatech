@@ -1494,6 +1494,8 @@ function startApontamento() {
                       $('.inicio-apontamento').fadeIn();
                       $('#obs_apontamento').removeAttr('readonly');
                       $('#apontamento_id').val(retorno.data);
+                      // O cabeçalho avisa se o apontamento passar de 4 horas sem ser parado.
+                      $(document).trigger('apontamento:iniciado', [{id: retorno.data, chamado_id: $("#chamado_id").val(), segundos: 0, inicio: hora_inicio}]);
 
                       myTimer = window.setInterval(function(){
                           percentVal += 1;
@@ -1539,6 +1541,7 @@ function stopApontamento() {
     progressBar.css("width", percentVal + '%').attr("aria-valuenow", percentVal + '%');
     $('.duration-clock').countimer('destroy');
     $('.duration-clock').html("00:00:00");
+    $(document).trigger('apontamento:parado');
 
     $.ajax({
         url: $("#base_url").val()+'chamados/apontamento_automatico_criar',

@@ -237,7 +237,7 @@ $anexo_max_kb = (int) $anexo_config['max_size'];
                             <div class="form-group">
                                 <label for="interessados"><?php echo lang('chamados_interessados'); ?></label>
                                 <?php echo form_dropdown($interessados); ?>
-                                <p class="help-block">Recebem os e-mails do chamado. Segure Ctrl (ou ⌘) para marcar vários.</p>
+                                <p class="help-block">Recebem os e-mails do chamado. Clique para adicionar; use o × da badge para remover.</p>
                             </div>
                             <div class="form-group">
                                 <label for="referencia">Chamado relacionado</label>
@@ -289,6 +289,7 @@ $anexo_max_kb = (int) $anexo_config['max_size'];
 <script type="text/javascript">
     window.onload = function() {
         $('.multipleSelect').fastselect();
+        $('#interessados').tagSelect({ placeholder: 'Clique ou digite um nome para adicionar' });
 
         var $form = $('#form-create_chamados');
         var required = <?php echo json_encode(array_merge(
