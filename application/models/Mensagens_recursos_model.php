@@ -1429,7 +1429,7 @@ class Mensagens_recursos_model extends CI_Model
         $emoji_codificado = $this->mensagens_model->codificar_emojis($emoji);
         $existe = $this->db->where('mensagem_id', (int) $m->id)
             ->where('user_id', (int) $user_id)
-            ->where_in('emoji', array($emoji_codificado, $emoji))
+            ->where('emoji', $emoji_codificado)
             ->get('mensagem_reacao')
             ->row();
         if ($existe) {

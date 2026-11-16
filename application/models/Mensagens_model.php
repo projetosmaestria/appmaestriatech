@@ -1731,7 +1731,7 @@ class Mensagens_model extends CI_Model
             $this->db->group_start()
                 ->like('m.texto', $q_cod);
             if ($this->aceita_anexos()) {
-                $this->db->or_like('m.anexo_nome', $q);
+                $this->db->or_like('m.anexo_nome', $q_cod);
             }
             $this->db->group_end();
         }
