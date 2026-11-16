@@ -196,14 +196,18 @@ class Novidades_model extends CI_Model {
      */
     public function para_exibicao($novidades)
     {
-        $this->load->library('foto_usuario', array('pasta' => 'upload/novidades/', 'lado_miniatura' => 1600, 'miniatura_quadrada' => false), 'imagem_novidade');
+        // Carrega a biblioteca pelo nome padrão antes de usar a configuração das novidades. Se a classe fosse
+        // carregada primeiro só com outro nome, o CI 3.1.5 ignoraria os $this->load->library('foto_usuario')
+        // seguintes (foto do usuário no cabeçalho) e $this->foto_usuario ficaria nulo: erro 500 em todas as telas.
+        $this->load->library('foto_usuario');
+        $imagem_novidade = new Foto_usuario(array('pasta' => 'upload/novidades/', 'lado_miniatura' => 1600, 'miniatura_quadrada' => false));
         $lista = array();
         foreach ((array) $novidades as $novidade) {
             $imagens = array();
             foreach ($this->imagens($novidade->id) as $imagem) {
-                $url = $this->imagem_novidade->url($imagem->arquivo);
+                $url = $imagem_novidade->url($imagem->arquivo);
                 if ($url) {
-                    $imagens[] = array('url' => $url, 'original' => $this->imagem_novidade->url($imagem->arquivo, false));
+                    $imagens[] = array('url' => $url, 'original' => $imagem_novidade->url($imagem->arquivo, false));
                 }
             }
             $texto = nl2br(html_escape($novidade->conteudo));
