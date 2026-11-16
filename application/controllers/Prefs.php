@@ -144,6 +144,19 @@ class Prefs extends Admin_Controller {
                 'selected' => $this->form_validation->set_value('grupos_dev_chamado', unserialize($this->data['admin_pref_interface']->grupos_dev_chamado))
             );
 
+            // Grupos que usam as mensagens internas (coluna criada por sql/2026-11-16_mensagens.sql).
+            $this->data['grupos_mensagens'] = null;
+            if ($this->db->field_exists('grupos_mensagens', 'admin_preferences')) {
+                $this->data['grupos_mensagens'] = array(
+                    'name'  => 'grupos_mensagens[]',
+                    'id'    => 'grupos_mensagens',
+                    'class' => 'multipleSelect',
+                    'multiple' => 'multiple',
+                    'options' => $grupos_dev_chamado,
+                    'selected' => $this->form_validation->set_value('grupos_mensagens', (array) @unserialize($this->data['admin_pref_interface']->grupos_mensagens))
+                );
+            }
+
 
             $group_options = array();
 
@@ -351,6 +364,10 @@ class Prefs extends Admin_Controller {
                     'cadastro_user_completo'    => (bool) $this->input->post('cadastro_user_completo')
 
                 );
+                if ($this->data['grupos_mensagens'] !== null) {
+                    $grupos_mensagens = array_values(array_filter(array_map('intval', (array) $this->input->post('grupos_mensagens'))));
+                    $data['grupos_mensagens'] = $grupos_mensagens ? serialize($grupos_mensagens) : null;
+                }
 
 
                 $this->preferences_model->update_interfaces('admin_preferences', $data);

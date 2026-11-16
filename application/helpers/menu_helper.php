@@ -142,6 +142,12 @@ if ( ! function_exists('getHtmlSidebar'))
             }
         }
 
+        // Mensagens: quem vê o menu são os grupos liberados nas Preferências (vale também para o admin).
+        if (isset($menu['controlador']) && strtolower($menu['controlador']) === 'mensagens') {
+            $CI->load->model('mensagens_model');
+            $has_access = $CI->mensagens_model->tem_acesso($CI->session->userdata('user_id'), $CI->session->userdata('empresa_id'));
+        }
+
         $html = "";
         if ($has_access) {
             $tem_submenus = !empty($menu['sub_menus']) && is_array($menu['sub_menus']);

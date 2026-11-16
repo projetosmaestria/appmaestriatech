@@ -188,6 +188,15 @@ defined('BASEPATH') OR exit('No direct script access allowed');
                                                     <?php echo form_dropdown($grupos_dev_chamado);?>
                                                 </div>
                                             </div>
+                                            <?php if (!empty($grupos_mensagens)) { ?>
+                                            <div class="form-group">
+                                                <label class="col-sm-2 control-label">Grupos com acesso às mensagens</label>
+                                                <div class="col-sm-10">
+                                                    <?php echo form_dropdown($grupos_mensagens);?>
+                                                    <p class="help-block">Quem pode conversar pela tela de Mensagens. Sem nenhum grupo marcado, valem o grupo admin e os grupos desenvolvedor, financeiro, supervisor e suporte.</p>
+                                                </div>
+                                            </div>
+                                            <?php } ?>
                                             <div class="form-group">
                                                 <label class="col-sm-2 control-label"><?php echo lang('prefs_relatorio_tutor'); ?></label>
                                                 <div class="col-sm-10">

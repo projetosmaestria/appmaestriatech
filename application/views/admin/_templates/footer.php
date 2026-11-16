@@ -131,7 +131,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
         <script src="<?php echo base_url($frameworks_dir . '/adminlte/js/adminlte.min.js'); ?>"></script>
         <script src="<?php echo base_url($frameworks_dir . '/domprojects/js/dp.min.js'); ?>"></script>
 
-<?php if (in_array(strtolower($this->router->fetch_class()), array('treinamentos', 'treinamentos_admin'))): ?>
+<?php if (in_array(strtolower($this->router->fetch_class()), array('treinamentos', 'treinamentos_admin', 'mensagens'))): ?>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
         <script src="<?php echo base_url('assets/xkey/treinamentos.js?v=' . (file_exists(FCPATH . 'assets/xkey/treinamentos.js') ? filemtime(FCPATH . 'assets/xkey/treinamentos.js') : time())); ?>"></script>

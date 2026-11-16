@@ -68,7 +68,44 @@ $campo_data = function ($valor) {
 
                 <div class="box box-primary">
                     <div class="box-header with-border">
-                        <h3 class="box-title"><span class="step-number">3</span>Imagens <small class="text-muted">(opcional)</small></h3>
+                        <h3 class="box-title"><span class="step-number">3</span>Para quem aparece</h3>
+                        <span class="box-subtitle">Deixe em branco para mostrar a todos. Quando os dois campos são usados, o usuário precisa atender aos dois.</span>
+                    </div>
+                    <div class="box-body">
+                        <?php if (empty($publico_disponivel)) { ?>
+                            <div class="alert alert-warning" style="margin-bottom:0;">
+                                <i class="fa fa-exclamation-triangle"></i> Para escolher unidade e grupo, aplique o script <code>sql/2026-11-16_novidades_publico.sql</code> no banco. Até lá, a novidade aparece para todos.
+                            </div>
+                        <?php } else { ?>
+                            <div class="row">
+                                <div class="col-sm-6 form-group">
+                                    <label for="novidade-unidades">Unidade</label>
+                                    <select id="novidade-unidades" name="unidades[]" class="form-control" multiple>
+                                        <?php foreach ($unidades_opcoes as $unidade) {
+                                            $nome_unidade = trim((string) $unidade->unidade) !== '' ? $unidade->unidade : $unidade->razao_social;
+                                        ?>
+                                            <option value="<?php echo (int) $unidade->id ?>" <?php echo in_array((int) $unidade->id, (array) $novidade->unidades_ids, true) ? 'selected' : '' ?>><?php echo html_escape($nome_unidade . ($unidade->actived === 's' ? '' : ' (inativa)')) ?></option>
+                                        <?php } ?>
+                                    </select>
+                                    <p class="help-block">Sem unidade: todos. Com unidade: admins e usuários vinculados a ela.</p>
+                                </div>
+                                <div class="col-sm-6 form-group">
+                                    <label for="novidade-grupos">Grupo de usuários</label>
+                                    <select id="novidade-grupos" name="grupos[]" class="form-control" multiple>
+                                        <?php foreach ($grupos_opcoes as $grupo) { ?>
+                                            <option value="<?php echo (int) $grupo->id ?>" <?php echo in_array((int) $grupo->id, (array) $novidade->grupos_ids, true) ? 'selected' : '' ?>><?php echo html_escape($grupo->name) ?></option>
+                                        <?php } ?>
+                                    </select>
+                                    <p class="help-block">Sem grupo: todos. Com grupo: só quem está nele.</p>
+                                </div>
+                            </div>
+                        <?php } ?>
+                    </div>
+                </div>
+
+                <div class="box box-primary">
+                    <div class="box-header with-border">
+                        <h3 class="box-title"><span class="step-number">4</span>Imagens <small class="text-muted">(opcional)</small></h3>
                         <span class="box-subtitle">Prints ou ilustrações da novidade. Até <?php echo (int) $max_imagens ?> imagens; acima de 5 MB são compactadas automaticamente.</span>
                     </div>
                     <div class="box-body">
@@ -107,12 +144,13 @@ $campo_data = function ($valor) {
                             <dl>
                                 <dt>Situação no período</dt><dd id="resumo-situacao">-</dd>
                                 <dt>Fica no ar</dt><dd id="resumo-duracao">-</dd>
+                                <dt>Aparece para</dt><dd id="resumo-publico">Todos os usuários</dd>
                                 <dt>Imagens</dt><dd id="resumo-imagens">-</dd>
                             </dl>
                             <?php if ($editando) { ?>
                                 <label class="cadastro-opcao">
                                     <input type="checkbox" name="reexibir" value="1">
-                                    <span><b>Mostrar de novo para todos</b><br><span class="text-muted small">Quem já fechou a janela vê a novidade outra vez (use ao mudar algo importante).</span></span>
+                                    <span><b>Mostrar de novo para o público</b><br><span class="text-muted small">Quem já fechou a janela vê a novidade outra vez (use ao mudar algo importante).</span></span>
                                 </label>
                             <?php } ?>
                             <button type="button" class="btn btn-default btn-block" id="btn-previa" style="margin-top:10px;"><i class="fa fa-eye"></i> Pré-visualizar janela</button>
@@ -171,6 +209,19 @@ $campo_data = function ($valor) {
             $('#resumo-situacao').text(situacao).toggleClass('text-red', situacao === 'Fim antes do início');
             $('#resumo-duracao').text(duracao);
             $('#resumo-imagens').text(total ? total + (total === 1 ? ' imagem' : ' imagens') : 'Nenhuma').toggleClass('text-red', total > MAX);
+
+            var nomes = function(id) {
+                return $('#' + id + ' option:selected').map(function() { return $.trim($(this).text()); }).get();
+            };
+            var unidades = nomes('novidade-unidades'), grupos = nomes('novidade-grupos'), partes = [];
+            if (unidades.length) { partes.push('Admins e usuários de ' + unidades.join(', ')); }
+            if (grupos.length) { partes.push((unidades.length ? 'que estejam em ' : 'Usuários de ') + grupos.join(', ')); }
+            $('#resumo-publico').text(partes.length ? partes.join(', ') : 'Todos os usuários');
+        }
+
+        if ($.fn.tagSelect) {
+            $('#novidade-unidades').tagSelect({ placeholder: 'Todas as unidades (clique para escolher)' });
+            $('#novidade-grupos').tagSelect({ placeholder: 'Todos os grupos (clique para escolher)' });
         }
 
         $('.novidade-atalhos [data-dias]').on('click', function() {
@@ -179,7 +230,7 @@ $campo_data = function ($valor) {
             $('#data_fim').val(formatar(fim));
             atualizarResumo();
         });
-        $('#form-novidade').on('change input', 'input, textarea', atualizarResumo);
+        $('#form-novidade').on('change input', 'input, textarea, select', atualizarResumo);
         $('.js-remover-imagem').on('change', function() {
             $(this).closest('.novidade-imagem').toggleClass('is-removendo', this.checked);
         });

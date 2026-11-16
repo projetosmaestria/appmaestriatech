@@ -209,14 +209,17 @@ class Admin_Controller extends MY_Controller
             }
 
             $this->data["notifications"] = array_merge($notifications_ead, $notifications_iugu);
-            $this->data["notifications_count"] = $notifications_ead_count + $notifications_iugu_count;
+            $sino_legado_hash = md5(implode('|', $this->data["notifications"]));
+            $this->session->set_userdata('sino_legado_hash_atual', $sino_legado_hash);
+            $sino_legado_visto = ($this->session->userdata('sino_legado_visto_hash') === $sino_legado_hash);
+            $this->data["notifications_count"] = $sino_legado_visto ? 0 : ($notifications_ead_count + $notifications_iugu_count);
 
-            // Novidades vigentes: as não vistas abrem em um modal; as já vistas ficam no sino de notificações.
+            // Novidades vigentes: as não vistas abrem em um modal; as já vistas ficam no sino apenas para consulta.
             $this->load->model('novidades_model');
-            $novidades_usuario = $this->novidades_model->do_usuario($this->session->userdata('empresa_id'), $this->session->userdata('user_id'));
+            // Público da novidade: unidade (admins sempre veem) e grupo de usuários.
+            $novidades_usuario = $this->novidades_model->do_usuario($this->session->userdata('empresa_id'), $this->session->userdata('user_id'), $this->ion_auth->is_admin());
             $this->data['novidades_pendentes'] = $novidades_usuario['pendentes'] ? $this->novidades_model->para_exibicao($novidades_usuario['pendentes']) : array();
             $this->data['novidades_lidas'] = $novidades_usuario['lidas'];
-            $this->data['notifications_count'] += count($novidades_usuario['lidas']);
 
             // Apontamento automático em andamento: após 4 horas seguidas o cabeçalho avisa e mantém o alerta no sino.
             $this->data['apontamento_aberto'] = null;
@@ -252,6 +255,42 @@ class Admin_Controller extends MY_Controller
                 $this->data['notificacoes_chamado'] = $this->chamado_notificacoes_model->listar($notif_user_id, $notif_empresa_id);
                 $this->data['notificacoes_chamado_nao_lidas'] = $this->chamado_notificacoes_model->contar_nao_lidas($notif_user_id, $notif_empresa_id);
                 $this->data['notifications_count'] += $this->data['notificacoes_chamado_nao_lidas'];
+            }
+
+            // Mensagens internas (conversas): envelope, painel e sino para quem tem acesso pelos grupos.
+            $this->data['chat_acesso'] = false;
+            $this->data['chat'] = array('total' => 0, 'remetentes' => array());
+            $this->data['chat_ultimo_id'] = 0;
+            $this->data['chat_reacao_ultimo_id'] = 0;
+            $this->data['sino_chat_visto_id'] = (int) $this->session->userdata('sino_chat_visto_id');
+            if (!$this->input->is_ajax_request()) {
+                $this->load->model('mensagens_model');
+                $chat_user_id = (int) $this->session->userdata('user_id');
+                $chat_empresa_id = (int) $this->session->userdata('empresa_id');
+                if ($this->mensagens_model->tem_acesso($chat_user_id, $chat_empresa_id)) {
+                    $this->data['chat_acesso'] = true;
+                    // Abrir a conversa conta como leitura antes de montar o cabeçalho.
+                    $chat_alvo = strtolower($this->router->fetch_class()) == 'mensagens' ? Mensagens_model::ler_chave($this->uri->segment(3)) : null;
+                    if ($chat_alvo && $chat_alvo['tipo'] === 'grupo') {
+                        if ($this->mensagens_model->grupo_do_membro($chat_alvo['id'], $chat_user_id, $chat_empresa_id)) {
+                            $this->mensagens_model->marcar_lido_grupo($chat_user_id, $chat_alvo['id']);
+                        }
+                    } elseif ($chat_alvo && $chat_alvo['tipo'] === 'canal') {
+                        if ($this->mensagens_model->canal_do_usuario($chat_alvo['id'], $chat_user_id, $chat_empresa_id)) {
+                            $this->mensagens_model->marcar_lido_canal($chat_user_id, $chat_alvo['id']);
+                        }
+                    } elseif ($chat_alvo) {
+                        $this->mensagens_model->marcar_lidas($chat_user_id, $chat_alvo['id'], $chat_empresa_id);
+                    }
+                    $this->data['chat'] = $this->mensagens_model->nao_lidas($chat_user_id, $chat_empresa_id);
+                    $this->data['chat_ultimo_id'] = $this->mensagens_model->ultimo_id_recebido($chat_user_id, $chat_empresa_id);
+                    $this->load->model('mensagens_recursos_model');
+                    $this->data['chat_reacao_ultimo_id'] = $this->mensagens_recursos_model->ultimo_reacao_id($chat_empresa_id, $chat_user_id);
+                    $this->data['messages_count'] += $this->data['chat']['total'];
+                    if ($this->data['chat_ultimo_id'] > $this->data['sino_chat_visto_id']) {
+                        $this->data['notifications_count'] += count($this->data['chat']['remetentes']);
+                    }
+                }
             }
 
             /* Data */

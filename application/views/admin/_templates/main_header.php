@@ -32,15 +32,19 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
         <div class="navbar-custom-menu">
             <ul class="nav navbar-nav modern-nav">
-                <?php if ($admin_prefs['messages_menu'] == TRUE): ?>
+                <?php
+                // Envelope: conversas (grupos com acesso às mensagens) e os contatos internos antigos (preferência messages_menu).
+                $chat_acesso = !empty($chat_acesso);
+                $chat = isset($chat) ? $chat : array('total' => 0, 'remetentes' => array());
+                $mostrar_mensagens = $admin_prefs['messages_menu'] == TRUE || $chat_acesso;
+                ?>
+                <?php if ($mostrar_mensagens): ?>
                     <!-- Messages -->
-                    <li class="dropdown messages-menu modern-dropdown">
+                    <li class="dropdown messages-menu modern-dropdown" id="mensagens-menu">
                         <a href="#" class="modern-dropdown-toggle" data-drawer="mensagens" aria-controls="header-drawer" aria-expanded="false" aria-label="Mensagens">
                             <div class="nav-icon-wrapper">
                                 <i class="fa fa-envelope-o"></i>
-                                <?php if ($messages_count > 0): ?>
-                                    <span class="label label-success modern-badge"><?php echo $messages_count ?></span>
-                                <?php endif; ?>
+                                <span class="label label-success modern-badge" id="mensagens-badge"<?php echo $messages_count > 0 ? '' : ' style="display:none;"' ?>><?php echo (int) $messages_count ?></span>
                             </div>
                         </a>
                     </li>
@@ -140,7 +144,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 <aside class="header-drawer" id="header-drawer" role="dialog" aria-label="Painel do cabeçalho" aria-hidden="true" tabindex="-1">
     <div class="header-drawer-topo">
         <div class="header-drawer-abas" role="tablist">
-<?php if ($admin_prefs['messages_menu'] == TRUE): ?>
+<?php if ($mostrar_mensagens): ?>
             <button type="button" class="header-drawer-aba" role="tab" id="header-drawer-aba-mensagens" data-drawer="mensagens" aria-controls="header-drawer-painel-mensagens" aria-selected="false"><i class="fa fa-envelope-o"></i><span>Mensagens</span></button>
 <?php endif; ?>
             <button type="button" class="header-drawer-aba" role="tab" id="header-drawer-aba-notificacoes" data-drawer="notificacoes" aria-controls="header-drawer-painel-notificacoes" aria-selected="false"><i class="fa fa-bell-o"></i><span>Notificações</span></button>
@@ -152,25 +156,38 @@ defined('BASEPATH') or exit('No direct script access allowed');
         <button type="button" class="header-drawer-fechar" id="header-drawer-fechar" aria-label="Fechar painel">&times;</button>
     </div>
     <div class="header-drawer-corpo">
-<?php if ($admin_prefs['messages_menu'] == TRUE): ?>
+<?php if ($mostrar_mensagens): ?>
         <section class="header-drawer-painel" role="tabpanel" id="header-drawer-painel-mensagens" data-painel="mensagens" aria-labelledby="header-drawer-aba-mensagens" hidden>
             <ul class="modern-dropdown-menu header-drawer-conteudo">
-                <li class="header modern-dropdown-header"><?php echo lang('header_you_have'); ?> <?php echo $messages_count ?> <?php echo lang('header_message'); ?></li>
-                <?php if ($messages_count > 0): ?>
-                    <li>
-                        <ul class="menu modern-menu-list">
-                            <?php
-                            foreach ($messages as $value) :
-                                echo $value;
-                            endforeach;
-                            ?>
-                        </ul>
-                    </li>
-                <?php endif ?>
+                <li class="header modern-dropdown-header"><?php echo lang('header_you_have'); ?> <span id="mensagens-total"><?php echo (int) $messages_count ?></span> <?php echo lang('header_message'); ?></li>
+                <li>
+                    <ul class="menu modern-menu-list" id="mensagens-lista-header">
+                        <?php foreach ($chat['remetentes'] as $remetente) { ?>
+                            <li class="notif-chamado is-nao-lida chat-remetente" data-de="<?php echo html_escape($remetente['chave']) ?>">
+                                <a href="<?php echo html_escape($remetente['url']) ?>">
+                                    <?php if (!empty($remetente['foto'])) { ?><img src="<?php echo html_escape($remetente['foto']) ?>" alt="" class="notif-chamado-icone chat-avatar"><?php } else { ?><span class="notif-chamado-icone" style="background: #1E1D3F;"><i class="fa fa-users"></i></span><?php } ?>
+                                    <span class="notif-chamado-corpo">
+                                        <strong class="notif-chamado-titulo"><?php echo html_escape($remetente['nome']) ?> <span class="badge chat-qtd"><?php echo (int) $remetente['quantidade'] ?></span></strong>
+                                        <span class="notif-chamado-texto"><?php echo html_escape($remetente['ultima']) ?></span>
+                                        <small class="notif-chamado-meta"><i class="fa fa-clock-o"></i> <?php echo html_escape($remetente['quando']) ?></small>
+                                    </span>
+                                </a>
+                            </li>
+                        <?php } ?>
+                        <?php
+                        foreach ($messages as $value) :
+                            echo $value;
+                        endforeach;
+                        ?>
+                        <li class="notificacoes-vazio">Nenhuma mensagem nova.</li>
+                    </ul>
+                </li>
                 <li class="footer modern-dropdown-footer">
-                    <a href="<?php echo base_url('contatos_interno/index') ?>" class="modern-dropdown-link">
-                        <?php echo lang('header_view_all'); ?>
-                    </a>
+                    <?php if ($chat_acesso) { ?>
+                        <a href="<?php echo site_url('mensagens') ?>" class="modern-dropdown-link"><i class="fa fa-comments-o"></i> Abrir mensagens</a>
+                    <?php } else { ?>
+                        <a href="<?php echo base_url('contatos_interno/index') ?>" class="modern-dropdown-link"><?php echo lang('header_view_all'); ?></a>
+                    <?php } ?>
                 </li>
             </ul>
         </section>
@@ -180,20 +197,41 @@ defined('BASEPATH') or exit('No direct script access allowed');
                 <li class="header modern-dropdown-header"><?php echo lang('header_you_have'); ?> <span id="notificacoes-total"><?php echo (int) $notifications_count ?></span> <?php echo lang('header_notification'); ?></li>
                 <li>
                     <ul class="menu modern-menu-list" id="notificacoes-lista">
+                        <?php foreach ($chat['remetentes'] as $remetente) { ?>
+                            <li class="notif-chamado is-nao-lida chat-remetente" data-de="<?php echo html_escape($remetente['chave']) ?>">
+                                <a href="<?php echo html_escape($remetente['url']) ?>">
+                                    <span class="notif-chamado-icone" style="background: #00a65a;"><i class="fa fa-envelope"></i></span>
+                                    <span class="notif-chamado-corpo">
+                                        <strong class="notif-chamado-titulo"><?php echo (int) $remetente['quantidade'] > 1 ? (int) $remetente['quantidade'] . ' mensagens novas' : 'Nova mensagem' ?> <?php echo !empty($remetente['grupo']) ? 'em' : 'de' ?> <?php echo html_escape($remetente['nome']) ?></strong>
+                                        <span class="notif-chamado-texto"><?php echo html_escape($remetente['ultima']) ?></span>
+                                        <small class="notif-chamado-meta"><i class="fa fa-clock-o"></i> <?php echo html_escape($remetente['quando']) ?></small>
+                                    </span>
+                                </a>
+                            </li>
+                        <?php } ?>
                         <?php foreach ($notificacoes_chamado as $notif) { ?>
                             <li class="notif-chamado<?php echo $notif['lida'] ? '' : ' is-nao-lida' ?>" data-id="<?php echo (int) $notif['id'] ?>">
-                                <a href="<?php echo html_escape($notif['url']) ?>" title="<?php echo html_escape($notif['titulo'] . ($notif['chamado_titulo'] !== '' ? ' - ' . $notif['chamado_titulo'] : '')) ?>">
+                                <a href="<?php echo html_escape($notif['url']) ?>" title="<?php echo html_escape($notif['titulo'] . ($notif['chamado_titulo'] !== '' ? ' - ' . $notif['chamado_titulo'] : '')) ?>" style="border-left-color: <?php echo html_escape($notif['cor']) ?>;">
                                     <span class="notif-chamado-icone" style="background: <?php echo html_escape($notif['cor']) ?>;"><i class="fa <?php echo html_escape($notif['icone']) ?>"></i></span>
                                     <span class="notif-chamado-corpo">
                                         <strong class="notif-chamado-titulo"><?php echo html_escape($notif['titulo']) ?></strong>
                                         <span class="notif-chamado-texto"><?php echo html_escape($notif['texto']) ?></span>
-                                        <small class="notif-chamado-meta"><?php echo html_escape($notif['autor']) ?> · <span title="<?php echo html_escape($notif['data']) ?>"><?php echo html_escape($notif['quando']) ?></span></small>
+                                        <small class="notif-chamado-meta"><i class="fa fa-user-o"></i> <?php echo html_escape($notif['autor']) ?> · <span title="<?php echo html_escape($notif['data']) ?>"><?php echo html_escape($notif['quando']) ?></span></small>
                                     </span>
                                 </a>
                             </li>
                         <?php } ?>
                         <?php foreach ($novidades_lidas as $novidade_lida) { ?>
-                            <li><a href="#" class="js-novidade-abrir" data-id="<?php echo (int) $novidade_lida->id ?>" title="<?php echo html_escape($novidade_lida->titulo) ?>"><i class="fa fa-bullhorn text-aqua"></i> <?php echo html_escape($novidade_lida->titulo) ?></a></li>
+                            <li class="notif-chamado notif-novidade">
+                                <a href="#" class="js-novidade-abrir" data-id="<?php echo (int) $novidade_lida->id ?>" title="<?php echo html_escape($novidade_lida->titulo) ?>" style="border-left-color: #00c0ef;">
+                                    <span class="notif-chamado-icone" style="background: #00c0ef;"><i class="fa fa-bullhorn"></i></span>
+                                    <span class="notif-chamado-corpo">
+                                        <strong class="notif-chamado-titulo">Novidade no sistema</strong>
+                                        <span class="notif-chamado-texto"><?php echo html_escape($novidade_lida->titulo) ?></span>
+                                        <small class="notif-chamado-meta"><i class="fa fa-eye"></i> Clique para ver de novo</small>
+                                    </span>
+                                </a>
+                            </li>
                         <?php } ?>
                         <?php
                         foreach ($notifications as $value) :
@@ -1432,14 +1470,14 @@ defined('BASEPATH') or exit('No direct script access allowed');
         function adicionarNoSino(dados) {
             var $lista = $('#notificacoes-lista');
             if (!$lista.length || $lista.find('.js-novidade-abrir[data-id="' + dados.id + '"]').length) { return; }
-            $('<li>').append(
-                $('<a href="#" class="js-novidade-abrir">').attr({ 'data-id': dados.id, title: dados.titulo })
-                    .append('<i class="fa fa-bullhorn text-aqua"></i> ')
-                    .append(document.createTextNode(dados.titulo))
+            $('<li class="notif-chamado notif-novidade">').append(
+                $('<a href="#" class="js-novidade-abrir">').attr({ 'data-id': dados.id, title: dados.titulo }).css('border-left-color', '#00c0ef')
+                    .append('<span class="notif-chamado-icone" style="background: #00c0ef;"><i class="fa fa-bullhorn"></i></span>')
+                    .append($('<span class="notif-chamado-corpo">')
+                        .append('<strong class="notif-chamado-titulo">Novidade no sistema</strong>')
+                        .append($('<span class="notif-chamado-texto">').text(dados.titulo))
+                        .append('<small class="notif-chamado-meta"><i class="fa fa-eye"></i> Clique para ver de novo</small>'))
             ).prependTo($lista);
-            var total = parseInt($('#notificacoes-total').text(), 10) + 1;
-            $('#notificacoes-total').text(total);
-            $('#notificacoes-badge').text(total).show();
         }
 
         $modal.on('hidden.bs.modal', function() {
@@ -1529,7 +1567,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
         }
 
         function textoSino() {
-            return 'Apontamento rodando há ' + duracao(decorrido()) + ' no ' + nomeChamado();
+            return 'Rodando há ' + duracao(decorrido()) + ' no ' + nomeChamado();
         }
 
         function adicionarNoSino() {
@@ -1537,8 +1575,13 @@ defined('BASEPATH') or exit('No direct script access allowed');
             if (!$lista.length) { return; }
             var $item = $lista.find('.js-apontamento-alerta');
             if (!$item.length) {
-                $item = $('<li class="js-apontamento-alerta apontamento-alerta-item">').append(
-                    $('<a>').append('<i class="fa fa-clock-o text-yellow"></i> ').append($('<span class="apontamento-alerta-item-texto">'))
+                $item = $('<li class="notif-chamado is-nao-lida js-apontamento-alerta apontamento-alerta-item">').append(
+                    $('<a>').css('border-left-color', '#f39c12')
+                        .append('<span class="notif-chamado-icone" style="background: #f39c12;"><i class="fa fa-clock-o"></i></span>')
+                        .append($('<span class="notif-chamado-corpo">')
+                            .append('<strong class="notif-chamado-titulo">Apontamento ainda rodando</strong>')
+                            .append($('<span class="notif-chamado-texto apontamento-alerta-item-texto">'))
+                            .append('<small class="notif-chamado-meta"><i class="fa fa-stop-circle-o"></i> Abra o chamado e clique em Parar</small>'))
                 ).prependTo($lista);
                 somarNotificacoes(1);
             }
@@ -1679,7 +1722,15 @@ defined('BASEPATH') or exit('No direct script access allowed');
         if (typeof $ === 'undefined') { return; }
         var baseUrl = <?php echo json_encode(base_url()) ?>;
         var naoLidas = <?php echo (int) (isset($notificacoes_chamado_nao_lidas) ? $notificacoes_chamado_nao_lidas : 0) ?>;
-        var intervalo = 60 * 1000;
+        // Mensagens internas: o envelope soma as não lidas; o sino tem um item por remetente.
+        var chatAcesso = <?php echo !empty($chat_acesso) ? 'true' : 'false' ?>;
+        var chatUltimoId = <?php echo (int) (isset($chat_ultimo_id) ? $chat_ultimo_id : 0) ?>;
+        window.chatReacaoUltimoId = <?php echo (int) (isset($chat_reacao_ultimo_id) ? $chat_reacao_ultimo_id : 0) ?>;
+        var sinoChatVistoId = <?php echo (int) (isset($sino_chat_visto_id) ? $sino_chat_visto_id : 0) ?>;
+        var chatTotal = <?php echo (int) (isset($chat['total']) ? $chat['total'] : 0) ?>;
+        var chatRemetentes = <?php echo isset($chat['remetentes']) ? count($chat['remetentes']) : 0 ?>;
+        var mensagensLegado = <?php echo max(0, (int) $messages_count - (int) (isset($chat['total']) ? $chat['total'] : 0)) ?>;
+        var intervalo = 30 * 1000;
         var duracaoAviso = 9000;
         var ultimaBusca = 0;
         var $lista = $('#notificacoes-lista');
@@ -1689,6 +1740,23 @@ defined('BASEPATH') or exit('No direct script access allowed');
             var total = Math.max(0, (parseInt($('#notificacoes-total').text(), 10) || 0) + delta);
             $('#notificacoes-total').text(total);
             $('#notificacoes-badge').text(total).toggle(total > 0);
+        }
+
+        function sinoEstaAberto() {
+            return $('#header-drawer').hasClass('is-aberto') && !$('#header-drawer-painel-notificacoes').prop('hidden');
+        }
+
+        function zerarContadorSino(sincronizarServidor) {
+            var tinhaPendencia = naoLidas > 0 || (parseInt($('#notificacoes-total').text(), 10) || 0) > 0 || chatUltimoId > sinoChatVistoId;
+            $('#notificacoes-total').text(0);
+            $('#notificacoes-badge').text(0).hide();
+            naoLidas = 0;
+            sinoChatVistoId = Math.max(sinoChatVistoId, chatUltimoId);
+            $lista.find('.notif-chamado.is-nao-lida').not('.chat-remetente').removeClass('is-nao-lida');
+            atualizarRodape();
+            if (sincronizarServidor && tinhaPendencia) {
+                $.post(baseUrl + 'notificacoes/marcar_todas', { chat_ultimo_id: chatUltimoId });
+            }
         }
 
         function atualizarRodape() {
@@ -1703,13 +1771,13 @@ defined('BASEPATH') or exit('No direct script access allowed');
             return $('<span class="notif-chamado-corpo">')
                 .append($('<strong class="notif-chamado-titulo">').text(n.titulo))
                 .append($('<span class="notif-chamado-texto">').text(n.texto))
-                .append($('<small class="notif-chamado-meta">').text(n.autor + ' · ' + n.quando));
+                .append($('<small class="notif-chamado-meta">').append('<i class="fa fa-user-o"></i> ', document.createTextNode(n.autor + ' · ' + n.quando)));
         }
 
         function adicionarNoSino(n) {
             if (!$lista.length || $lista.find('.notif-chamado[data-id="' + n.id + '"]').length) { return false; }
             $('<li class="notif-chamado">').toggleClass('is-nao-lida', !n.lida).attr('data-id', n.id)
-                .append($('<a>').attr({ href: n.url, title: n.titulo + (n.chamado_titulo ? ' - ' + n.chamado_titulo : '') }).append(icone(n), corpo(n)))
+                .append($('<a>').attr({ href: n.url, title: n.titulo + (n.chamado_titulo ? ' - ' + n.chamado_titulo : '') }).css('border-left-color', n.cor).append(icone(n), corpo(n)))
                 .prependTo($lista);
             return true;
         }
@@ -1746,17 +1814,142 @@ defined('BASEPATH') or exit('No direct script access allowed');
             agendarSaida($aviso);
         }
 
+        function tocarSomChat() {
+            if (window.localStorage && window.localStorage.getItem('sax_chat_som') === '0') { return; }
+            var Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) { return; }
+            try {
+                var ctx = new Ctx();
+                var osc = ctx.createOscillator();
+                var ganho = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(784, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1046, ctx.currentTime + 0.08);
+                ganho.gain.setValueAtTime(0.06, ctx.currentTime);
+                ganho.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+                osc.connect(ganho);
+                ganho.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.22);
+            } catch (e) {}
+        }
+
+        function itemChat(r, noSino) {
+            var titulo = noSino ? (r.quantidade > 1 ? r.quantidade + ' mensagens novas' : 'Nova mensagem') + (r.grupo ? ' em ' : ' de ') + r.nome : r.nome;
+            var $titulo = $('<strong class="notif-chamado-titulo">').text(titulo);
+            if (r.silenciada) { $titulo.append(' ', $('<i class="fa fa-bell-slash-o text-muted" title="Silenciada"></i>')); }
+            if (r.mencoes > 0) { $titulo.append(' ', $('<span class="badge bg-orange" title="Mencionou você">@</span>')); }
+            if (!noSino) { $titulo.append(' ', $('<span class="badge chat-qtd">').text(r.quantidade)); }
+            return $('<li class="notif-chamado is-nao-lida chat-remetente">').attr('data-de', r.chave).append(
+                $('<a>').attr('href', r.url).append(
+                    noSino ? icone({ cor: '#00a65a', icone: 'fa-envelope' }) : (r.foto ? $('<img alt="" class="notif-chamado-icone chat-avatar">').attr('src', r.foto) : icone({ cor: '#1E1D3F', icone: 'fa-users' })),
+                    $('<span class="notif-chamado-corpo">').append($titulo)
+                        .append($('<span class="notif-chamado-texto">').text(r.ultima))
+                        .append($('<small class="notif-chamado-meta">').append('<i class="fa fa-clock-o"></i> ', document.createTextNode(r.quando)))
+                )
+            );
+        }
+
+        function aplicarChat(dados) {
+            var remetentes = dados.remetentes || [];
+            chatTotal = dados.total || 0;
+            var totalEnvelope = mensagensLegado + chatTotal;
+            $('#mensagens-badge').text(totalEnvelope).toggle(totalEnvelope > 0);
+            $('#mensagens-total').text(totalEnvelope);
+            var novoUltimoId = dados.ultimo_id || 0;
+            chatRemetentes = remetentes.length;
+            $('#notificacoes-lista .chat-remetente, #mensagens-lista-header .chat-remetente').remove();
+            for (var i = remetentes.length - 1; i >= 0; i--) {
+                itemChat(remetentes[i], true).prependTo($lista);
+                itemChat(remetentes[i], false).prependTo('#mensagens-lista-header');
+            }
+            chatUltimoId = Math.max(chatUltimoId, novoUltimoId);
+
+            // Aviso na tela para cada mensagem nova, menos a da conversa que já está aberta na tela de mensagens.
+            var novas = $.grep(dados.novas || [], function(m) { return m.chave !== window.mensagensConversaAberta; });
+            if (novas.length && novoUltimoId > sinoChatVistoId) {
+                if (sinoEstaAberto()) {
+                    sinoChatVistoId = chatUltimoId;
+                    $.post(baseUrl + 'notificacoes/marcar_todas', { chat_ultimo_id: chatUltimoId });
+                } else {
+                    somarNotificacoes(novas.length);
+                    sinoChatVistoId = chatUltimoId;
+                }
+            }
+            if (novas.length) { tocarSomChat(); }
+            $.each(novas.slice(0, 3), function(i, m) {
+                mostrarAviso({ cor: m.mencionado ? '#f39c12' : '#00a65a', icone: m.mencionado ? 'fa-at' : 'fa-envelope', titulo: m.mencionado ? 'Você foi mencionado' : 'Nova mensagem', texto: m.texto, autor: m.nome, quando: 'agora', url: m.url });
+            });
+            $.each(dados.lembretes || [], function(i, l) {
+                mostrarAviso({ cor: '#605ca8', icone: 'fa-bell', titulo: 'Lembrete de mensagem', texto: l.nota, autor: 'Lembrete', quando: 'agora', url: l.url });
+            });
+            if (novas.length > 3) {
+                mostrarAviso({ cor: '#00a65a', icone: 'fa-envelope', titulo: 'Mais ' + (novas.length - 3) + ' mensagens novas', texto: 'Abra o envelope para ver todas.', autor: 'Mensagens', quando: 'agora', url: baseUrl + 'mensagens' });
+            }
+            if (novas.length && document.hidden && 'Notification' in window && window.Notification.permission === 'granted') {
+                try {
+                    var nativa = new window.Notification('Nova mensagem de ' + novas[0].nome, { body: novas[0].texto, tag: 'chat-' + novas[0].chave });
+                    nativa.onclick = function() { window.focus(); window.location.href = novas[0].url; };
+                } catch (e) {}
+            }
+        }
+
+        function receberReacoesNovas(lista) {
+            if (!chatAcesso || !$.isArray(lista) || !lista.length) { return; }
+            var avisaveis = [];
+            $.each(lista, function(i, r) {
+                if (!r || !r.id) { return; }
+                window.chatReacaoUltimoId = Math.max(window.chatReacaoUltimoId || 0, r.id);
+                if (r.chave !== window.mensagensConversaAberta || document.hidden) {
+                    avisaveis.push(r);
+                }
+            });
+            if (!avisaveis.length) { return; }
+            tocarSomChat();
+            $.each(avisaveis.slice(0, 3), function(i, r) {
+                mostrarAviso({
+                    cor: '#00a65a',
+                    icone: 'fa-smile-o',
+                    titulo: r.texto,
+                    texto: r.previa ? ('"' + r.previa + '"') : 'Toque para abrir a conversa',
+                    autor: r.autor,
+                    quando: 'agora',
+                    url: r.url
+                });
+            });
+            if (document.hidden && 'Notification' in window && window.Notification.permission === 'granted') {
+                try {
+                    var primeira = avisaveis[0];
+                    var nativa = new window.Notification(primeira.texto, {
+                        body: primeira.previa ? ('"' + primeira.previa + '"') : 'Nova reação no chat',
+                        tag: 'reacao-' + primeira.id
+                    });
+                    nativa.onclick = function() { window.focus(); window.location.href = primeira.url; };
+                } catch (e) {}
+            }
+        }
+        window.receberReacoesNovas = receberReacoesNovas;
+
         function receber(res) {
             if (!res || !res.ok) { return; }
+            if (res.mensagens) { aplicarChat(res.mensagens); }
+            if (res.reacoes_novas) { receberReacoesNovas(res.reacoes_novas); }
+            if (res.chamadas) { processarChamadasRecebidas(res.chamadas); }
             var itens = res.itens || [];
             var novos = 0;
+            var aberto = sinoEstaAberto();
             // Do mais antigo para o mais novo, para o mais recente ficar no topo do sino.
             for (var i = itens.length - 1; i >= 0; i--) {
                 if (adicionarNoSino(itens[i]) && !itens[i].lida) { novos++; }
             }
             if (novos) {
-                somarNotificacoes(novos);
-                naoLidas += novos;
+                if (aberto) {
+                    $lista.find('.notif-chamado.is-nao-lida').not('.chat-remetente').removeClass('is-nao-lida');
+                    $.post(baseUrl + 'notificacoes/marcar_todas', { chat_ultimo_id: chatUltimoId });
+                } else {
+                    somarNotificacoes(novos);
+                    naoLidas += novos;
+                }
             }
             if (typeof res.nao_lidas === 'number' && res.nao_lidas < naoLidas) {
                 // Lidas em outra aba: corrige a contagem.
@@ -1785,33 +1978,225 @@ defined('BASEPATH') or exit('No direct script access allowed');
         function buscar() {
             if (document.hidden) { return; }
             ultimaBusca = Date.now();
-            $.ajax({ url: baseUrl + 'notificacoes/novas', dataType: 'json', cache: false, global: false }).done(receber);
+            $.ajax({ url: baseUrl + 'notificacoes/novas', data: chatAcesso ? { msg_depois: chatUltimoId, reacao_depois: window.chatReacaoUltimoId || 0 } : {}, dataType: 'json', cache: false, global: false }).done(receber);
         }
+
+        document.addEventListener('headerDrawer:aberto', function(e) {
+            if (e && e.detail && e.detail.nome === 'notificacoes') {
+                zerarContadorSino(true);
+            }
+        });
 
         $(document).on('click', '#notificacoes-marcar-todas', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            $.post(baseUrl + 'notificacoes/marcar_todas').done(function(res) {
-                if (!res || !res.ok) { return; }
-                somarNotificacoes(-naoLidas);
-                naoLidas = 0;
-                $lista.find('.notif-chamado.is-nao-lida').removeClass('is-nao-lida');
-                atualizarRodape();
-            });
+            zerarContadorSino(true);
         });
+
+        var chamadaExibidaId = 0;
+        var chamadasRecusadas = {};
+        var toqueChamadaTimer = null;
+        var toqueAudioCtx = null;
+
+        function tocarPulsoChamada() {
+            if (window.localStorage && window.localStorage.getItem('sax_chat_som') === '0') { return; }
+            var Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) { return; }
+            try {
+                if (!toqueAudioCtx || toqueAudioCtx.state === 'closed') {
+                    toqueAudioCtx = new Ctx();
+                }
+                if (toqueAudioCtx.state === 'suspended' && typeof toqueAudioCtx.resume === 'function') {
+                    toqueAudioCtx.resume().catch(function() {});
+                }
+                var agora = toqueAudioCtx.currentTime;
+                var emitir = function(inicio, freq) {
+                    var osc = toqueAudioCtx.createOscillator();
+                    var ganho = toqueAudioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, inicio);
+                    ganho.gain.setValueAtTime(0.001, inicio);
+                    ganho.gain.exponentialRampToValueAtTime(0.08, inicio + 0.03);
+                    ganho.gain.exponentialRampToValueAtTime(0.001, inicio + 0.35);
+                    osc.connect(ganho);
+                    ganho.connect(toqueAudioCtx.destination);
+                    osc.start(inicio);
+                    osc.stop(inicio + 0.38);
+                };
+                emitir(agora, 660);
+                emitir(agora + 0.42, 880);
+            } catch (e) {}
+        }
+
+        function pararToqueChamada() {
+            clearInterval(toqueChamadaTimer);
+            toqueChamadaTimer = null;
+            $('#chamada-recebida-alerta').remove();
+            chamadaExibidaId = 0;
+        }
+
+        function iniciarToqueChamada(c) {
+            if (!c || !c.chamada_id) { return; }
+            if (chamadaExibidaId === c.chamada_id && $('#chamada-recebida-alerta').length) { return; }
+            pararToqueChamada();
+            chamadaExibidaId = c.chamada_id;
+
+            var subtitulo = c.eh_direta ? 'Ligação de voz' : ('Chamada em ' + (c.titulo || 'conversa'));
+            var $card = $('<div id="chamada-recebida-alerta" class="chamada-recebida-alerta" role="alertdialog" aria-live="assertive">').append(
+                $('<div class="chamada-recebida-cab">').append(
+                    $('<span class="chamada-recebida-pulso"><i class="fa fa-phone"></i></span>'),
+                    $('<img alt="" class="chamada-recebida-foto">').attr('src', c.iniciador_foto || (baseUrl + 'upload/avatar/m_001.png')),
+                    $('<div class="chamada-recebida-meta">').append(
+                        $('<strong>').text(c.iniciador_nome || 'Usuário'),
+                        $('<span>').text(subtitulo)
+                    )
+                ),
+                $('<div class="chamada-recebida-acoes">').append(
+                    $('<button type="button" class="btn btn-success btn-sm"><i class="fa fa-phone"></i> Atender</button>').on('click', function() {
+                        var alvo = c;
+                        pararToqueChamada();
+                        if (typeof window.mensagensAtenderChamada === 'function') {
+                            window.mensagensAtenderChamada(alvo);
+                        } else {
+                            window.location.href = alvo.url;
+                        }
+                    }),
+                    $('<button type="button" class="btn btn-danger btn-sm"><i class="fa fa-times"></i> Recusar</button>').on('click', function() {
+                        chamadasRecusadas[c.chamada_id] = true;
+                        pararToqueChamada();
+                        $.post(baseUrl + 'mensagens_api/chamada_recusar', { chamada_id: c.chamada_id });
+                    })
+                )
+            );
+            $('body').append($card);
+            tocarPulsoChamada();
+            toqueChamadaTimer = setInterval(function() {
+                if (chamadaExibidaId !== c.chamada_id) { clearInterval(toqueChamadaTimer); return; }
+                tocarPulsoChamada();
+            }, 2200);
+
+            if ('Notification' in window && window.Notification.permission === 'granted') {
+                try {
+                    var nativa = new window.Notification(subtitulo + ' — ' + (c.iniciador_nome || 'Usuário'), {
+                        body: 'Clique para atender a ligação.',
+                        icon: c.iniciador_foto || undefined,
+                        tag: 'chamada-' + c.chamada_id,
+                        requireInteraction: true
+                    });
+                    nativa.onclick = function() {
+                        window.focus();
+                        if (typeof window.mensagensAtenderChamada === 'function') {
+                            pararToqueChamada();
+                            window.mensagensAtenderChamada(c);
+                        } else {
+                            window.location.href = c.url;
+                        }
+                    };
+                } catch (e) {}
+            }
+        }
+
+        function processarChamadasRecebidas(lista) {
+            if (!chatAcesso) { return; }
+            lista = $.isArray(lista) ? lista : [];
+            var candidatas = $.grep(lista, function(c) {
+                return c && c.chamada_id && !chamadasRecusadas[c.chamada_id];
+            });
+            if (!candidatas.length) {
+                if (chamadaExibidaId) { pararToqueChamada(); }
+                return;
+            }
+            var atualChamada = candidatas[0];
+            if (chamadaExibidaId && chamadaExibidaId !== atualChamada.chamada_id) {
+                pararToqueChamada();
+            }
+            iniciarToqueChamada(atualChamada);
+        }
+
+        window.receberChamadasRecebidas = processarChamadasRecebidas;
+
+        function buscarChamadas() {
+            if (!chatAcesso || document.hidden || window.mensagensTelaAtiva) { return; }
+            $.ajax({ url: baseUrl + 'notificacoes/chamadas', dataType: 'json', cache: false, global: false }).done(function(res) {
+                if (res && res.ok) { processarChamadasRecebidas(res.chamadas || []); }
+            });
+        }
 
         document.addEventListener('visibilitychange', function() {
             if (!document.hidden && Date.now() - ultimaBusca > 30000) { buscar(); }
+            if (!document.hidden && chatAcesso && !window.mensagensTelaAtiva) { buscarChamadas(); }
         });
+
+        $(document).on('click', '[data-drawer="mensagens"], a[href*="/mensagens"]', function(e) {
+            if (!('Notification' in window) || window.Notification.permission !== 'default') { return; }
+            var $el = $(this);
+            var href = $el.is('a') ? ($el.attr('href') || '') : '';
+            // Só os links que abrem a tela de mensagens: anexos (mensagens_api/arquivo), downloads e nova aba seguem normais.
+            if ($el.is('a') && (href.indexOf('mensagens_api') !== -1 || $el.is('[download]') || ($el.attr('target') || '') === '_blank')) { return; }
+            var ehLink = href !== '' && href.charAt(0) !== '#' && !$el.is('[data-drawer]');
+            if (ehLink && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                e.preventDefault();
+                var navegou = false;
+                var ir = function() {
+                    if (navegou) { return; }
+                    navegou = true;
+                    window.location.href = href;
+                };
+                try {
+                    var prom = window.Notification.requestPermission(ir);
+                    if (prom && typeof prom.then === 'function') {
+                        prom.then(ir, ir);
+                    }
+                } catch (err) {
+                    ir();
+                }
+            } else {
+                try { window.Notification.requestPermission(); } catch (err) {}
+            }
+        });
+
         setInterval(buscar, intervalo);
         buscar();
+        if (chatAcesso) {
+            setInterval(buscarChamadas, 4000);
+            buscarChamadas();
+        }
     });
 </script>
 <style>
-    #notificacoes-lista > .notificacoes-vazio { padding: 14px 20px; color: #999; font-size: 13px; text-align: center; }
-    #notificacoes-lista > .notificacoes-vazio:not(:only-child) { display: none; }
-    #notificacoes-lista > .notif-chamado > a { display: flex !important; align-items: flex-start; gap: 10px; white-space: normal !important; }
-    #notificacoes-lista > .notif-chamado.is-nao-lida > a { background: #eef8f7 !important; box-shadow: inset 3px 0 0 #9CD7D4; }
+    /* Sino e envelope: cada item é um card, no mesmo padrão do painel de chamados pendentes. */
+    #notificacoes-lista, #mensagens-lista-header { padding: 10px 8px !important; background: #f8fafc; }
+    #notificacoes-lista > .notificacoes-vazio, #mensagens-lista-header > .notificacoes-vazio { padding: 30px 20px; color: #94a3b8; font-size: 13px; text-align: center; }
+    #notificacoes-lista > .notificacoes-vazio:not(:only-child), #mensagens-lista-header > .notificacoes-vazio:not(:only-child) { display: none; }
+    #notificacoes-lista > li > a, #mensagens-lista-header > li > a {
+        position: relative; display: flex !important; align-items: flex-start; gap: 12px; margin-bottom: 8px;
+        padding: 12px 28px 10px 12px !important; white-space: normal !important;
+        background: #fff !important; border-top: 1px solid #e2e8f0 !important; border-right: 1px solid #e2e8f0 !important; border-bottom: 1px solid #e2e8f0 !important;
+        border-left-width: 3.5px !important; border-left-style: solid !important; border-left-color: #cbd5e1; border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(30, 29, 63, .04); color: #1E1D3F !important; font-size: 13px; line-height: 1.4; text-decoration: none !important;
+        transition: transform .2s ease, box-shadow .2s ease;
+    }
+    #notificacoes-lista > li > a:hover, #notificacoes-lista > li > a:focus, #mensagens-lista-header > li > a:hover, #mensagens-lista-header > li > a:focus {
+        padding-left: 12px !important; background: #fff !important; color: #1E1D3F !important; transform: translateY(-1.5px); box-shadow: 0 4px 12px rgba(30, 29, 63, .1); outline: none;
+    }
+    /* A cor da borda vem do tipo (style do link); as notificações já lidas ficam com a borda neutra. */
+    #notificacoes-lista > .chat-remetente > a, #mensagens-lista-header > .chat-remetente > a { border-left-color: #00a65a !important; }
+    #notificacoes-lista > .notif-chamado:not(.is-nao-lida):not(.notif-novidade) > a { border-left-color: #cbd5e1 !important; opacity: .85; }
+    /* Ponto de "não lida" no canto do card. */
+    #notificacoes-lista > .is-nao-lida > a::after, #mensagens-lista-header > .is-nao-lida > a::after { content: ""; position: absolute; top: 14px; right: 12px; width: 8px; height: 8px; border-radius: 50%; background: #1E1D3F; }
+    #notificacoes-lista > .chat-remetente.is-nao-lida > a::after, #mensagens-lista-header > .chat-remetente.is-nao-lida > a::after { background: #00a65a; }
+    #notificacoes-lista > .js-apontamento-alerta > a::after { background: #f39c12; }
+    #notificacoes-lista .notif-chamado-icone, #mensagens-lista-header .notif-chamado-icone { flex-basis: 38px; width: 38px; height: 38px; font-size: 16px; line-height: 38px; }
+    #notificacoes-lista .notif-chamado-titulo, #mensagens-lista-header .notif-chamado-titulo { font-size: 13.5px; font-weight: 700; color: #1E1D3F; white-space: normal; line-height: 1.35; }
+    #notificacoes-lista .notif-chamado:not(.is-nao-lida):not(.notif-novidade) .notif-chamado-titulo { font-weight: 600; color: #475569; }
+    #notificacoes-lista .notif-chamado-texto, #mensagens-lista-header .notif-chamado-texto { -webkit-line-clamp: 3; margin-top: 3px; font-size: 12.5px; color: #64748b; }
+    #notificacoes-lista .notif-chamado-meta, #mensagens-lista-header .notif-chamado-meta { margin-top: 7px; padding-top: 5px; border-top: 1px dashed #e2e8f0; font-size: 11.5px; color: #94a3b8; }
+    #notificacoes-lista .notif-chamado-meta .fa, #mensagens-lista-header .notif-chamado-meta .fa { margin-right: 2px; }
+    /* Itens antigos que chegam prontos em HTML (alunos EAD, cartão recorrente): ícone em círculo. */
+    #notificacoes-lista > li:not(.notif-chamado) > a { display: flow-root !important; min-height: 64px; padding-top: 22px !important; }
+    #notificacoes-lista > li:not(.notif-chamado) > a > .fa:first-child { float: left; width: 38px; height: 38px; margin: -10px 12px 0 0; border-radius: 50%; background: #eef2f7; font-size: 16px; line-height: 38px; text-align: center; }
+    .chat-avatar { padding: 0; object-fit: cover; background: #e4e9ee; }
+    .chat-qtd { margin-left: 4px; background: #00a65a; font-size: 10px; vertical-align: 1px; }
     .notif-chamado-icone { flex: 0 0 30px; width: 30px; height: 30px; border-radius: 50%; color: #fff; font-size: 13px; line-height: 30px; text-align: center; }
     .notif-chamado-corpo { flex: 1; min-width: 0; display: block; }
     .notif-chamado-titulo { display: block; font-size: 13px; color: #1E1D3F; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1829,8 +2214,17 @@ defined('BASEPATH') or exit('No direct script access allowed');
     .notif-aviso-fechar:hover, .notif-aviso-fechar:focus { color: #333; }
     @keyframes notif-aviso-entrar { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
     @media (prefers-reduced-motion: reduce) { .notif-aviso { animation: none; transition: opacity .01s; } .notif-aviso.is-saindo { transform: none; } }
-    body.dark-mode #notificacoes-lista > .notificacoes-vazio { color: #888; }
-    body.dark-mode #notificacoes-lista > .notif-chamado.is-nao-lida > a { background: #1f2b2b !important; box-shadow: inset 3px 0 0 #9cd7d4; }
+    body.dark-mode #notificacoes-lista, body.dark-mode #mensagens-lista-header { background: #121212 !important; }
+    body.dark-mode #notificacoes-lista > .notificacoes-vazio, body.dark-mode #mensagens-lista-header > .notificacoes-vazio { color: #888; }
+    body.dark-mode #notificacoes-lista > li > a, body.dark-mode #mensagens-lista-header > li > a { background: #1e1e1e !important; border-top-color: #2d2d2d !important; border-right-color: #2d2d2d !important; border-bottom-color: #2d2d2d !important; color: #f1f5f9 !important; }
+    body.dark-mode #notificacoes-lista > li > a:hover, body.dark-mode #mensagens-lista-header > li > a:hover { background: #252525 !important; }
+    body.dark-mode #notificacoes-lista > .notif-chamado:not(.is-nao-lida):not(.notif-novidade) > a { border-left-color: #444 !important; }
+    body.dark-mode #notificacoes-lista > .is-nao-lida > a::after { background: #9cd7d4; }
+    body.dark-mode #notificacoes-lista .notif-chamado-titulo, body.dark-mode #mensagens-lista-header .notif-chamado-titulo { color: #f1f5f9 !important; }
+    body.dark-mode #notificacoes-lista .notif-chamado:not(.is-nao-lida):not(.notif-novidade) .notif-chamado-titulo { color: #cbd5e1 !important; }
+    body.dark-mode #notificacoes-lista .notif-chamado-texto, body.dark-mode #mensagens-lista-header .notif-chamado-texto { color: #94a3b8 !important; }
+    body.dark-mode #notificacoes-lista .notif-chamado-meta, body.dark-mode #mensagens-lista-header .notif-chamado-meta { color: #64748b !important; border-top-color: #2d2d2d !important; }
+    body.dark-mode #notificacoes-lista > li:not(.notif-chamado) > a > .fa:first-child { background: #2d2d2d; }
     body.dark-mode .notif-chamado-titulo { color: #f1f5f9 !important; }
     body.dark-mode .notif-chamado:not(.is-nao-lida) .notif-chamado-titulo { color: #cbd5e1 !important; }
     body.dark-mode .notif-chamado-texto { color: #94a3b8 !important; }
@@ -1838,6 +2232,18 @@ defined('BASEPATH') or exit('No direct script access allowed');
     body.dark-mode .notif-aviso { background: #1e1e1e !important; box-shadow: 0 6px 24px rgba(0, 0, 0, .5); }
     body.dark-mode .notif-aviso-link:hover .notif-chamado-titulo { color: #9cd7d4 !important; }
     body.dark-mode .notif-aviso-fechar:hover, body.dark-mode .notif-aviso-fechar:focus { color: #f1f5f9; }
+    .chamada-recebida-alerta { position: fixed; right: 20px; bottom: 20px; z-index: 1080; width: 320px; max-width: calc(100vw - 32px); padding: 14px; border-radius: 10px; border-left: 4px solid #00a65a; background: #fff; box-shadow: 0 10px 30px rgba(0, 0, 0, .26); animation: apontamento-alerta-entrar .25s ease-out; }
+    .chamada-recebida-cab { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .chamada-recebida-pulso { flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%; background: #00a65a; color: #fff; font-size: 16px; line-height: 34px; text-align: center; animation: apontamento-alerta-sino 1.2s ease-in-out infinite; }
+    .chamada-recebida-foto { flex: 0 0 38px; width: 38px; height: 38px; border-radius: 50%; object-fit: cover; background: #e4e9ee; }
+    .chamada-recebida-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .chamada-recebida-meta strong { font-size: 14px; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chamada-recebida-meta span { font-size: 12px; color: #64748b; }
+    .chamada-recebida-acoes { display: flex; gap: 8px; }
+    .chamada-recebida-acoes .btn { flex: 1; }
+    body.dark-mode .chamada-recebida-alerta { background: #1e1e1e !important; color: #e6e6e6 !important; box-shadow: 0 10px 30px rgba(0, 0, 0, .55); }
+    body.dark-mode .chamada-recebida-meta strong { color: #f1f5f9 !important; }
+    body.dark-mode .chamada-recebida-meta span { color: #94a3b8 !important; }
 </style>
 <!-- Gaveta lateral: os botões do cabeçalho (menos o de tema e o de perfil) abrem o painel correspondente, e as abas trocam entre eles. -->
 <script type="text/javascript">
@@ -1890,6 +2296,10 @@ defined('BASEPATH') or exit('No direct script access allowed');
             gaveta.setAttribute('aria-hidden', 'false');
             document.body.classList.add('header-drawer-aberto');
             try { gaveta.focus({ preventScroll: true }); } catch (e) { gaveta.focus(); }
+            try {
+                var ev = typeof CustomEvent === 'function' ? new CustomEvent('headerDrawer:aberto', { detail: { nome: nome } }) : null;
+                if (ev) { document.dispatchEvent(ev); }
+            } catch (e) {}
         }
 
         function fechar() {

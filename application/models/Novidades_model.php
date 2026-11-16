@@ -20,6 +20,134 @@ class Novidades_model extends CI_Model {
     }
 
     /**
+     * Público por unidade e por grupo (sql/2026-11-16_novidades_publico.sql). Sem as tabelas, a novidade vale para todos.
+     */
+    public function aceita_publico()
+    {
+        static $existe = null;
+        if ($existe === null) {
+            $existe = $this->db->table_exists('novidades_unidades') && $this->db->table_exists('novidades_grupos');
+        }
+        return $existe;
+    }
+
+    /**
+     * Filtra a consulta atual pelo público da novidade ($alias é a tabela/apelido de novidades na consulta):
+     * - sem unidade escolhida vale para todos; com unidade(s), para admins e usuários vinculados a ela(s) em user_unidade;
+     * - sem grupo escolhido vale para todos; com grupo(s), só para usuários desses grupos (admin incluído só se o grupo dele estiver na lista).
+     */
+    private function aplicar_publico($alias, $user_id, $eh_admin)
+    {
+        if (!$this->aceita_publico()) {
+            return;
+        }
+        $user_id = (int) $user_id;
+        if (!$eh_admin) {
+            $this->db->where('(NOT EXISTS (SELECT 1 FROM novidades_unidades nu WHERE nu.novidade_id = ' . $alias . '.id)'
+                . ' OR EXISTS (SELECT 1 FROM novidades_unidades nu JOIN user_unidade uu ON uu.unidade_id = nu.unidade_id'
+                . ' WHERE nu.novidade_id = ' . $alias . '.id AND uu.user_id = ' . $user_id . '))', null, false);
+        }
+        $this->db->where('(NOT EXISTS (SELECT 1 FROM novidades_grupos ng WHERE ng.novidade_id = ' . $alias . '.id)'
+            . ' OR EXISTS (SELECT 1 FROM novidades_grupos ng JOIN users_groups ug ON ug.group_id = ng.group_id'
+            . ' WHERE ng.novidade_id = ' . $alias . '.id AND ug.user_id = ' . $user_id . '))', null, false);
+    }
+
+    // Opções do formulário: unidades e grupos de usuários da EMPRESA.
+    public function unidades_empresa($empresa_id)
+    {
+        return $this->db->select('id, unidade, razao_social, actived')
+            ->where('empresa_id', (int) $empresa_id)
+            ->order_by('unidade', 'asc')
+            ->get('unidades')
+            ->result();
+    }
+
+    public function grupos_empresa($empresa_id)
+    {
+        return $this->db->select('id, name, description')
+            ->where('empresa_id', (int) $empresa_id)
+            ->order_by('name', 'asc')
+            ->get('groups')
+            ->result();
+    }
+
+    /**
+     * Ids de unidades e grupos escolhidos para a novidade.
+     */
+    public function publico($novidade_id)
+    {
+        $publico = array('unidades' => array(), 'grupos' => array());
+        if (!$this->aceita_publico() || (int) $novidade_id <= 0) {
+            return $publico;
+        }
+        foreach ($this->db->select('unidade_id')->where('novidade_id', (int) $novidade_id)->get('novidades_unidades')->result() as $linha) {
+            $publico['unidades'][] = (int) $linha->unidade_id;
+        }
+        foreach ($this->db->select('group_id')->where('novidade_id', (int) $novidade_id)->get('novidades_grupos')->result() as $linha) {
+            $publico['grupos'][] = (int) $linha->group_id;
+        }
+        return $publico;
+    }
+
+    /**
+     * Grava o público. Só aceita unidades e grupos da própria empresa (ids de outra empresa vindos do POST são descartados).
+     */
+    public function salvar_publico($novidade_id, $empresa_id, $unidades_ids, $grupos_ids)
+    {
+        if (!$this->aceita_publico()) {
+            return false;
+        }
+        $novidade_id = (int) $novidade_id;
+        $unidades_ids = array_values(array_unique(array_filter(array_map('intval', (array) $unidades_ids))));
+        $grupos_ids = array_values(array_unique(array_filter(array_map('intval', (array) $grupos_ids))));
+        $unidades = $unidades_ids ? $this->db->select('id')->where('empresa_id', (int) $empresa_id)->where_in('id', $unidades_ids)->get('unidades')->result() : array();
+        $grupos = $grupos_ids ? $this->db->select('id')->where('empresa_id', (int) $empresa_id)->where_in('id', $grupos_ids)->get('groups')->result() : array();
+
+        $this->db->trans_start();
+        $this->db->delete('novidades_unidades', array('novidade_id' => $novidade_id));
+        $this->db->delete('novidades_grupos', array('novidade_id' => $novidade_id));
+        foreach ($unidades as $unidade) {
+            $this->db->insert('novidades_unidades', array('novidade_id' => $novidade_id, 'unidade_id' => (int) $unidade->id));
+        }
+        foreach ($grupos as $grupo) {
+            $this->db->insert('novidades_grupos', array('novidade_id' => $novidade_id, 'group_id' => (int) $grupo->id));
+        }
+        $this->db->trans_complete();
+        return $this->db->trans_status();
+    }
+
+    /**
+     * Nomes das unidades e grupos de cada novidade, para a coluna "Público" da listagem.
+     */
+    private function publico_nomes($novidade_ids)
+    {
+        $mapa = array();
+        $novidade_ids = array_values(array_filter(array_map('intval', (array) $novidade_ids)));
+        if (!$novidade_ids || !$this->aceita_publico()) {
+            return $mapa;
+        }
+        $unidades = $this->db->select('nu.novidade_id, un.unidade')
+            ->from('novidades_unidades nu')
+            ->join('unidades un', 'un.id = nu.unidade_id')
+            ->where_in('nu.novidade_id', $novidade_ids)
+            ->order_by('un.unidade', 'asc')
+            ->get()->result();
+        foreach ($unidades as $linha) {
+            $mapa[(int) $linha->novidade_id]['unidades'][] = $linha->unidade;
+        }
+        $grupos = $this->db->select('ng.novidade_id, g.name')
+            ->from('novidades_grupos ng')
+            ->join('groups g', 'g.id = ng.group_id')
+            ->where_in('ng.novidade_id', $novidade_ids)
+            ->order_by('g.name', 'asc')
+            ->get()->result();
+        foreach ($grupos as $linha) {
+            $mapa[(int) $linha->novidade_id]['grupos'][] = $linha->name;
+        }
+        return $mapa;
+    }
+
+    /**
      * Situação pela data e pelo status: vigente, agendada, encerrada ou inativa.
      */
     public function situacao($novidade, $agora = null)
@@ -66,7 +194,19 @@ class Novidades_model extends CI_Model {
             $this->db->where('n.ativo', 0);
         }
 
-        return $this->db->order_by('n.data_inicio', 'desc')->order_by('n.id', 'desc')->get()->result();
+        $novidades = $this->db->order_by('n.data_inicio', 'desc')->order_by('n.id', 'desc')->get()->result();
+
+        $ids = array();
+        foreach ($novidades as $novidade) {
+            $ids[] = (int) $novidade->id;
+        }
+        $nomes = $this->publico_nomes($ids);
+        foreach ($novidades as $novidade) {
+            $id = (int) $novidade->id;
+            $novidade->publico_unidades = isset($nomes[$id]['unidades']) ? $nomes[$id]['unidades'] : array();
+            $novidade->publico_grupos = isset($nomes[$id]['grupos']) ? $nomes[$id]['grupos'] : array();
+        }
+        return $novidades;
     }
 
     /**
@@ -124,6 +264,10 @@ class Novidades_model extends CI_Model {
         $this->db->trans_start();
         $this->db->delete('novidades_imagens', array('novidade_id' => (int) $novidade->id));
         $this->db->delete('novidades_leituras', array('novidade_id' => (int) $novidade->id));
+        if ($this->aceita_publico()) {
+            $this->db->delete('novidades_unidades', array('novidade_id' => (int) $novidade->id));
+            $this->db->delete('novidades_grupos', array('novidade_id' => (int) $novidade->id));
+        }
         $this->db->delete('novidades', array('id' => (int) $novidade->id));
         $this->db->trans_complete();
         return $this->db->trans_status() ? $arquivos : false;
@@ -161,9 +305,10 @@ class Novidades_model extends CI_Model {
     }
 
     /**
-     * Novidades vigentes da empresa para o usuário, separadas em não lidas (vão para o modal) e lidas (ficam no sino).
+     * Novidades vigentes da empresa para o usuário (respeitando unidade e grupo escolhidos),
+     * separadas em não lidas (vão para o modal) e lidas (ficam no sino).
      */
-    public function do_usuario($empresa_id, $user_id)
+    public function do_usuario($empresa_id, $user_id, $eh_admin = false)
     {
         $resultado = array('pendentes' => array(), 'lidas' => array());
         if (!$this->disponivel() || (int) $empresa_id <= 0 || (int) $user_id <= 0) {
@@ -171,14 +316,15 @@ class Novidades_model extends CI_Model {
         }
 
         $agora = date('Y-m-d H:i:s');
-        $linhas = $this->db->select('n.id, n.titulo, n.conteudo, n.data_inicio, n.data_fim, nl.lida_em')
+        $this->db->select('n.id, n.titulo, n.conteudo, n.data_inicio, n.data_fim, nl.lida_em')
             ->from('novidades n')
             ->join('novidades_leituras nl', 'nl.novidade_id = n.id AND nl.user_id = ' . (int) $user_id, 'left')
             ->where('n.empresa_id', (int) $empresa_id)
             ->where('n.ativo', 1)
             ->where('n.data_inicio <=', $agora)
-            ->where('n.data_fim >=', $agora)
-            ->order_by('n.data_inicio', 'asc')
+            ->where('n.data_fim >=', $agora);
+        $this->aplicar_publico('n', $user_id, $eh_admin);
+        $linhas = $this->db->order_by('n.data_inicio', 'asc')
             ->order_by('n.id', 'asc')
             ->get()
             ->result();
@@ -224,18 +370,29 @@ class Novidades_model extends CI_Model {
     }
 
     /**
-     * Registra que o usuário viu a novidade (só conta novidade vigente da empresa dele).
+     * Novidade vigente da empresa que o usuário pode ver (público por unidade/grupo), ou null.
      */
-    public function marcar_lida($novidade_id, $empresa_id, $user_id)
+    public function vigente_do_usuario($novidade_id, $empresa_id, $user_id, $eh_admin = false)
     {
         $agora = date('Y-m-d H:i:s');
-        $existe = $this->db->where('id', (int) $novidade_id)
-            ->where('empresa_id', (int) $empresa_id)
-            ->where('ativo', 1)
-            ->where('data_inicio <=', $agora)
-            ->where('data_fim >=', $agora)
-            ->count_all_results('novidades') > 0;
-        if (!$existe) {
+        $this->db->select('n.*')
+            ->from('novidades n')
+            ->where('n.id', (int) $novidade_id)
+            ->where('n.empresa_id', (int) $empresa_id)
+            ->where('n.ativo', 1)
+            ->where('n.data_inicio <=', $agora)
+            ->where('n.data_fim >=', $agora);
+        $this->aplicar_publico('n', $user_id, $eh_admin);
+        return $this->db->get()->row();
+    }
+
+    /**
+     * Registra que o usuário viu a novidade (só conta novidade vigente da empresa dele e do público dele).
+     */
+    public function marcar_lida($novidade_id, $empresa_id, $user_id, $eh_admin = false)
+    {
+        $agora = date('Y-m-d H:i:s');
+        if (!$this->vigente_do_usuario($novidade_id, $empresa_id, $user_id, $eh_admin)) {
             return false;
         }
         $ja_lida = $this->db->where('novidade_id', (int) $novidade_id)->where('user_id', (int) $user_id)->count_all_results('novidades_leituras') > 0;

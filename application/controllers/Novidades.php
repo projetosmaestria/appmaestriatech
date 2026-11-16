@@ -6,7 +6,8 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * em um modal; ao fechar, a leitura é registrada e ela passa a ficar no sino de notificações.
  *
  * Acesso à gestão (index, create, edit, delete): só o grupo admin da empresa (is_admin), sem permissão por grupo.
- * detalhe() e marcar_lida() servem a todos os usuários logados (modal e sino) e só retornam novidades vigentes da empresa da sessão.
+ * detalhe() e marcar_lida() servem a todos os usuários logados (modal e sino) e só retornam novidades vigentes da empresa da sessão
+ * que o usuário pode ver: público por unidade (admins sempre veem) e por grupo de usuários (sql/2026-11-16_novidades_publico.sql).
  */
 class Novidades extends Admin_Controller {
 
@@ -65,6 +66,8 @@ class Novidades extends Admin_Controller {
             'data_inicio' => date('Y-m-d H:i'),
             'data_fim' => date('Y-m-d 23:59', strtotime('+7 days')),
             'ativo' => 1,
+            'unidades_ids' => array(),
+            'grupos_ids' => array(),
         );
 
         if ($this->input->method() === 'post') {
@@ -74,6 +77,7 @@ class Novidades extends Admin_Controller {
                 $dados['criado_por'] = (int) $this->session->userdata('user_id');
                 $id = $this->novidades_model->criar($dados);
                 if ($id) {
+                    $this->novidades_model->salvar_publico($id, $dados['empresa_id'], $this->input->post('unidades'), $this->input->post('grupos'));
                     $erros = $this->salvar_imagens($id, 0);
                     $this->auditar('create', 'Novidade #' . $id . ' criada: ' . $dados['titulo']);
                     $this->session->set_flashdata('message', show_alert_success('Novidade cadastrada.') . ($erros ? show_alert_error('Algumas imagens não foram salvas:<br>' . implode('<br>', $erros)) : ''));
@@ -97,11 +101,15 @@ class Novidades extends Admin_Controller {
             redirect('novidades', 'refresh');
         }
         $this->breadcrumbs->unshift(2, 'Editar novidade', 'novidades/edit/' . (int) $novidade->id);
+        $publico = $this->novidades_model->publico($novidade->id);
+        $novidade->unidades_ids = $publico['unidades'];
+        $novidade->grupos_ids = $publico['grupos'];
 
         if ($this->input->method() === 'post') {
             $dados = $this->validar_formulario();
             if ($dados !== false) {
                 if ($this->novidades_model->atualizar($novidade->id, $empresa_id, $dados)) {
+                    $this->novidades_model->salvar_publico($novidade->id, $empresa_id, $this->input->post('unidades'), $this->input->post('grupos'));
                     foreach ($this->novidades_model->remover_imagens($novidade->id, $this->input->post('remover_imagens')) as $arquivo) {
                         $this->imagem_novidade->remover($arquivo);
                     }
@@ -149,9 +157,13 @@ class Novidades extends Admin_Controller {
     public function detalhe($id = null)
     {
         $this->output->set_content_type('application/json');
-        $empresa_id = (int) $this->session->userdata('empresa_id');
-        $novidade = $this->novidades_model->get($id, $empresa_id);
-        if (!$novidade || $this->novidades_model->situacao($novidade) !== 'vigente') {
+        $novidade = $this->novidades_model->vigente_do_usuario(
+            (int) $id,
+            (int) $this->session->userdata('empresa_id'),
+            (int) $this->session->userdata('user_id'),
+            $this->ion_auth->is_admin()
+        );
+        if (!$novidade) {
             $this->output->set_status_header(404)->set_output(json_encode(array('ok' => false, 'message' => 'Novidade não encontrada.')));
             return;
         }
@@ -172,7 +184,8 @@ class Novidades extends Admin_Controller {
         $ok = $this->novidades_model->marcar_lida(
             (int) $this->input->post('id'),
             (int) $this->session->userdata('empresa_id'),
-            (int) $this->session->userdata('user_id')
+            (int) $this->session->userdata('user_id'),
+            $this->ion_auth->is_admin()
         );
         $this->output->set_output(json_encode(array('ok' => (bool) $ok)));
     }
@@ -237,6 +250,8 @@ class Novidades extends Admin_Controller {
         $novidade->data_inicio = str_replace('T', ' ', (string) $this->input->post('data_inicio'));
         $novidade->data_fim = str_replace('T', ' ', (string) $this->input->post('data_fim'));
         $novidade->ativo = $this->input->post('ativo') ? 1 : 0;
+        $novidade->unidades_ids = array_map('intval', (array) $this->input->post('unidades'));
+        $novidade->grupos_ids = array_map('intval', (array) $this->input->post('grupos'));
         return $novidade;
     }
 
@@ -282,8 +297,12 @@ class Novidades extends Admin_Controller {
             $imagem->url = $this->imagem_novidade->url($imagem->arquivo);
             $imagem->original = $this->imagem_novidade->url($imagem->arquivo, false);
         }
+        $empresa_id = (int) $this->session->userdata('empresa_id');
         $this->data['novidade'] = $novidade;
         $this->data['imagens'] = $imagens;
+        $this->data['publico_disponivel'] = $this->novidades_model->aceita_publico();
+        $this->data['unidades_opcoes'] = $this->novidades_model->unidades_empresa($empresa_id);
+        $this->data['grupos_opcoes'] = $this->novidades_model->grupos_empresa($empresa_id);
         $this->data['max_imagens'] = self::MAX_IMAGENS;
         $this->data['breadcrumb'] = $this->breadcrumbs->show();
         if (!isset($this->data['message'])) {

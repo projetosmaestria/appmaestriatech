@@ -58,6 +58,7 @@ $kpis = array(
                             <th>Novidade</th>
                             <th>Período</th>
                             <th>Situação</th>
+                            <th>Público</th>
                             <th class="text-right">Imagens</th>
                             <th class="text-right" title="Usuários que já viram e fecharam o aviso">Visualizações</th>
                             <th></th>
@@ -78,6 +79,17 @@ $kpis = array(
                                     <span class="text-muted">até <?php echo date('d/m/Y H:i', strtotime($novidade->data_fim)) ?></span>
                                 </td>
                                 <td><span class="label <?php echo $rotulo[1] ?>"><?php echo $rotulo[0] ?></span></td>
+                                <td class="novidades-publico">
+                                    <?php if (!$novidade->publico_unidades && !$novidade->publico_grupos) { ?>
+                                        <span class="text-muted">Todos</span>
+                                    <?php } ?>
+                                    <?php if ($novidade->publico_unidades) { ?>
+                                        <div title="<?php echo html_escape(implode(', ', $novidade->publico_unidades)) ?>"><i class="fa fa-building-o text-muted"></i> <?php echo html_escape(count($novidade->publico_unidades) === 1 ? $novidade->publico_unidades[0] : count($novidade->publico_unidades) . ' unidades') ?></div>
+                                    <?php } ?>
+                                    <?php if ($novidade->publico_grupos) { ?>
+                                        <div title="<?php echo html_escape(implode(', ', $novidade->publico_grupos)) ?>"><i class="fa fa-users text-muted"></i> <?php echo html_escape(count($novidade->publico_grupos) === 1 ? $novidade->publico_grupos[0] : count($novidade->publico_grupos) . ' grupos') ?></div>
+                                    <?php } ?>
+                                </td>
                                 <td class="text-right"><?php echo (int) $novidade->total_imagens ? '<i class="fa fa-picture-o text-muted"></i> ' . (int) $novidade->total_imagens : '<span class="text-muted">—</span>' ?></td>
                                 <td class="text-right"><?php echo number_format((int) $novidade->total_leituras, 0, ',', '.') ?></td>
                                 <td class="lista-acoes">
@@ -115,5 +127,7 @@ $kpis = array(
 </script>
 <style type="text/css">
     .novidades-periodo { white-space: nowrap; font-size: 13px; }
+    .novidades-publico { font-size: 13px; max-width: 220px; }
+    .novidades-publico div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
 <?php $this->load->view('admin/_partials/lista_estilos'); ?>

@@ -13,13 +13,14 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Chamado_notificacoes_model extends CI_Model
 {
     // Importância de cada tipo: o mais importante define o título e o ícone quando há vários eventos.
-    private $pesos = array('novo' => 6, 'escalado' => 5, 'status' => 4, 'anexo' => 3, 'dialogo' => 2, 'alteracao' => 1);
+    private $pesos = array('novo' => 6, 'escalado' => 5, 'status' => 4, 'anexo' => 3, 'apontamento' => 3, 'dialogo' => 2, 'alteracao' => 1);
 
     private $icones = array(
         'novo' => array('fa-ticket', '#00a65a'),
         'escalado' => array('fa-share', '#605ca8'),
         'status' => array('fa-exchange', '#f39c12'),
         'anexo' => array('fa-paperclip', '#00c0ef'),
+        'apontamento' => array('fa-clock-o', '#605ca8'),
         'dialogo' => array('fa-comment', '#3c8dbc'),
         'alteracao' => array('fa-pencil', '#777777'),
     );
@@ -139,10 +140,31 @@ class Chamado_notificacoes_model extends CI_Model
         }
     }
 
+    private function extrair_interessados($bruto)
+    {
+        $ids = array();
+        if (empty($bruto)) {
+            return $ids;
+        }
+        $lista = is_array($bruto) ? $bruto : @unserialize($bruto);
+        if (!is_array($lista)) {
+            $json = @json_decode((string) $bruto, true);
+            $lista = is_array($json) ? $json : explode(',', (string) $bruto);
+        }
+        foreach ($lista as $item) {
+            $id = (int) $item;
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+        return array_values(array_unique($ids));
+    }
+
     private function gravar_chamado($chamado_id, $eventos)
     {
-        $chamado = $this->db->select('c.id, c.dono_id, c.responsavel_id, c.desenvolvedor_id, un.empresa_id')
+        $chamado = $this->db->select('c.id, c.protocolo, c.titulo, c.dono_id, c.responsavel_id, c.desenvolvedor_id, c.interessados, un.empresa_id, un.unidade AS cliente, cst.descricao AS status_desc')
             ->join('unidades un', 'un.id = c.unidade_id', 'inner')
+            ->join('chamado_status cst', 'cst.id = c.status_id', 'left')
             ->where('c.id', (int) $chamado_id)
             ->get('chamado c')
             ->row();
@@ -161,6 +183,11 @@ class Chamado_notificacoes_model extends CI_Model
                 $destinatarios[$user_id] = true;
             }
         }
+        foreach ($this->extrair_interessados($chamado->interessados) as $int_id) {
+            if ($int_id > 0 && !isset($autores[$int_id])) {
+                $destinatarios[$int_id] = true;
+            }
+        }
         if (!$destinatarios) {
             return;
         }
@@ -173,6 +200,7 @@ class Chamado_notificacoes_model extends CI_Model
 
         $agora = date('Y-m-d H:i:s');
         $linhas = array();
+        $mensagens_bot = array();
         foreach (array_keys($destinatarios) as $user_id) {
             $principal = null;
             $textos = array();
@@ -194,24 +222,61 @@ class Chamado_notificacoes_model extends CI_Model
             if (mb_strlen($texto, 'UTF-8') > 480) {
                 $texto = rtrim(mb_substr($texto, 0, 477, 'UTF-8')) . '...';
             }
+            $titulo_notif = $this->titulo($principal, $chamado, $user_id);
             $linhas[] = array(
                 'user_id' => $user_id,
                 'empresa_id' => (int) $chamado->empresa_id,
                 'chamado_id' => (int) $chamado->id,
                 'autor_id' => $principal['autor_id'] ? $principal['autor_id'] : null,
                 'tipo' => $principal['tipo'],
-                'titulo' => $this->titulo($principal, $chamado, $user_id),
+                'titulo' => $titulo_notif,
                 'texto' => $texto,
                 'created_at' => $agora,
             );
+            $mensagens_bot[$user_id] = array('titulo' => $titulo_notif, 'texto' => $texto);
         }
         if ($linhas) {
             $this->db->insert_batch('chamado_notificacao', $linhas);
+            $this->enviar_mensagens_bot($chamado, $mensagens_bot);
         }
 
         // Limpeza ocasional: lidas há mais de 90 dias saem da tabela.
         if (mt_rand(1, 200) === 1) {
             $this->db->where('lida_em <', date('Y-m-d H:i:s', strtotime('-90 days')))->delete('chamado_notificacao');
+        }
+    }
+
+    private function enviar_mensagens_bot($chamado, $mensagens_bot)
+    {
+        if (!$mensagens_bot || !file_exists(APPPATH . 'models/Mensagens_model.php') || !file_exists(APPPATH . 'models/Mensagens_recursos_model.php')) {
+            return;
+        }
+        $this->load->model('mensagens_model');
+        $this->load->model('mensagens_recursos_model');
+        if (!$this->mensagens_model->disponivel()) {
+            return;
+        }
+        $bot_id = $this->mensagens_recursos_model->obter_ou_criar_bot();
+        if ($bot_id <= 0) {
+            return;
+        }
+        foreach ($mensagens_bot as $user_id => $info) {
+            $user_id = (int) $user_id;
+            if ($user_id <= 0 || $user_id === $bot_id || !$this->mensagens_model->tem_acesso($user_id, (int) $chamado->empresa_id)) {
+                continue;
+            }
+            $corpo = $info['titulo'] . "\n"
+                . 'Chamado: #' . (int) $chamado->id . (!empty($chamado->titulo) ? ' — ' . trim($chamado->titulo) : '');
+            if (!empty($chamado->cliente)) {
+                $corpo .= "\nCliente: " . trim($chamado->cliente);
+            }
+            if (!empty($chamado->status_desc)) {
+                $corpo .= "\nStatus: " . trim($chamado->status_desc);
+            }
+            if ($info['texto'] !== '') {
+                $corpo .= "\nAtualização: " . $info['texto'];
+            }
+            $this->mensagens_model->enviar($bot_id, $user_id, (int) $chamado->empresa_id, $corpo, null, null, null, array(), false, null, null, (int) $chamado->id, 'bot');
         }
     }
 
@@ -228,6 +293,8 @@ class Chamado_notificacoes_model extends CI_Model
                 return 'Status do chamado ' . $numero . ' alterado';
             case 'anexo':
                 return 'Novo anexo no chamado ' . $numero;
+            case 'apontamento':
+                return 'Apontamento no chamado ' . $numero;
             case 'dialogo':
                 return 'Nova mensagem no chamado ' . $numero;
         }

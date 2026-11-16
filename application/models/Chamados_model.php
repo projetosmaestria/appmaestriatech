@@ -786,15 +786,46 @@ class Chamados_model extends CI_Model
     public function salvar_apontamento($data)
     {
         $hora_termino = explode(" ", @$data['hora_termino']);
-        if (@$data["apontamento_id"]) {
-            $verifica_existencia = $this->db->select('id')->where("id = '" . $data['apontamento_id'] . "'")->get('chamado_apontamento')->row();
+        $apontamento_id = (int) @$data["apontamento_id"];
+        if ($apontamento_id > 0) {
+            // Id convertido para int e apontamento conferido na empresa da sessão (antes o id ia concatenado no SQL).
+            if (!$this->apontamento_da_empresa($apontamento_id)) {
+                return false;
+            }
+            $verifica_existencia = $this->db->select('id, chamado_id')->where('id', $apontamento_id)->get('chamado_apontamento')->row();
             if ($verifica_existencia) {
-                $this->db->update('chamado_apontamento', array('data' => convertDateBRToEU($data['data']), 'hora_inicio' => $data['hora_inicio'], 'hora_termino' => $hora_termino[0], 'esforco' => $data['esforco'], 'observacao' => addslashes($data['observacao']), 'tipo' => @$data['tipo']), array('id' => $data["apontamento_id"]));
+                $this->db->update('chamado_apontamento', array('data' => convertDateBRToEU($data['data']), 'hora_inicio' => $data['hora_inicio'], 'hora_termino' => $hora_termino[0], 'esforco' => $data['esforco'], 'observacao' => addslashes($data['observacao']), 'tipo' => @$data['tipo']), array('id' => $apontamento_id));
+                // Notifica o chamado do próprio apontamento, não o que veio no POST.
+                $chamado_id = (int) $verifica_existencia->chamado_id;
+                $esforco = trim((string) @$data['esforco']);
+                $obs = trim((string) @$data['observacao']);
+                $resumo = ($esforco !== '' && $esforco !== '00:00:00')
+                    ? ('Apontamento registrado (' . $esforco . ')' . ($obs !== '' ? ' · ' . $obs : ''))
+                    : 'Apontamento atualizado';
+                $this->load->model('chamado_notificacoes_model');
+                $this->chamado_notificacoes_model->registrar($chamado_id, 'apontamento', $resumo, $this->session->userdata('user_id'), false);
             }
             return true;
         } else {
-            $this->db->insert('chamado_apontamento', array('chamado_id' => $data['chamado_id'], 'user_id' => $this->session->userdata('user_id'), 'data' => convertDateBRToEU($data['data']), 'hora_inicio' => $data['hora_inicio'], 'hora_termino' => $hora_termino[0], 'esforco' => @$data['esforco'], 'observacao' => addslashes(@$data['observacao']), 'tipo' => @$data['tipo'], 'created_at' => date('Y-m-d H:i:s')));
+            // Só cria apontamento em chamado da empresa da sessão.
+            $chamado_da_empresa = $this->db->from('chamado c')
+                ->join('unidades un', 'un.id = c.unidade_id')
+                ->where('c.id', (int) @$data['chamado_id'])
+                ->where('un.empresa_id', (int) $this->session->userdata('empresa_id'))
+                ->count_all_results() > 0;
+            if (!$chamado_da_empresa) {
+                return false;
+            }
+            $this->db->insert('chamado_apontamento', array('chamado_id' => (int) $data['chamado_id'], 'user_id' => $this->session->userdata('user_id'), 'data' => convertDateBRToEU($data['data']), 'hora_inicio' => $data['hora_inicio'], 'hora_termino' => $hora_termino[0], 'esforco' => @$data['esforco'], 'observacao' => addslashes(@$data['observacao']), 'tipo' => @$data['tipo'], 'created_at' => date('Y-m-d H:i:s')));
             $id = $this->db->insert_id();
+            $chamado_id = (int) $data['chamado_id'];
+            $esforco = trim((string) @$data['esforco']);
+            $obs = trim((string) @$data['observacao']);
+            $resumo = ($esforco !== '' && $esforco !== '00:00:00')
+                ? ('Apontamento lançado (' . $esforco . ')' . ($obs !== '' ? ' · ' . $obs : ''))
+                : 'Apontamento automático iniciado';
+            $this->load->model('chamado_notificacoes_model');
+            $this->chamado_notificacoes_model->registrar($chamado_id, 'apontamento', $resumo, $this->session->userdata('user_id'), false);
 
             return $id;
         }

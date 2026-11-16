@@ -3991,8 +3991,8 @@ class Chamados extends Admin_Controller
 		$data = explode("/", $data_hora[0]);
 		if ($_POST["chamado_id"] && checkdate($data[1], $data[0], $data[2]) && $this->ion_auth->has_permissao("chamados", "apontamento_automatico_criar") && (!empty($_POST["apontamento_id"]) || $this->is_admin_ou_desenvolvedor())) {
 			$id = $this->chamados_model->salvar_apontamento($_POST);
-			$retorno["erro"] = false;
-			$retorno["data"] = $id;
+			$retorno["erro"] = $id === false;
+			$retorno["data"] = $id === false ? "Apontamento não encontrado nesta empresa." : $id;
 		} else {
 			$retorno["erro"] = true;
 			$retorno["data"] = "Problema ao iniciar apontamento, tente novamente ou entre em contato com o administrador.";
