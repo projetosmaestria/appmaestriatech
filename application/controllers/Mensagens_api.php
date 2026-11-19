@@ -829,9 +829,24 @@ class Mensagens_api extends MY_Controller {
         foreach ($this->chamados_model->get_prioridades()->result() as $p) {
             $prioridades[] = array('id' => (int) $p->id, 'nome' => (string) $p->descricao);
         }
+        // "Programador" do chamado (mesma lista da tela de chamados).
+        $programadores = array();
+        $grupos_dev = $this->chamados_model->get_groups_dev();
+        if (is_object($grupos_dev)) {
+            foreach ($grupos_dev->result() as $u) {
+                $nome = trim($u->first_name . ' ' . $u->last_name);
+                if ($nome !== '' && (!isset($u->active) || (int) $u->active === 1)) {
+                    $programadores[] = array('id' => (int) $u->id, 'nome' => $nome);
+                }
+            }
+        }
+        $eu = $this->db->select('first_name, last_name')->where('id', $this->usuario())->get('users')->row();
         $this->responder(array(
             'ok' => true,
             'cliente' => $atendimento['cliente'],
+            'eh_cliente' => (bool) $atendimento['eh_cliente'],
+            'eu' => array('id' => $this->usuario(), 'nome' => $eu ? trim($eu->first_name . ' ' . $eu->last_name) : ''),
+            'programadores' => $programadores,
             'unidades' => $atendimento['unidades'],
             'responsaveis' => $responsaveis,
             'prioridades' => $prioridades,

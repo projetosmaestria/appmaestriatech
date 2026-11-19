@@ -317,7 +317,28 @@ class Chamados extends Admin_Controller
 				$this->responder_atendimento(array('ok' => false, 'erro' => 'Escolha uma das unidades do cliente.'));
 				return;
 			}
-			$_POST['dono'] = (string) $atendimento['cliente']['id'];
+			// Cliente é sempre o solicitante. Com colega da equipe, pode ser ele ou quem está abrindo.
+			$dono = (int) $atendimento['cliente']['id'];
+			if (empty($atendimento['eh_cliente']) && $this->input->post('solicitante') === 'eu') {
+				$dono = (int) $this->session->userdata('user_id');
+			}
+			$_POST['dono'] = (string) $dono;
+			// Programador (opcional): só alguém da lista de desenvolvedores de chamados da empresa.
+			$programador = (int) $this->input->post('desenvolvedor');
+			if ($programador > 0) {
+				$validos = array();
+				$grupos_dev = $this->chamados_model->get_groups_dev();
+				if (is_object($grupos_dev)) {
+					foreach ($grupos_dev->result() as $dev) {
+						$validos[] = (int) $dev->id;
+					}
+				}
+				if (!in_array($programador, $validos, true)) {
+					$this->responder_atendimento(array('ok' => false, 'erro' => 'Programador inválido.'));
+					return;
+				}
+			}
+			$_POST['desenvolvedor'] = $programador > 0 ? (string) $programador : '';
 			$contexto = $this->mensagens_recursos_model->transcricao_atendimento($atendimento, (int) $this->session->userdata('user_id'), (int) $this->session->userdata('empresa_id'), (int) $this->input->post('contexto_qtd'));
 			if ($contexto !== '') {
 				$desc = trim((string) $this->input->post('desc'));

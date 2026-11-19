@@ -787,6 +787,8 @@ class Mensagens_recursos_model extends CI_Model
         return array(
             'chave' => 'u' . $cliente_id,
             'cliente' => array('id' => $cliente_id, 'nome' => trim($u->first_name . ' ' . $u->last_name), 'email' => (string) $u->email),
+            // Colega da equipe: o solicitante pode ser ele ou quem abre (ex.: suporte abrindo para o desenvolvedor).
+            'eh_cliente' => $eh_cliente,
             'unidades' => $unidades,
             'unidades_ids' => $ids,
         );

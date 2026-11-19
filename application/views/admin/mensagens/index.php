@@ -260,8 +260,10 @@ if ($meu_nome === '' && isset($user_login)) {
                             <h5><span class="step-number">1</span> Solicitante</h5>
                             <div class="row">
                                 <div class="col-sm-6 form-group">
-                                    <label>Solicitante</label>
-                                    <div class="mensagens-chat-solicitante"><i class="fa fa-user"></i> <strong id="mensagens-chat-cliente"></strong> <small class="text-muted" id="mensagens-chat-email"></small></div>
+                                    <label for="mensagens-chat-solicitante-sel">Solicitante</label>
+                                    <div class="mensagens-chat-solicitante" id="mensagens-chat-solicitante-fixo"><i class="fa fa-user"></i> <strong id="mensagens-chat-cliente"></strong> <small class="text-muted" id="mensagens-chat-email"></small></div>
+                                    <?php /* Conversa com colega da equipe: o solicitante pode ser ele ou quem abre. */ ?>
+                                    <select class="form-control" id="mensagens-chat-solicitante-sel" name="solicitante" hidden disabled></select>
                                 </div>
                                 <div class="col-sm-6 form-group">
                                     <label for="mensagens-chat-unidade">Unidade *</label>
@@ -283,6 +285,7 @@ if ($meu_nome === '' && isset($user_login)) {
                             </div>
                             <div class="row js-chat-completo">
                                 <div class="col-sm-6 form-group"><label for="mensagens-chat-responsavel">Responsável *</label><select class="form-control" id="mensagens-chat-responsavel" name="responsavel"></select></div>
+                                <div class="col-sm-6 form-group"><label for="mensagens-chat-programador">Programador</label><select class="form-control" id="mensagens-chat-programador" name="desenvolvedor"></select></div>
                             </div>
                         </div>
                         <div class="mensagens-chat-card">
@@ -3485,6 +3488,22 @@ if ($meu_nome === '' && isset($user_login)) {
                 $('#mensagens-chat-prioridade, #mensagens-chat-responsavel').prop('required', !!res.completo);
                 chatOpcoes($('#mensagens-chat-prioridade'), res.prioridades, 'Sem prioridades', 2);
                 chatOpcoes($('#mensagens-chat-responsavel'), res.responsaveis, 'Sem responsáveis', meuId);
+                // Programador: na conversa com um desenvolvedor, já vem ele.
+                var outroEhProgramador = $.grep(res.programadores || [], function(p) { return p.id === res.cliente.id; }).length > 0;
+                var $prog = $('#mensagens-chat-programador').empty().append($('<option value="">').text('Nenhum'));
+                $.each(res.programadores || [], function(i, p) { $prog.append($('<option>').attr('value', p.id).text(p.nome)); });
+                $prog.val(outroEhProgramador ? String(res.cliente.id) : '');
+                // Solicitante: cliente é fixo; com colega da equipe escolhe entre ele e quem abre
+                // (com desenvolvedor, o padrão é quem abre, e o desenvolvedor vai como programador).
+                var $sol = $('#mensagens-chat-solicitante-sel').empty();
+                if (res.eh_cliente) {
+                    $sol.prop({ hidden: true, disabled: true });
+                    $('#mensagens-chat-solicitante-fixo').prop('hidden', false);
+                } else {
+                    $sol.append($('<option value="outro">').text(res.cliente.nome), $('<option value="eu">').text((res.eu && res.eu.nome ? res.eu.nome : 'Eu') + ' (eu)'));
+                    $sol.val(outroEhProgramador ? 'eu' : 'outro').prop({ hidden: false, disabled: false });
+                    $('#mensagens-chat-solicitante-fixo').prop('hidden', true);
+                }
                 var $anexos = $('#mensagens-chat-anexos').empty();
                 if (!res.midias || !res.midias.length) {
                     $anexos.append($('<p class="text-muted">').text('Nenhum anexo nesta conversa.'));
@@ -3552,7 +3571,7 @@ if ($meu_nome === '' && isset($user_login)) {
             var fd = new FormData(this);
             fd.append('origem', 'mensagens');
             fd.append('conversa', chatAtend.chave);
-            if (!chatAtend.completo) { fd.delete && fd.delete('responsavel'); fd.delete && fd.delete('prioridade'); }
+            if (!chatAtend.completo) { fd.delete && fd.delete('responsavel'); fd.delete && fd.delete('prioridade'); fd.delete && fd.delete('desenvolvedor'); }
             var $btn = $('#mensagens-chat-enviar').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Abrindo...');
             $.ajax({ url: chatAtend.url_criar, method: 'POST', data: fd, processData: false, contentType: false, dataType: 'json' }).done(function(res) {
                 if (!res || !res.ok) {
@@ -5300,6 +5319,7 @@ if ($meu_nome === '' && isset($user_login)) {
     .mensagens-chat-card { margin-bottom: 12px; padding: 12px 14px 4px; border: 1px solid #d2d6de; border-radius: 6px; background: #fff; }
     .mensagens-chat-card h5 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-weight: 600; color: #334155; }
     .mensagens-chat-card .step-number { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #1E1D3F; color: #fff; font-size: 12px; }
+    #mensagens-chat-solicitante-sel[hidden] { display: none; }
     .mensagens-chat-solicitante { padding: 7px 10px; border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .mensagens-chat-anexos-topo { display: flex; align-items: center; justify-content: space-between; }
     .mensagens-chat-anexos { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; max-height: 260px; overflow-y: auto; margin-bottom: 10px; }
