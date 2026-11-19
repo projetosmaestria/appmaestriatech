@@ -1215,15 +1215,20 @@ if ($meu_nome === '' && isset($user_login)) {
         }
 
         function conteudoAnexo(a, m) {
+            // Foto e vídeo: miniatura no balão; o clique abre o visualizador sobre a conversa (abrirVisualizador).
             if (a.tipo === 'imagem') {
                 return $('<div class="mensagens-anexo-com-baixar">').append(
-                    $('<a class="mensagens-anexo-imagem" target="_blank" rel="noopener">').attr({ href: a.url, title: a.nome })
+                    $('<button type="button" class="mensagens-anexo-imagem js-ver-midia">').attr({ 'data-id': m && m.id ? m.id : '', title: 'Ver foto' })
                         .append($('<img loading="lazy">').attr({ src: a.url, alt: a.nome }).on('load', manterNoFim)),
                     linkBaixar(a));
             }
             if (a.tipo === 'video') {
+                // Sem controles no balão (o player fica no visualizador). "#t=0.1" faz o navegador mostrar um quadro do vídeo.
                 return $('<div class="mensagens-anexo-com-baixar">').append(
-                    $('<video class="mensagens-anexo-midia" controls preload="metadata">').attr('src', a.url).on('loadedmetadata', manterNoFim),
+                    $('<button type="button" class="mensagens-anexo-video js-ver-midia">').attr({ 'data-id': m && m.id ? m.id : '', title: 'Assistir vídeo' }).append(
+                        $('<video class="mensagens-anexo-midia" preload="metadata" muted playsinline tabindex="-1">').attr('src', a.url + '#t=0.1').on('loadedmetadata', manterNoFim),
+                        '<span class="mensagens-anexo-play" aria-hidden="true"><i class="fa fa-play"></i></span>'
+                    ),
                     linkBaixar(a));
             }
             if (a.tipo === 'audio') {
@@ -1433,6 +1438,7 @@ if ($meu_nome === '' && isset($user_login)) {
             var $bolha = $('<div class="mensagens-bolha">')
                 .toggleClass('tem-anexo', !!m.anexo)
                 .toggleClass('tem-audio', !!(m.anexo && m.anexo.tipo === 'audio' && !m.excluida && !m.enquete && !m.reuniao))
+                .toggleClass('tem-midia', !!(m.anexo && (m.anexo.tipo === 'imagem' || m.anexo.tipo === 'video') && !m.excluida && !m.enquete && !m.reuniao && !m.gif))
                 .toggleClass('is-excluida', !!m.excluida)
                 .toggleClass('tem-card-especial', !!(m.enquete || m.reuniao));
 
@@ -1692,6 +1698,8 @@ if ($meu_nome === '' && isset($user_login)) {
             mencoesSelecionadas = {};
             fecharMencoes();
             fecharMenuMensagem();
+
+            fecharVisualizador();
 
             atual = res.conversa;
             vistoAte = res.visto_ate || 0;
@@ -3303,6 +3311,98 @@ if ($meu_nome === '' && isset($user_login)) {
             if (!$(e.target).closest('#mensagens-mencoes-popup, #mensagens-texto').length) { fecharMencoes(); }
         }).on('keydown', function(e) {
             if (e.key === 'Escape') { fecharEmojis(); fecharMenuMensagem(); fecharPopupReacoes(); fecharMencoes(); }
+        });
+
+        /* ---------- Visualizador de fotos e vídeos ----------
+           Abre sobre a conversa (não ocupa a tela toda), como no WhatsApp: assistir e ampliar sem baixar.
+           Setas ← → (ou os botões laterais) passam pelas fotos e vídeos carregados da conversa; Esc ou clique fora fecha. */
+        var $visualizador = null;
+        var visualizadorId = 0;
+
+        function criarVisualizador() {
+            if ($visualizador) { return $visualizador; }
+            $visualizador = $('<div class="mensagens-visualizador" role="dialog" aria-modal="true" aria-label="Visualizar mídia" hidden>').append(
+                $('<div class="mensagens-vis-topo">').append(
+                    $('<div class="mensagens-vis-info">').append($('<strong class="js-vis-autor">'), $('<small class="js-vis-data">')),
+                    $('<a class="mensagens-vis-btn js-vis-baixar" title="Baixar"><i class="fa fa-download"></i></a>'),
+                    $('<a class="mensagens-vis-btn js-vis-aba" target="_blank" rel="noopener" title="Abrir em nova aba"><i class="fa fa-external-link"></i></a>'),
+                    $('<button type="button" class="mensagens-vis-btn js-vis-fechar" title="Fechar (Esc)" aria-label="Fechar"><i class="fa fa-times"></i></button>')
+                ),
+                $('<div class="mensagens-vis-palco">').append(
+                    $('<button type="button" class="mensagens-vis-nav is-ant js-vis-ant" title="Anterior" aria-label="Anterior"><i class="fa fa-chevron-left"></i></button>'),
+                    $('<div class="mensagens-vis-midia">'),
+                    $('<button type="button" class="mensagens-vis-nav is-prox js-vis-prox" title="Próxima" aria-label="Próxima"><i class="fa fa-chevron-right"></i></button>')
+                ),
+                $('<div class="mensagens-vis-legenda" hidden>')
+            );
+            $app.find('.mensagens-tela[data-tela="conversa"]').append($visualizador);
+            return $visualizador;
+        }
+
+        function itensVisualizador() {
+            return $.grep($.map($historico.find('.js-ver-midia').toArray(), function(el) { return parseInt($(el).attr('data-id'), 10) || 0; }), function(id) {
+                var m = mensagensMapa[id];
+                return !!(m && m.anexo && !m.excluida);
+            });
+        }
+
+        function abrirVisualizador(id) {
+            var m = mensagensMapa[id];
+            if (!m || !m.anexo || (m.anexo.tipo !== 'imagem' && m.anexo.tipo !== 'video')) { return; }
+            var a = m.anexo;
+            var $v = criarVisualizador();
+            visualizadorId = id;
+            $v.find('.mensagens-vis-midia video').each(function() { try { this.pause(); } catch (e) {} });
+            var $midia = a.tipo === 'video'
+                ? $('<video controls autoplay playsinline preload="auto">').attr('src', a.url)
+                : $('<img>').attr({ src: a.url, alt: a.nome || '' });
+            $v.find('.mensagens-vis-midia').empty().append($midia);
+            $v.find('.js-vis-autor').text(m.minha ? 'Você' : (m.autor || (atual ? atual.nome : '')));
+            $v.find('.js-vis-data').text(m.data || '');
+            $v.find('.js-vis-baixar').attr({ href: a.baixar, download: a.nome || '' });
+            $v.find('.js-vis-aba').attr('href', a.url);
+            $v.find('.mensagens-vis-legenda').text(m.texto || '').prop('hidden', !m.texto);
+            var lista = itensVisualizador();
+            var pos = $.inArray(id, lista);
+            $v.find('.js-vis-ant').prop('hidden', pos <= 0);
+            $v.find('.js-vis-prox').prop('hidden', pos < 0 || pos >= lista.length - 1);
+            if ($v.prop('hidden')) {
+                $v.prop('hidden', false);
+                $v.find('.js-vis-fechar').trigger('focus');
+            }
+        }
+
+        function passarVisualizador(passo) {
+            var lista = itensVisualizador();
+            var pos = $.inArray(visualizadorId, lista);
+            if (pos < 0 || !lista[pos + passo]) { return; }
+            abrirVisualizador(lista[pos + passo]);
+        }
+
+        function fecharVisualizador() {
+            if (!$visualizador || $visualizador.prop('hidden')) { return; }
+            $visualizador.find('video').each(function() { try { this.pause(); } catch (e) {} });
+            $visualizador.find('.mensagens-vis-midia').empty();
+            $visualizador.prop('hidden', true);
+            visualizadorId = 0;
+        }
+
+        $historico.on('click', '.js-ver-midia', function(e) {
+            e.preventDefault();
+            abrirVisualizador(parseInt($(this).attr('data-id'), 10) || 0);
+        });
+        $app.on('click', '.js-vis-fechar', fecharVisualizador)
+            .on('click', '.js-vis-ant', function() { passarVisualizador(-1); })
+            .on('click', '.js-vis-prox', function() { passarVisualizador(1); })
+            .on('click', '.mensagens-vis-palco, .mensagens-vis-midia', function(e) {
+                if (e.target === this) { fecharVisualizador(); } // clique no fundo, fora da foto/vídeo
+            });
+        $(document).on('keydown', function(e) {
+            if (!$visualizador || $visualizador.prop('hidden')) { return; }
+            if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); fecharVisualizador(); return; }
+            if ($(e.target).is('input, textarea, [contenteditable], video')) { return; }
+            if (e.key === 'ArrowLeft') { e.preventDefault(); passarVisualizador(-1); }
+            if (e.key === 'ArrowRight') { e.preventDefault(); passarVisualizador(1); }
         });
 
         window.addEventListener('popstate', function(e) {
@@ -4920,9 +5020,41 @@ if ($meu_nome === '' && isset($user_login)) {
     .mensagens-menu-item[hidden] { display: none; }
     .mensagens-menu-item.is-perigo { color: #dd4b39; }
 
-    .mensagens-anexo-imagem { display: block; border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, .05); }
-    .mensagens-anexo-imagem img { display: block; max-width: 100%; width: 280px; max-height: 280px; object-fit: cover; }
-    .mensagens-anexo-midia { display: block; max-width: 100%; width: 320px; max-height: 300px; border-radius: 8px; background: #000; }
+    /* Foto e vídeo: o balão tem a largura da miniatura e o texto quebra nela (como no WhatsApp). */
+    .mensagens-bolha.tem-midia { width: 308px; max-width: 88%; }
+    .mensagens-bolha.tem-midia .mensagens-anexo-com-baixar > .js-ver-midia { align-self: stretch; }
+    .mensagens-anexo-imagem, .mensagens-anexo-video { position: relative; display: block; width: 100%; padding: 0; border: 0; border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, .05); cursor: zoom-in; }
+    .mensagens-anexo-video { background: #000; cursor: pointer; }
+    .mensagens-anexo-imagem:focus-visible, .mensagens-anexo-video:focus-visible { outline: 2px solid rgba(30, 29, 63, .8); outline-offset: 2px; }
+    .mensagens-anexo-imagem img { display: block; width: 100%; max-height: 320px; object-fit: cover; }
+    .mensagens-anexo-midia { display: block; width: 100%; min-height: 120px; max-height: 300px; object-fit: cover; background: #000; pointer-events: none; }
+    .mensagens-anexo-play { position: absolute; top: 50%; left: 50%; display: flex; align-items: center; justify-content: center; width: 54px; height: 54px; margin: -27px 0 0 -27px; padding-left: 4px; border-radius: 50%; background: rgba(0, 0, 0, .55); color: #fff; font-size: 21px; transition: transform .15s ease, background .15s ease; }
+    .mensagens-anexo-video:hover .mensagens-anexo-play { transform: scale(1.08); background: rgba(0, 0, 0, .72); }
+
+    /* Visualizador de fotos e vídeos: sobre a conversa, sem tomar a tela toda (fundo na cor do tema). */
+    .mensagens-visualizador { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 20; display: flex; flex-direction: column; background: rgba(20, 19, 44, .95); color: #fff; animation: mensagens-vis-entrar .15s ease-out; }
+    .mensagens-visualizador[hidden] { display: none; }
+    @keyframes mensagens-vis-entrar { from { opacity: 0; } to { opacity: 1; } }
+    .mensagens-vis-topo { display: flex; align-items: center; gap: 4px; padding: 10px 12px; }
+    .mensagens-vis-info { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+    .mensagens-vis-info strong, .mensagens-vis-info small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mensagens-vis-info small { color: #cbd5e1; }
+    .mensagens-vis-btn { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #e2e8f0; font-size: 17px; }
+    .mensagens-vis-btn:hover, .mensagens-vis-btn:focus { background: rgba(255, 255, 255, .14); color: #fff; text-decoration: none; outline: none; }
+    .mensagens-vis-palco { position: relative; flex: 1; min-height: 0; display: flex; padding: 6px 60px 12px; }
+    .mensagens-vis-midia { flex: 1; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
+    .mensagens-vis-midia img, .mensagens-vis-midia video { display: block; max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; background: #000; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); }
+    .mensagens-vis-nav { position: absolute; top: 50%; width: 44px; height: 44px; margin-top: -22px; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .14); color: #fff; font-size: 17px; }
+    .mensagens-vis-nav:hover, .mensagens-vis-nav:focus { background: rgba(255, 255, 255, .26); outline: none; }
+    .mensagens-vis-nav.is-ant { left: 8px; }
+    .mensagens-vis-nav.is-prox { right: 8px; }
+    .mensagens-vis-nav[hidden] { display: none; }
+    .mensagens-vis-legenda { max-height: 22%; overflow-y: auto; padding: 0 20px 14px; text-align: center; font-size: 14px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .mensagens-vis-legenda[hidden] { display: none; }
+    @media (max-width: 767px) {
+        .mensagens-vis-palco { padding: 4px 8px 10px; }
+        .mensagens-vis-nav { width: 38px; height: 38px; margin-top: -19px; background: rgba(0, 0, 0, .45); }
+    }
     /* Player de áudio nativo: largura definida no invólucro (a bolha não o espreme; ao abrir o volume a barra precisa caber). */
     .mensagens-audio-wrap { width: 300px; max-width: 100%; }
     .mensagens-anexo-audio { display: block; width: 100%; max-width: 100%; }
