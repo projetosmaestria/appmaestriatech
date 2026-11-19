@@ -796,9 +796,9 @@ class Mensagens_api extends MY_Controller {
     }
 
     /**
-     * Dados do modal "Abrir chamado" do atendimento ao cliente (conversa direta com um cliente): o cliente como
+     * Dados do modal "Abrir chamado" de uma conversa direta (com cliente ou colega): o outro participante como
      * solicitante, as unidades dele (a primeira já vem escolhida), responsáveis, prioridades e as mídias da conversa
-     * para anexar. Só para suporte (suporte_ativo = 'S'), admin e desenvolvedores com permissão chamados/create.
+     * para anexar. Para qualquer pessoa da equipe (não cliente) com permissão chamados/create.
      * O chamado em si é criado por chamados/create (origem=mensagens), com as mesmas validações da tela de chamados.
      */
     public function atendimento_chamado($chave = null)

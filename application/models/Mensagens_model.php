@@ -261,34 +261,14 @@ class Mensagens_model extends CI_Model
     }
 
     /**
-     * Quem pode abrir chamado a partir do atendimento ao cliente nas Mensagens: atendente do suporte
-     * (users.suporte_ativo = 'S'), grupo admin ou grupo de desenvolvedores da empresa. Cliente nunca.
-     * (A permissão chamados/create é conferida à parte, no controller.)
+     * Quem pode abrir chamado a partir de uma conversa nas Mensagens: qualquer pessoa da equipe (com acesso às
+     * mensagens e que não seja cliente). Cliente nunca. A permissão chamados/create é conferida à parte, no controller.
      */
     public function pode_abrir_chamado_atendimento($user_id, $empresa_id)
     {
         $user_id = (int) $user_id;
         $empresa_id = (int) $empresa_id;
-        if ($user_id <= 0 || !$this->tem_acesso($user_id, $empresa_id) || $this->eh_cliente($user_id, $empresa_id)) {
-            return false;
-        }
-        if ($this->tem_coluna('users', 'suporte_ativo')
-            && $this->db->where('id', $user_id)->where('suporte_ativo', 'S')->count_all_results('users') > 0) {
-            return true;
-        }
-        $grupos = $this->db->select('g.name')
-            ->join('groups g', 'g.id = ug.group_id')
-            ->where('ug.user_id', $user_id)
-            ->where('g.empresa_id', $empresa_id)
-            ->get('users_groups ug')
-            ->result();
-        foreach ($grupos as $g) {
-            $nome = $this->normalizar($g->name);
-            if ($nome === 'admin' || strpos($nome, 'administrador') === 0 || strpos($nome, 'desenvolv') === 0) {
-                return true;
-            }
-        }
-        return false;
+        return $user_id > 0 && $this->tem_acesso($user_id, $empresa_id) && !$this->eh_cliente($user_id, $empresa_id);
     }
 
     // Unidades da empresa vinculadas ao usuário (id, unidade, razao_social), em ordem de nome.

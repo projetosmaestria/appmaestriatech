@@ -117,7 +117,7 @@ if ($meu_nome === '' && isset($user_login)) {
                     </div>
                     <button type="button" class="btn btn-default btn-sm" id="mensagens-ligar-btn" title="Ligação por voz" aria-label="Ligação por voz"><i class="fa fa-phone"></i></button>
                     <?php if (!empty($pode_chamado_atendimento)) { ?>
-                    <button type="button" class="btn btn-default btn-sm" id="mensagens-chat-btn" title="Abrir chamado para este cliente" aria-label="Abrir chamado para este cliente" hidden><i class="fa fa-ticket"></i></button>
+                    <button type="button" class="btn btn-default btn-sm" id="mensagens-chat-btn" title="Abrir chamado a partir desta conversa" aria-label="Abrir chamado a partir desta conversa" hidden><i class="fa fa-ticket"></i></button>
                     <?php } ?>
                     <button type="button" class="btn btn-default btn-sm" id="mensagens-midias-btn" title="Caixa de mídias e arquivos" aria-label="Caixa de mídias"><i class="fa fa-folder-open-o"></i></button>
                     <button type="button" class="btn btn-default btn-sm" id="mensagens-notas-btn" title="Notas privadas desta conversa" aria-label="Notas privadas"><i class="fa fa-sticky-note-o"></i></button>
@@ -249,7 +249,7 @@ if ($meu_nome === '' && isset($user_login)) {
         <div class="modal-content">
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal" aria-label="Fechar"><span aria-hidden="true">&times;</span></button>
-                <h4 class="modal-title" id="mensagens-chat-titulo"><i class="fa fa-ticket"></i> Abrir chamado para o cliente</h4>
+                <h4 class="modal-title" id="mensagens-chat-titulo"><i class="fa fa-ticket"></i> Abrir chamado</h4>
                 <small class="text-muted">O chamado é criado com as mesmas regras da tela de chamados.</small>
             </div>
             <form id="mensagens-chat-form" autocomplete="off">
@@ -257,7 +257,7 @@ if ($meu_nome === '' && isset($user_login)) {
                     <div class="mensagens-chat-carregando" id="mensagens-chat-carregando"><i class="fa fa-spinner fa-spin"></i> Carregando dados do cliente...</div>
                     <div id="mensagens-chat-corpo" hidden>
                         <div class="mensagens-chat-card">
-                            <h5><span class="step-number">1</span> Cliente</h5>
+                            <h5><span class="step-number">1</span> Solicitante</h5>
                             <div class="row">
                                 <div class="col-sm-6 form-group">
                                     <label>Solicitante</label>
@@ -1774,8 +1774,8 @@ if ($meu_nome === '' && isset($user_login)) {
             $('#mensagens-canal-config-btn').prop('hidden', !(canal && atual.sou_criador));
             // Cliente não inicia ligação: só atende (aviso de ligação) ou entra pela faixa "Ligação em andamento".
             $('#mensagens-ligar-btn').prop('hidden', ehBot || !podeLigar);
-            // "Abrir chamado" só na conversa direta com um cliente (o servidor confere de novo).
-            $('#mensagens-chat-btn').prop('hidden', !(atual && atual.tipo === 'direta' && atual.cliente && !ehBot));
+            // "Abrir chamado" em conversa direta (com cliente ou colega); quem é cliente nem recebe o botão.
+            $('#mensagens-chat-btn').prop('hidden', !(atual && atual.tipo === 'direta' && !ehBot));
             $('#mensagens-enquete-btn, #mensagens-reuniao-btn').prop('hidden', !(canal && podeEnviar));
             $('#mensagens-somente-leitura-txt').text(ehBot
                 ? 'Bot de chamados automático — apenas recebimento de atualizações.'

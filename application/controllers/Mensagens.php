@@ -95,7 +95,7 @@ class Mensagens extends Admin_Controller {
         $this->data['pode_criar_chamado'] = $this->ion_auth->has_permissao('chamados', 'create');
         // Cliente não inicia ligação: só atende ou entra numa ligação já ativa (conferido em Mensagens_api::chamada_entrar).
         $this->data['pode_ligar'] = !$this->mensagens_model->eh_cliente($user_id, $empresa_id);
-        // Botão "Abrir chamado" na conversa com cliente: suporte ativo, admin e desenvolvedores com chamados/create.
+        // Botão "Abrir chamado" em conversa direta: qualquer pessoa da equipe (não cliente) com chamados/create.
         $this->data['pode_chamado_atendimento'] = $this->data['pode_criar_chamado'] && $this->mensagens_model->pode_abrir_chamado_atendimento($user_id, $empresa_id);
         $this->data['recursos_ativos'] = $this->mensagens_model->aceita_recursos();
         $this->data['minimo_grupo'] = Mensagens_model::MINIMO_GRUPO;

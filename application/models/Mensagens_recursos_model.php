@@ -744,8 +744,9 @@ class Mensagens_recursos_model extends CI_Model
     /* ---------- Chamado a partir do atendimento ao cliente ---------- */
 
     /**
-     * Confere se $user_id (equipe autorizada) pode abrir chamado pela conversa direta $chave e se o outro lado é
-     * cliente. Devolve string de erro ou array com o cliente e as unidades dele (a primeira é a sugerida).
+     * Confere se $user_id (equipe, nunca cliente) pode abrir chamado pela conversa direta $chave. O outro lado da
+     * conversa (cliente ou colega da equipe) é o solicitante. Unidades: as vinculadas a ele; se não tiver nenhuma
+     * (comum na equipe), todas as ativas da empresa. A primeira é a sugerida. Devolve string de erro ou array.
      */
     public function atendimento_para_chamado($chave, $user_id, $empresa_id)
     {
@@ -753,30 +754,35 @@ class Mensagens_recursos_model extends CI_Model
         $user_id = (int) $user_id;
         $empresa_id = (int) $empresa_id;
         if (!$this->mensagens_model->pode_abrir_chamado_atendimento($user_id, $empresa_id)) {
-            return 'Somente o suporte, administradores e desenvolvedores abrem chamado pelo atendimento.';
+            return 'Clientes não abrem chamado pelas Mensagens.';
         }
         $alvo = Mensagens_model::ler_chave($chave);
         if (!$alvo || $alvo['tipo'] !== 'direta') {
-            return 'Abra a conversa com o cliente para criar o chamado.';
+            return 'Abra a conversa direta com a pessoa para criar o chamado.';
         }
         $cliente_id = (int) $alvo['id'];
-        if ($cliente_id === $user_id
-            || !$this->mensagens_model->eh_cliente($cliente_id, $empresa_id)
-            || !$this->mensagens_model->pode_conversar($user_id, $cliente_id, $empresa_id)) {
-            return 'Esta conversa não é com um cliente.';
+        if ($cliente_id === $user_id || !$this->mensagens_model->pode_conversar($user_id, $cliente_id, $empresa_id)) {
+            return 'Conversa indisponível para abrir chamado.';
         }
-        $u = $this->db->select('id, first_name, last_name, email')->where('id', $cliente_id)->get('users')->row();
-        if (!$u) {
-            return 'Cliente não encontrado.';
+        $campo_bot = $this->db->field_exists('is_bot', 'users') ? 'is_bot' : '0 AS is_bot';
+        $u = $this->db->select('id, first_name, last_name, email, ' . $campo_bot, false)->where('id', $cliente_id)->get('users')->row();
+        if (!$u || !empty($u->is_bot)) {
+            return 'Não é possível abrir chamado nesta conversa.';
+        }
+        $eh_cliente = $this->mensagens_model->eh_cliente($cliente_id, $empresa_id);
+        $linhas = $this->mensagens_model->unidades_do_cliente($cliente_id, $empresa_id);
+        if (!$linhas && !$eh_cliente) {
+            // Colega da equipe sem unidade vinculada: escolhe entre as unidades ativas da empresa.
+            $linhas = $this->db->select('id, unidade, razao_social')->where('empresa_id', $empresa_id)->where('actived', 's')->order_by('unidade', 'ASC')->get('unidades')->result();
         }
         $unidades = array();
         $ids = array();
-        foreach ($this->mensagens_model->unidades_do_cliente($cliente_id, $empresa_id) as $un) {
+        foreach ($linhas as $un) {
             $unidades[] = array('id' => (int) $un->id, 'nome' => (string) $un->unidade, 'razao_social' => (string) $un->razao_social);
             $ids[] = (int) $un->id;
         }
         if (!$unidades) {
-            return 'O cliente não está vinculado a nenhuma unidade da empresa.';
+            return $eh_cliente ? 'O cliente não está vinculado a nenhuma unidade da empresa.' : 'A empresa não tem unidades ativas.';
         }
         return array(
             'chave' => 'u' . $cliente_id,
