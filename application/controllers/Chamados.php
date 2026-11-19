@@ -299,8 +299,38 @@ class Chamados extends Admin_Controller
 		}
 		$this->data['pode_anexo_interno'] = $this->pode_marcar_interno();
 
+		// Aberto pelo atendimento nas Mensagens (modal da conversa com o cliente): responde JSON, o solicitante é sempre
+		// o cliente da conversa, a unidade precisa ser dele e o contexto/anexos escolhidos da conversa vão para o chamado.
+		$atendimento = null;
+		if ($this->input->post('origem') === 'mensagens') {
+			$this->load->model(array('mensagens_model', 'mensagens_recursos_model'));
+			$atendimento = $this->mensagens_recursos_model->atendimento_para_chamado(
+				(string) $this->input->post('conversa'),
+				(int) $this->session->userdata('user_id'),
+				(int) $this->session->userdata('empresa_id')
+			);
+			if (is_string($atendimento)) {
+				$this->responder_atendimento(array('ok' => false, 'erro' => $atendimento));
+				return;
+			}
+			if (!in_array((int) $this->input->post('unidade'), $atendimento['unidades_ids'], true)) {
+				$this->responder_atendimento(array('ok' => false, 'erro' => 'Escolha uma das unidades do cliente.'));
+				return;
+			}
+			$_POST['dono'] = (string) $atendimento['cliente']['id'];
+			$contexto = $this->mensagens_recursos_model->transcricao_atendimento($atendimento, (int) $this->session->userdata('user_id'), (int) $this->session->userdata('empresa_id'), (int) $this->input->post('contexto_qtd'));
+			if ($contexto !== '') {
+				$desc = trim((string) $this->input->post('desc'));
+				$_POST['desc'] = ($desc !== '' ? $desc . "\n\n" : '') . $contexto;
+			}
+		}
+
 		$grupos_usuarios_chamado = $this->chamados_model->get_groups();
 		if (! @$grupos_usuarios_chamado) {
+			if ($atendimento) {
+				$this->responder_atendimento(array('ok' => false, 'erro' => 'Parametrize o grupo de usuários responsáveis pelo chamado antes.'));
+				return;
+			}
 			$this->session->set_flashdata('message', show_alert_error("Você deve parametrizar o grupo de usuários responsáveis pelo chamado antes."));
 			redirect('chamados', 'refresh');
 		}
@@ -365,6 +395,16 @@ class Chamados extends Admin_Controller
 
 			$anexos_internos = $this->input->post('anexos_internos') && $this->pode_marcar_interno();
 			$erros_anexos = $this->salvar_anexos_abertura($id, 'Anexo enviado na abertura do chamado.', $anexos_internos);
+			if ($atendimento) {
+				// Prints, gravações, áudios e arquivos escolhidos da conversa com o cliente.
+				$erros_anexos = array_merge((array) $erros_anexos, $this->mensagens_recursos_model->importar_anexos_para_chamado(
+					$id,
+					(array) $this->input->post('mensagens_anexos'),
+					$atendimento,
+					(int) $this->session->userdata('user_id'),
+					(int) $this->session->userdata('empresa_id')
+				));
+			}
 
 			$chamado = $this->chamados_model->get(array(
 				'select' => 'c.id, c.categoria_id, c.catalogoservico_id, c.modulo_id, c.resposta, c.referencia_id, c.unidade_id, c.produto_id, c.modulo_id, c.protocolo, c.titulo, c.descricao, c.horas, c.reincidencia, c.created, c.data_finalizacao, c.data_inicio, c.data_prazo, c.modified, c.status_id, c.prioridade_id, c.dono_id, c.responsavel_id, u.first_name, u.last_name, cs.descricao as catalogo_desc, un.unidade as cliente, cst.descricao as status, cp.descricao as prioridade, un.empresa_id, p.nome as produto_desc, m.nome as modulo_desc, mc.nome as mcategoria_desc, ud.first_name as first_name_dono, ud.last_name as last_name_dono, u.email as email_resp, ud.email as email_dono, c.interessados, r.id as chamado_referencia_id, r.titulo as chamado_referencia_titulo, c.plano_acao, n.descricao as nivel_desc, c.desenvolvedor_id, udev.first_name as first_name_dev, udev.last_name as last_name_dev, udev.email as email_dev',
@@ -433,7 +473,9 @@ class Chamados extends Admin_Controller
 			if ($erros_anexos) {
 				$mensagem_criacao .= show_alert_error('Alguns anexos não foram enviados:<br>' . implode('<br>', $erros_anexos));
 			}
-			$this->session->set_flashdata('message', $mensagem_criacao);
+			if (!$atendimento) {
+				$this->session->set_flashdata('message', $mensagem_criacao);
+			}
 
 			$dados_diag = array();
 			$dados_diag["chamado_id"] = $id;
@@ -443,11 +485,25 @@ class Chamados extends Admin_Controller
 
 			$dialogo_create = $this->chamados_model->create_dialogo($dados_diag);
 
+			if ($atendimento) {
+				$this->responder_atendimento(array(
+					'ok' => true,
+					'chamado' => array('id' => (int) $id, 'protocolo' => isset($chamado->protocolo) ? (string) $chamado->protocolo : '', 'url' => site_url('chamados/details/' . $id)),
+					'avisos' => array_values(array_map('strip_tags', (array) $erros_anexos)),
+				));
+				return;
+			}
+
 			if ($back_to_kanban == true)
 				redirect('kanban/index/', 'refresh');
 
 			redirect('chamados/details/' . $id, 'refresh');
 		} else {
+			if ($atendimento) {
+				$erro = trim(preg_replace('/\s+/', ' ', strip_tags(validation_errors(' ', ' '))));
+				$this->responder_atendimento(array('ok' => false, 'erro' => $erro !== '' ? $erro : 'Não foi possível abrir o chamado.'));
+				return;
+			}
 
 			$unidade_selecionada = '';
 			if ($this->uri->segment(3) == "planoacao") {
@@ -878,6 +934,12 @@ class Chamados extends Admin_Controller
 	 * Envia ao solicitante o modelo de WhatsApp do evento ('abertura' ou 'encerramento')
 	 * e registra o resultado como diálogo interno. Nunca interrompe o fluxo do chamado.
 	 */
+	// Resposta JSON do create() quando o chamado vem do modal de atendimento das Mensagens.
+	private function responder_atendimento($dados)
+	{
+		$this->output->set_content_type('application/json', 'utf-8')->set_output(json_encode($dados));
+	}
+
 	private function avisar_whatsapp_solicitante($chamado_id, $evento)
 	{
 		$this->config->load('flwchat', true);
@@ -3876,56 +3938,13 @@ class Chamados extends Admin_Controller
 	}
 
 	/**
-	 * Envia ao solicitante recém-criado o link para cadastrar a senha.
-	 * Usa o mesmo código do "Esqueci minha senha" (auth/reset_password), que não expira.
+	 * Envia ao solicitante recém-criado o link para cadastrar a senha (libraries/Senha_inicial.php,
+	 * o mesmo e-mail do cadastro de usuário pela integração).
 	 */
 	private function enviar_email_definir_senha($email, $first_name, $unidade_nome)
 	{
-		if (!$this->ion_auth_model->forgotten_password($email)) {
-			return false;
-		}
-		$link = base_url('auth/reset_password/' . $this->ion_auth_model->forgotten_password_code);
-
-		$email_config_db = $this->ion_auth->get_email_config()->row();
-		if ($email_config_db && $email_config_db->test == 1) {
-			$email_config = rowToConfigEmail($email_config_db);
-			$from_email = $email_config_db->from_email;
-			$from_name = $email_config_db->from_name;
-		} else {
-			$email_config = $this->config->item('email_config', 'ion_auth');
-			$from_email = $this->config->item('admin_email', 'ion_auth');
-			$from_name = $this->config->item('site_title', 'ion_auth');
-		}
-
-		$assunto = $from_name . ' - Cadastre sua senha de acesso';
-		$corpo = '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#333333;max-width:560px;">'
-			. '<p>Olá, <strong>' . html_escape($first_name) . '</strong>!</p>'
-			. '<p>Seu acesso ao <strong>' . html_escape($from_name) . '</strong> foi criado para o cliente <strong>' . html_escape($unidade_nome) . '</strong>, '
-			. 'para você acompanhar os chamados abertos em seu nome.</p>'
-			. '<p>Seu login é o e-mail <strong>' . html_escape($email) . '</strong>. Para entrar, cadastre sua senha no botão abaixo:</p>'
-			. '<p style="margin:24px 0;"><a href="' . html_escape($link) . '" style="background:#3c8dbc;color:#ffffff;padding:10px 18px;text-decoration:none;border-radius:3px;display:inline-block;">Cadastrar minha senha</a></p>'
-			. '<p style="font-size:12px;color:#777777;">Se o botão não funcionar, copie e cole este endereço no navegador:<br>' . html_escape($link) . '</p>'
-			. '</div>';
-
-		try {
-			$mail = $this->phpmailer_library->load();
-			$mail->isSMTP();
-			$mail->Host     = $email_config['smtp_host'];
-			$mail->SMTPAuth = true;
-			$mail->Username = $email_config['smtp_user'];
-			$mail->Password = $email_config['smtp_pass'];
-			$mail->SMTPSecure = 'tsl';
-			$mail->Port     = $email_config['smtp_port'];
-			$mail->setFrom($from_email, utf8_decode($from_name));
-			$mail->addAddress($email);
-			$mail->Subject = utf8_decode($assunto);
-			$mail->isHTML(true);
-			$mail->Body = utf8_decode($corpo);
-			return (bool) $mail->send();
-		} catch (Exception $e) {
-			log_message('error', 'Chamados::enviar_email_definir_senha - ' . $e->getMessage());
-			return false;
-		}
+		$this->load->library('senha_inicial');
+		return $this->senha_inicial->enviar($email, $first_name, $unidade_nome, (int) $this->session->userdata('empresa_id'));
 	}
 
 	public function get_plano_acao()

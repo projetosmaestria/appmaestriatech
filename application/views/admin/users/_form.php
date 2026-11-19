@@ -99,6 +99,19 @@ $multiplas_empresas = count($dados_empresa) > 1;
                             </div>
                             <p class="help-block"><?php echo $editando ? 'Deixe em branco para manter a senha atual. ' : '' ?>Use letras maiúsculas, minúsculas e números.</p>
                         <?php } ?>
+                        <?php
+                        $suporte_marcado = $_POST
+                            ? $this->input->post('suporte_ativo') === 'S'
+                            : ($editando && isset($user->suporte_ativo) && $user->suporte_ativo === 'S');
+                        ?>
+                        <div class="checkbox usuario-suporte-ativo">
+                            <label>
+                                <input type="hidden" name="suporte_ativo" value="N">
+                                <input type="checkbox" name="suporte_ativo" value="S" <?php echo $suporte_marcado ? 'checked' : '' ?>>
+                                <strong>Suporte ativo</strong>
+                            </label>
+                            <p class="help-block">Atende os clientes nas mensagens: quando um cliente fala com "Suporte", a conversa vai para um dos usuários com esta opção marcada.</p>
+                        </div>
                     </div>
                 </div>
 

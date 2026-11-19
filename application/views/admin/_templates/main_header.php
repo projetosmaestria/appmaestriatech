@@ -1825,7 +1825,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(784, ctx.currentTime);
                 osc.frequency.exponentialRampToValueAtTime(1046, ctx.currentTime + 0.08);
-                ganho.gain.setValueAtTime(0.06, ctx.currentTime);
+                ganho.gain.setValueAtTime(0.5, ctx.currentTime); // aviso de mensagem: volume alto (antes 0.06, quase inaudível)
                 ganho.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
                 osc.connect(ganho);
                 ganho.connect(ctx.destination);
@@ -2016,7 +2016,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
                     osc.type = 'sine';
                     osc.frequency.setValueAtTime(freq, inicio);
                     ganho.gain.setValueAtTime(0.001, inicio);
-                    ganho.gain.exponentialRampToValueAtTime(0.08, inicio + 0.03);
+                    ganho.gain.exponentialRampToValueAtTime(0.6, inicio + 0.03); // toque de ligação recebida: volume alto (antes 0.08)
                     ganho.gain.exponentialRampToValueAtTime(0.001, inicio + 0.35);
                     osc.connect(ganho);
                     ganho.connect(toqueAudioCtx.destination);

@@ -1286,15 +1286,19 @@ class Chamados_model extends CI_Model
 
     /**
      * Cria um solicitante já ativo (sem e-mail de ativação), vinculado à empresa,
-     * à unidade e ao grupo informados, com o celular na tabela pessoas.
+     * à(s) unidade(s) e ao grupo informados, com o celular na tabela pessoas.
      *
+     * @param int|array $unidade_id uma unidade ou a lista de unidades do usuário
      * @return int|false id do novo usuário
      */
     public function criar_solicitante($dados, $empresa_id, $unidade_id, $grupo_id)
     {
         $empresa_id = (int) $empresa_id;
-        $unidade_id = (int) $unidade_id;
+        $unidades_ids = array_values(array_unique(array_filter(array_map('intval', (array) $unidade_id))));
         $grupo_id = (int) $grupo_id;
+        if (!$unidades_ids) {
+            return false;
+        }
 
         $this->db->trans_start();
 
@@ -1302,7 +1306,7 @@ class Chamados_model extends CI_Model
         $user_id = $this->ion_auth_model->register('', '', $dados['email'], array(
             'first_name' => $dados['first_name'],
             'last_name' => $dados['last_name'],
-        ), array($empresa_id => 1), array($grupo_id), array(), array($unidade_id));
+        ), array($empresa_id => 1), array($grupo_id), array(), $unidades_ids);
 
         if ($user_id) {
             // O register só grava nome e ativa conforme as preferências; aqui o cadastro já nasce ativo.

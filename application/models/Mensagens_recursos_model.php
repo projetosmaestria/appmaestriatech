@@ -169,7 +169,7 @@ class Mensagens_recursos_model extends CI_Model
                 if ($this->mensagens_model->pode_enviar_canal($alvo['id'], $ag->user_id, $ag->empresa_id)) {
                     $msg = $this->mensagens_model->enviar($ag->user_id, 0, $ag->empresa_id, $texto, null, null, $ag->resposta_id, $mencoes, false, $alvo['id']);
                 }
-            } elseif ($alvo['tipo'] === 'direta' && $this->mensagens_model->tem_acesso($alvo['id'], $ag->empresa_id)) {
+            } elseif ($alvo['tipo'] === 'direta' && $this->mensagens_model->pode_conversar($ag->user_id, $alvo['id'], $ag->empresa_id)) {
                 $msg = $this->mensagens_model->enviar($ag->user_id, $alvo['id'], $ag->empresa_id, $texto, null, null, $ag->resposta_id, $mencoes);
             }
             $this->db->where('id', (int) $ag->id)->update('mensagem_agendada', array(
@@ -741,6 +741,167 @@ class Mensagens_recursos_model extends CI_Model
         );
     }
 
+    /* ---------- Chamado a partir do atendimento ao cliente ---------- */
+
+    /**
+     * Confere se $user_id (equipe autorizada) pode abrir chamado pela conversa direta $chave e se o outro lado é
+     * cliente. Devolve string de erro ou array com o cliente e as unidades dele (a primeira é a sugerida).
+     */
+    public function atendimento_para_chamado($chave, $user_id, $empresa_id)
+    {
+        $this->load->model('mensagens_model');
+        $user_id = (int) $user_id;
+        $empresa_id = (int) $empresa_id;
+        if (!$this->mensagens_model->pode_abrir_chamado_atendimento($user_id, $empresa_id)) {
+            return 'Somente o suporte, administradores e desenvolvedores abrem chamado pelo atendimento.';
+        }
+        $alvo = Mensagens_model::ler_chave($chave);
+        if (!$alvo || $alvo['tipo'] !== 'direta') {
+            return 'Abra a conversa com o cliente para criar o chamado.';
+        }
+        $cliente_id = (int) $alvo['id'];
+        if ($cliente_id === $user_id
+            || !$this->mensagens_model->eh_cliente($cliente_id, $empresa_id)
+            || !$this->mensagens_model->pode_conversar($user_id, $cliente_id, $empresa_id)) {
+            return 'Esta conversa não é com um cliente.';
+        }
+        $u = $this->db->select('id, first_name, last_name, email')->where('id', $cliente_id)->get('users')->row();
+        if (!$u) {
+            return 'Cliente não encontrado.';
+        }
+        $unidades = array();
+        $ids = array();
+        foreach ($this->mensagens_model->unidades_do_cliente($cliente_id, $empresa_id) as $un) {
+            $unidades[] = array('id' => (int) $un->id, 'nome' => (string) $un->unidade, 'razao_social' => (string) $un->razao_social);
+            $ids[] = (int) $un->id;
+        }
+        if (!$unidades) {
+            return 'O cliente não está vinculado a nenhuma unidade da empresa.';
+        }
+        return array(
+            'chave' => 'u' . $cliente_id,
+            'cliente' => array('id' => $cliente_id, 'nome' => trim($u->first_name . ' ' . $u->last_name), 'email' => (string) $u->email),
+            'unidades' => $unidades,
+            'unidades_ids' => $ids,
+        );
+    }
+
+    // Mensagens da conversa direta entre $user_id e o cliente (sem excluídas nem ocultas), filtradas por $ids (opcional).
+    private function mensagens_do_atendimento($atendimento, $user_id, $empresa_id, $ids = null, $limite = 0)
+    {
+        $this->load->model('mensagens_model');
+        $user_id = (int) $user_id;
+        $cliente_id = (int) $atendimento['cliente']['id'];
+        $this->db->select('m.id, m.de_id, m.texto, m.created_at, m.anexo, m.anexo_nome', false)
+            ->from('mensagem m')
+            ->where('m.empresa_id', (int) $empresa_id)
+            ->group_start()
+                ->group_start()->where('m.de_id', $user_id)->where('m.para_id', $cliente_id)->group_end()
+                ->or_group_start()->where('m.de_id', $cliente_id)->where('m.para_id', $user_id)->group_end()
+            ->group_end();
+        if ($this->mensagens_model->aceita_grupos()) {
+            $this->db->where('m.grupo_id IS NULL', null, false);
+        }
+        if ($this->db->field_exists('excluida_em', 'mensagem')) {
+            $this->db->where('m.excluida_em IS NULL', null, false);
+        }
+        if ($this->tem_tabela('mensagem_oculta')) {
+            $this->db->where('NOT EXISTS (SELECT 1 FROM mensagem_oculta mo WHERE mo.mensagem_id = m.id AND mo.user_id = ' . $user_id . ')', null, false);
+        }
+        if ($ids !== null) {
+            if (!$ids) {
+                return array();
+            }
+            $this->db->where_in('m.id', $ids);
+        }
+        $this->db->order_by('m.id', 'DESC');
+        if ($limite > 0) {
+            $this->db->limit((int) $limite);
+        }
+        return array_reverse($this->db->get()->result());
+    }
+
+    /**
+     * Texto das últimas $qtd mensagens do atendimento, para ir na descrição do chamado
+     * ("[19/11/2026 10:20] Ana Souza: texto"). A descrição é exibida escapada e o banco é utf8 de 3 bytes:
+     * emojis de 4 bytes (guardados como &#NNNNN;) saem do texto.
+     */
+    public function transcricao_atendimento($atendimento, $user_id, $empresa_id, $qtd)
+    {
+        $qtd = min(200, max(0, (int) $qtd));
+        if ($qtd <= 0) {
+            return '';
+        }
+        $linhas = array();
+        $eu = $this->db->select('first_name, last_name')->where('id', (int) $user_id)->get('users')->row();
+        $nomes = array(
+            (int) $user_id => $eu ? trim($eu->first_name . ' ' . $eu->last_name) : 'Suporte',
+            (int) $atendimento['cliente']['id'] => $atendimento['cliente']['nome'],
+        );
+        foreach ($this->mensagens_do_atendimento($atendimento, $user_id, $empresa_id, null, $qtd) as $m) {
+            $texto = preg_replace('/&#(\d{5,7});/', '', (string) $m->texto);
+            if (preg_match('~^https://media\.giphy\.com/media/~', trim($texto))) {
+                $texto = '[GIF]';
+            }
+            if (!empty($m->anexo)) {
+                $anexo = '[anexo: ' . (string) $m->anexo_nome . ']';
+                $texto = trim($texto) === '' || trim($texto) === (string) $m->anexo_nome ? $anexo : $anexo . ' ' . $texto;
+            }
+            $texto = trim(preg_replace('/[\x{10000}-\x{10FFFF}]/u', '', $texto));
+            if ($texto === '') {
+                continue;
+            }
+            $autor = isset($nomes[(int) $m->de_id]) ? $nomes[(int) $m->de_id] : '';
+            $linhas[] = '[' . date('d/m/Y H:i', strtotime($m->created_at)) . '] ' . $autor . ': ' . $texto;
+        }
+        if (!$linhas) {
+            return '';
+        }
+        return "Conversa nas Mensagens com " . $atendimento['cliente']['nome'] . ":\n" . implode("\n", $linhas);
+    }
+
+    /**
+     * Copia para o chamado os anexos das mensagens escolhidas (prints, gravações, áudios, arquivos).
+     * Só aceita mensagens da própria conversa de atendimento. Devolve a lista de erros (vazia se tudo deu certo).
+     */
+    public function importar_anexos_para_chamado($chamado_id, $ids, $atendimento, $user_id, $empresa_id)
+    {
+        $ids = array_slice(array_values(array_unique(array_filter(array_map('intval', (array) $ids)))), 0, 50);
+        if (!$ids || !function_exists('get_upload_config')) {
+            return array();
+        }
+        $cfg = get_upload_config();
+        $pasta_ch = rtrim($cfg['upload_path'], '/\\') . '/';
+        if (!is_dir($pasta_ch) && !@mkdir($pasta_ch, 0755, true)) {
+            return array('Pasta de anexos do chamado indisponível.');
+        }
+        $erros = array();
+        $tem_interno = $this->db->field_exists('interno', 'chamado_anexo');
+        foreach ($this->mensagens_do_atendimento($atendimento, $user_id, $empresa_id, $ids) as $m) {
+            if (empty($m->anexo)) {
+                continue;
+            }
+            $origem = FCPATH . Mensagens_model::PASTA_ANEXOS . basename($m->anexo);
+            $ext = strtolower(pathinfo($m->anexo, PATHINFO_EXTENSION));
+            $novo = md5(uniqid(mt_rand(), true)) . ($ext !== '' ? '.' . $ext : '');
+            if (!is_file($origem) || !@copy($origem, $pasta_ch . $novo)) {
+                $erros[] = html_escape((string) $m->anexo_nome) . ': arquivo indisponível.';
+                continue;
+            }
+            $linha = array(
+                'chamado_id' => (int) $chamado_id,
+                'responsavel_id' => (int) $user_id,
+                'descricao' => 'Anexo das Mensagens: ' . (string) $m->anexo_nome,
+                'anexo' => $novo,
+            );
+            if ($tem_interno) {
+                $linha['interno'] = 0;
+            }
+            $this->db->insert('chamado_anexo', $linha);
+        }
+        return $erros;
+    }
+
     /* ---------- 18. Status de disponibilidade personalizado ---------- */
 
     public function definir_status_usuario($empresa_id, $user_id, $status, $texto = '')
@@ -935,7 +1096,11 @@ class Mensagens_recursos_model extends CI_Model
         );
     }
 
-    public function iniciar_ou_entrar_chamada($empresa_id, $user_id, $chave, $tipo = 'voz', $compartilhando_tela = false)
+    /**
+     * Entra na ligação ativa da conversa ou, se não houver, inicia uma nova.
+     * $pode_iniciar = false (cliente): só entra numa ligação que alguém já iniciou; nunca cria.
+     */
+    public function iniciar_ou_entrar_chamada($empresa_id, $user_id, $chave, $tipo = 'voz', $compartilhando_tela = false, $pode_iniciar = true)
     {
         if (!$this->tem_tabela('mensagem_chamada')) {
             return 'Chamadas indisponíveis: aplique o script sql/2026-11-16_mensagens_recursos_v2.sql.';
@@ -943,6 +1108,9 @@ class Mensagens_recursos_model extends CI_Model
         $agora = date('Y-m-d H:i:s');
         $chave_canonica = self::chave_chamada($chave, $user_id);
         $ativa = $this->chamada_ativa_conversa($empresa_id, $chave_canonica, $user_id);
+        if (!$ativa && !$pode_iniciar) {
+            return 'Você não pode iniciar ligações. Quando o suporte ligar para você, é só atender.';
+        }
         if (!$ativa) {
             $this->db->insert('mensagem_chamada', array(
                 'empresa_id' => (int) $empresa_id,
@@ -999,7 +1167,8 @@ class Mensagens_recursos_model extends CI_Model
                     continue;
                 }
                 $outro = ($user_id === $u1) ? $u2 : $u1;
-                if ($outro <= 0) {
+                // Cliente só recebe ligação de quem pode conversar com ele (clientes da unidade ou o seu "Suporte").
+                if ($outro <= 0 || !$this->mensagens_model->pode_conversar($user_id, $outro, $empresa_id)) {
                     continue;
                 }
                 $conv_chave = 'u' . $outro;
@@ -1034,6 +1203,10 @@ class Mensagens_recursos_model extends CI_Model
                 ->row();
             $iniciador_nome = $iniciador ? trim($iniciador->first_name . ' ' . $iniciador->last_name) : 'Usuário';
             $iniciador_foto = $this->url_avatar($iniciador ? $iniciador->foto : null);
+            if ($eh_direta && $this->mensagens_model->ver_como_suporte($user_id, (int) $r->iniciada_por, $empresa_id)) {
+                $iniciador_nome = 'Suporte';
+                $iniciador_foto = $this->url_avatar(null);
+            }
 
             $lista[] = array(
                 'chamada_id' => (int) $r->id,
@@ -1898,7 +2071,7 @@ class Mensagens_recursos_model extends CI_Model
         $descricao = trim((string) $descricao);
 
         $this->load->model('mensagens_model');
-        $membros_canal = $this->mensagens_model->membros_canal((int) $canal->id, (int) $empresa_id);
+        $membros_canal = $this->mensagens_model->membros_canal((int) $canal->id, (int) $empresa_id, (int) $user_id);
         $membros_validos = array((int) $user_id => true);
         foreach ($membros_canal as $mb) {
             $membros_validos[(int) $mb['id']] = true;

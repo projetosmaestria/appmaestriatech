@@ -62,10 +62,10 @@ class Mensagens extends Admin_Controller {
                 $this->mensagens_model->marcar_lido_canal($user_id, $canal->id);
                 $fixadas = $this->mensagens_model->fixadas_conversa($atual['chave'], $user_id, $empresa_id);
                 $config_conversa = $this->mensagens_model->obter_config_conversa($user_id, $empresa_id, $atual['chave']);
-                $membros_atual = $this->mensagens_model->membros_canal($canal->id, $empresa_id);
+                $membros_atual = $this->mensagens_model->membros_canal($canal->id, $empresa_id, $user_id);
             }
         } elseif ($alvo && $alvo['id'] !== $user_id) {
-            $atual = $this->mensagens_model->contato($alvo['id'], $empresa_id);
+            $atual = $this->mensagens_model->contato($alvo['id'], $empresa_id, $user_id);
             if ($atual) {
                 $this->mensagens_model->marcar_lidas($user_id, $alvo['id'], $empresa_id);
                 $mensagens = $this->mensagens_model->conversa($user_id, $alvo['id'], $empresa_id);
@@ -84,7 +84,8 @@ class Mensagens extends Admin_Controller {
         $this->data['pessoas'] = $contatos;
         $this->data['conversas'] = $this->mensagens_model->conversas($user_id, $empresa_id, $contatos);
         $this->data['grupos_ativos'] = $this->mensagens_model->aceita_grupos();
-        $this->data['canais_ativos'] = $this->mensagens_model->aceita_canais();
+        // Cliente não cria canal (o canal alcança grupos inteiros, inclusive clientes de outras unidades).
+        $this->data['canais_ativos'] = $this->mensagens_model->aceita_canais() && !$this->mensagens_model->eh_cliente($user_id, $empresa_id);
         $this->data['grupos_empresa'] = $this->mensagens_model->grupos_empresa($empresa_id);
         $this->data['etiquetas'] = $this->mensagens_recursos_model->listar_etiquetas($empresa_id, $user_id);
         $this->data['lembretes'] = $this->mensagens_recursos_model->listar_lembretes($empresa_id, $user_id);
@@ -92,6 +93,10 @@ class Mensagens extends Admin_Controller {
         $this->data['meu_status'] = $this->mensagens_recursos_model->status_usuario($empresa_id, $user_id);
         $this->data['opcoes_chamado'] = $this->mensagens_recursos_model->opcoes_chamado($empresa_id);
         $this->data['pode_criar_chamado'] = $this->ion_auth->has_permissao('chamados', 'create');
+        // Cliente não inicia ligação: só atende ou entra numa ligação já ativa (conferido em Mensagens_api::chamada_entrar).
+        $this->data['pode_ligar'] = !$this->mensagens_model->eh_cliente($user_id, $empresa_id);
+        // Botão "Abrir chamado" na conversa com cliente: suporte ativo, admin e desenvolvedores com chamados/create.
+        $this->data['pode_chamado_atendimento'] = $this->data['pode_criar_chamado'] && $this->mensagens_model->pode_abrir_chamado_atendimento($user_id, $empresa_id);
         $this->data['recursos_ativos'] = $this->mensagens_model->aceita_recursos();
         $this->data['minimo_grupo'] = Mensagens_model::MINIMO_GRUPO;
         $this->data['tamanho_nome_grupo'] = Mensagens_model::TAMANHO_NOME_GRUPO;

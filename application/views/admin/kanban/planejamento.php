@@ -411,7 +411,7 @@ $weekdays = array(1 => 'Segunda', 2 => 'Terça', 3 => 'Quarta', 4 => 'Quinta', 5
                   <tbody>
                     <?php foreach ($dashboard['days'] as $date => $day) {
                         $overloaded = $day['planned_hours'] > $day['goal_hours'];
-                        $goal_deviation = $day['goal_logged_hours'] - $day['goal_hours'];
+                        $goal_deviation = round($day['goal_logged_hours'], 1) - round($day['goal_hours'], 1);
                         $evaluated = in_array($day['goal_status'], array('met', 'below'), true);
                     ?>
                       <tr class="<?php echo $day['goal_status'] === 'below' ? 'danger' : ''; ?>">
@@ -431,7 +431,7 @@ $weekdays = array(1 => 'Segunda', 2 => 'Terça', 3 => 'Quarta', 4 => 'Quinta', 5
                             <?php echo $format_hours($day['goal_logged_hours']); ?>
                           <?php } ?>
                           <?php if ($evaluated) { ?>
-                            <small class="<?php echo $goal_deviation < -0.01 ? 'text-red' : 'text-green'; ?>">(<?php echo ($goal_deviation > 0 ? '+' : '') . number_format($goal_deviation, 1, ',', '.'); ?>)</small>
+                            <small class="<?php echo $day['goal_status'] === 'below' ? 'text-red' : 'text-green'; ?>">(<?php echo ($goal_deviation > 0.001 ? '+' : '') . number_format($goal_deviation, 1, ',', '.'); ?>)</small>
                           <?php } ?>
                         </td>
                         <td><span class="label <?php echo $goal_status_labels[$day['goal_status']][0]; ?>"><?php echo $goal_status_labels[$day['goal_status']][1]; ?></span></td>

@@ -237,7 +237,8 @@ class Kanban_dashboard_model extends CI_Model
                 $day['goal_status'] = 'unavailable';
             } elseif ($date > $today) {
                 $day['goal_status'] = 'pending';
-            } elseif ($day['goal_logged_hours'] + 0.01 >= $day['goal_hours']) {
+            } elseif (round($day['goal_logged_hours'], 1) >= round($day['goal_hours'], 1)) {
+                // Compara com 1 casa decimal, igual à tela: 7,0 / 7,0h conta como meta atingida.
                 $day['goal_status'] = 'met';
             } else {
                 $day['goal_status'] = 'below';
@@ -438,7 +439,7 @@ class Kanban_dashboard_model extends CI_Model
             foreach ($evaluated_days[$id] as $date) {
                 $logged = isset($logged_by_day[$id][$date]) ? $logged_by_day[$id][$date] : 0;
                 $evaluated_logged += $logged;
-                if ($logged + 0.01 < $daily_goal) {
+                if (round($logged, 1) < round($daily_goal, 1)) {
                     $entry['below_goal_days']++;
                 }
             }

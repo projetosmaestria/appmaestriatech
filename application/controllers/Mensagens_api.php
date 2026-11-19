@@ -202,7 +202,7 @@ class Mensagens_api extends MY_Controller {
         if ($alvo['id'] === $this->usuario()) {
             return null;
         }
-        $contato = $this->mensagens_model->contato($alvo['id'], $this->empresa());
+        $contato = $this->mensagens_model->contato($alvo['id'], $this->empresa(), $this->usuario());
         return $contato ? array('tipo' => 'direta', 'contato' => $contato) : null;
     }
 
@@ -242,7 +242,7 @@ class Mensagens_api extends MY_Controller {
                 'fixadas' => $this->mensagens_model->fixadas_conversa($chave, $this->usuario(), $this->empresa()),
                 'digitando' => $this->mensagens_model->quem_esta_digitando($this->usuario(), $this->empresa(), $chave),
                 'chamada_ativa' => $this->mensagens_recursos_model->chamada_ativa_conversa($this->empresa(), $chave, $this->usuario()),
-                'membros' => $this->mensagens_model->membros_canal($canal->id, $this->empresa()),
+                'membros' => $this->mensagens_model->membros_canal($canal->id, $this->empresa(), $this->usuario()),
             );
             if ($incluir_config) {
                 $dados['config'] = $this->mensagens_model->obter_config_conversa($this->usuario(), $this->empresa(), $chave);
@@ -795,6 +795,53 @@ class Mensagens_api extends MY_Controller {
         $this->responder(array('ok' => true, 'chamado' => $res));
     }
 
+    /**
+     * Dados do modal "Abrir chamado" do atendimento ao cliente (conversa direta com um cliente): o cliente como
+     * solicitante, as unidades dele (a primeira já vem escolhida), responsáveis, prioridades e as mídias da conversa
+     * para anexar. Só para suporte (suporte_ativo = 'S'), admin e desenvolvedores com permissão chamados/create.
+     * O chamado em si é criado por chamados/create (origem=mensagens), com as mesmas validações da tela de chamados.
+     */
+    public function atendimento_chamado($chave = null)
+    {
+        $alvo = $this->exigir_conversa($chave);
+        if (!$alvo) {
+            return;
+        }
+        session_write_close();
+        if (!$this->ion_auth->has_permissao('chamados', 'create')) {
+            $this->falhar(403, 'Seu grupo não tem permissão para abrir chamados.');
+            return;
+        }
+        $atendimento = $this->mensagens_recursos_model->atendimento_para_chamado((string) $chave, $this->usuario(), $this->empresa());
+        if (is_string($atendimento)) {
+            $this->falhar(422, $atendimento);
+            return;
+        }
+        $this->load->model('chamados_model');
+        $responsaveis = array();
+        $grupos_resp = $this->chamados_model->get_groups();
+        if ($grupos_resp) {
+            foreach ($grupos_resp->result() as $u) {
+                $responsaveis[] = array('id' => (int) $u->id, 'nome' => trim($u->first_name . ' ' . $u->last_name));
+            }
+        }
+        $prioridades = array();
+        foreach ($this->chamados_model->get_prioridades()->result() as $p) {
+            $prioridades[] = array('id' => (int) $p->id, 'nome' => (string) $p->descricao);
+        }
+        $this->responder(array(
+            'ok' => true,
+            'cliente' => $atendimento['cliente'],
+            'unidades' => $atendimento['unidades'],
+            'responsaveis' => $responsaveis,
+            'prioridades' => $prioridades,
+            'completo' => (bool) $this->chamados_model->is_full_create(),
+            'midias' => $this->mensagens_recursos_model->midias_conversa((string) $chave, $this->usuario(), $this->empresa(), ''),
+            'url_criar' => site_url('chamados/create'),
+            'url_base' => base_url(),
+        ));
+    }
+
     public function status_usuario()
     {
         if (!$this->exigir_post() || !$this->exigir_acesso()) {
@@ -839,7 +886,9 @@ class Mensagens_api extends MY_Controller {
         }
         $tipo = (string) $this->input->post('tipo');
         $tela = $this->input->post('tela') === '1';
-        $res = $this->mensagens_recursos_model->iniciar_ou_entrar_chamada($this->empresa(), $this->usuario(), $chave, $tipo, $tela);
+        // Cliente só recebe ligação (o suporte liga para ele): entra numa ativa, mas não inicia uma nova.
+        $pode_iniciar = !$this->mensagens_model->eh_cliente($this->usuario(), $this->empresa());
+        $res = $this->mensagens_recursos_model->iniciar_ou_entrar_chamada($this->empresa(), $this->usuario(), $chave, $tipo, $tela, $pode_iniciar);
         if (is_string($res)) {
             $this->falhar(422, $res);
             return;
@@ -915,6 +964,11 @@ class Mensagens_api extends MY_Controller {
         if (!$this->exigir_post() || !$this->exigir_acesso()) {
             return;
         }
+        // Canal alcança grupos inteiros: um cliente chegaria a clientes de outras unidades.
+        if ($this->mensagens_model->eh_cliente($this->usuario(), $this->empresa())) {
+            $this->falhar(403, 'Clientes não podem criar canais.');
+            return;
+        }
         $res = $this->mensagens_model->criar_canal(
             $this->empresa(),
             $this->usuario(),
@@ -939,6 +993,10 @@ class Mensagens_api extends MY_Controller {
         $canal = $this->mensagens_model->canal_do_usuario((int) $this->input->post('canal_id'), $this->usuario(), $this->empresa());
         if (!$canal || (int) $canal->criador_id !== $this->usuario()) {
             $this->falhar(403, 'Só quem criou o canal pode editá-lo.');
+            return;
+        }
+        if ($this->mensagens_model->eh_cliente($this->usuario(), $this->empresa())) {
+            $this->falhar(403, 'Clientes não podem editar canais.');
             return;
         }
         $res = $this->mensagens_model->atualizar_canal(

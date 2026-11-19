@@ -168,6 +168,8 @@ class Users extends Admin_Controller {
 			$email    = strtolower($this->input->post('email'));
 			$additional_data = [];
 			$password = '';
+			// Atendente do "Suporte" nas mensagens (coluna do sql/2026-11-17_users_suporte_ativo.sql; sem ela, o ion_auth ignora).
+			$additional_data['suporte_ativo'] = $this->input->post('suporte_ativo') === 'S' ? 'S' : 'N';
 
 			if($prefs->cadastro_user_completo == 1) {
 				$additional_data['first_name'] = $this->input->post('first_name');
@@ -491,7 +493,9 @@ class Users extends Admin_Controller {
 					$data = array(
 						'first_name' => $this->input->post('first_name'),
 						'last_name'  => $this->input->post('last_name'),
-						'email'  => $this->input->post('email')
+						'email'  => $this->input->post('email'),
+						// Atendente do "Suporte" nas mensagens (o ion_auth ignora se a coluna ainda não existir).
+						'suporte_ativo' => $this->input->post('suporte_ativo') === 'S' ? 'S' : 'N'
 					);
 
 					if ($this->input->post('password'))

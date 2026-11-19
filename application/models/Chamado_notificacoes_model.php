@@ -7,7 +7,8 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * Os pontos de alteração (diálogo, anexo, prioridade, Kanban, planejamento, edição) chamam registrar().
  * Os eventos ficam em memória e são gravados no fim da requisição, e assim tudo o que uma ação faz de uma vez
  * (escalar grava status, responsável, prazo e mensagem) vira uma única notificação por usuário.
- * Quem fez a alteração não é notificado, e eventos internos/restritos só chegam a quem vê os itens internos
+ * Quem fez a alteração não recebe a notificação do sino, mas recebe a mensagem do Bot Chamados (histórico do que
+ * mudou, inclusive nos próprios chamados). Eventos internos/restritos só chegam a quem vê os itens internos
  * na tela do chamado (grupos de responsável/desenvolvedor da empresa, como em Chamados_model::usuario_ve_internos).
  */
 class Chamado_notificacoes_model extends CI_Model
@@ -176,15 +177,17 @@ class Chamado_notificacoes_model extends CI_Model
         foreach ($eventos as $evento) {
             $autores[$evento['autor_id']] = true;
         }
+        // Todos os vinculados ao chamado. Quem fez a alteração também recebe a mensagem do bot (para ter o
+        // histórico do que mudou), mas não a notificação do sino.
         $destinatarios = array();
         foreach (array('dono_id', 'responsavel_id', 'desenvolvedor_id') as $campo) {
             $user_id = (int) $chamado->$campo;
-            if ($user_id > 0 && !isset($autores[$user_id])) {
+            if ($user_id > 0) {
                 $destinatarios[$user_id] = true;
             }
         }
         foreach ($this->extrair_interessados($chamado->interessados) as $int_id) {
-            if ($int_id > 0 && !isset($autores[$int_id])) {
+            if ($int_id > 0) {
                 $destinatarios[$int_id] = true;
             }
         }
@@ -223,20 +226,24 @@ class Chamado_notificacoes_model extends CI_Model
                 $texto = rtrim(mb_substr($texto, 0, 477, 'UTF-8')) . '...';
             }
             $titulo_notif = $this->titulo($principal, $chamado, $user_id);
-            $linhas[] = array(
-                'user_id' => $user_id,
-                'empresa_id' => (int) $chamado->empresa_id,
-                'chamado_id' => (int) $chamado->id,
-                'autor_id' => $principal['autor_id'] ? $principal['autor_id'] : null,
-                'tipo' => $principal['tipo'],
-                'titulo' => $titulo_notif,
-                'texto' => $texto,
-                'created_at' => $agora,
-            );
+            if (!isset($autores[$user_id])) {
+                $linhas[] = array(
+                    'user_id' => $user_id,
+                    'empresa_id' => (int) $chamado->empresa_id,
+                    'chamado_id' => (int) $chamado->id,
+                    'autor_id' => $principal['autor_id'] ? $principal['autor_id'] : null,
+                    'tipo' => $principal['tipo'],
+                    'titulo' => $titulo_notif,
+                    'texto' => $texto,
+                    'created_at' => $agora,
+                );
+            }
             $mensagens_bot[$user_id] = array('titulo' => $titulo_notif, 'texto' => $texto);
         }
         if ($linhas) {
             $this->db->insert_batch('chamado_notificacao', $linhas);
+        }
+        if ($mensagens_bot) {
             $this->enviar_mensagens_bot($chamado, $mensagens_bot);
         }
 

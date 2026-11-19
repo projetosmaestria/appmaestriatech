@@ -723,6 +723,63 @@ class Prefs extends Admin_Controller {
         }
     }
 
+    /**
+     * Preferências > Integração: gera ou revoga o token dos endpoints integracao/empresas e integracao/usuarios
+     * desta empresa. O token completo aparece uma única vez, logo depois de gerado.
+     * Só o grupo admin da empresa (Preferências > Grupo Admin) vê, gera e revoga o token.
+     */
+    public function integracao()
+    {
+        if (!$this->ion_auth->logged_in() || !$this->ion_auth->has_permissao('prefs', 'index')) {
+            redirect('auth', 'refresh');
+        }
+        if (!$this->ion_auth->is_admin()) {
+            show_error('Só usuários do grupo admin podem gerenciar o token de integração.', 403, 'Acesso negado');
+        }
+        $this->load->model('integracao_token_model');
+        $empresa_id = (int) $this->session->userdata('empresa_id');
+        $user_id = (int) $this->session->userdata('user_id');
+
+        if ($this->input->method() === 'post') {
+            $nonce = (string) $this->session->userdata('integracao_nonce');
+            $acao = (string) $this->input->post('acao');
+            if ($nonce === '' || !hash_equals($nonce, (string) $this->input->post('nonce'))) {
+                $this->session->set_flashdata('message', show_alert_error('A página expirou. Tente de novo.'));
+            } elseif (!$this->integracao_token_model->disponivel()) {
+                $this->session->set_flashdata('message', show_alert_error('Aplique o script sql/2026-11-17_integracao_token.sql no banco antes de gerar o token.'));
+            } elseif ($acao === 'gerar') {
+                $token = $this->integracao_token_model->gerar($empresa_id, $user_id);
+                if ($token === false) {
+                    $this->session->set_flashdata('message', show_alert_error('Não foi possível gerar o token. Tente de novo.'));
+                } else {
+                    // Mostrado uma única vez, na próxima página.
+                    $this->session->set_flashdata('integracao_token_novo', $token);
+                    $this->ion_auth->create_auditoria(array('user_id' => $user_id, 'empresa_id' => $empresa_id, 'controlador' => 'prefs', 'metodo' => 'integracao', 'obs' => 'Token de integração gerado (' . substr($token, 0, 9) . '...). O anterior, se havia, foi revogado.'));
+                }
+            } elseif ($acao === 'revogar') {
+                if ($this->integracao_token_model->revogar($empresa_id) > 0) {
+                    $this->session->set_flashdata('message', show_alert_success('Token revogado. Os sistemas que usavam este token perderam o acesso.'));
+                    $this->ion_auth->create_auditoria(array('user_id' => $user_id, 'empresa_id' => $empresa_id, 'controlador' => 'prefs', 'metodo' => 'integracao', 'obs' => 'Token de integração revogado.'));
+                }
+            }
+            redirect('prefs/integracao', 'refresh');
+        }
+
+        $nonce = bin2hex(openssl_random_pseudo_bytes(16));
+        $this->session->set_userdata('integracao_nonce', $nonce);
+
+        $this->page_title->push(lang('menu_preferences'), 'Integração');
+        $this->data['pagetitle'] = $this->page_title->show();
+        $this->breadcrumbs->unshift(2, 'Integração', 'prefs/integracao');
+        $this->data['breadcrumb'] = $this->breadcrumbs->show();
+        $this->data['message'] = $this->session->flashdata('message');
+        $this->data['token_novo'] = (string) $this->session->flashdata('integracao_token_novo');
+        $this->data['tabela_ok'] = $this->integracao_token_model->disponivel();
+        $this->data['token_ativo'] = $this->integracao_token_model->ativo($empresa_id);
+        $this->data['nonce'] = $nonce;
+        $this->template->admin_render('admin/prefs/interfaces/integracao', $this->data);
+    }
+
 
     private function _teste_envio($email_config, $from_email, $from_name) {
 

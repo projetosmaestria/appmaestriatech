@@ -6,9 +6,14 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * áudio, emojis, confirmação de leitura/entrega, respostas, edição/exclusão, fixação, busca,
  * menções (@), encaminhamento, indicador de digitação, notificações por conversa e favoritos.
  *
- * Só participam os usuários dos grupos liberados em Preferências > "Grupos com acesso às mensagens".
+ * Só participam os usuários ATIVOS dos grupos liberados em Preferências > "Grupos com acesso às mensagens".
  * Sem nada configurado, valem o grupo admin da empresa e os grupos chamados desenvolvedor, financeiro,
  * supervisor e suporte (o nome é comparado sem acento e sem diferenciar maiúsculas; "Suporte N1" também conta).
+ * Os grupos "Apontamentos" e "Clientes" entram sempre, com ou sem configuração.
+ *
+ * Clientes (usuário só do grupo "Clientes"): veem apenas clientes vinculados a uma mesma unidade (user_unidade),
+ * o bot e um contato "Suporte". O "Suporte" é a conversa direta com um atendente (users.suporte_ativo = 'S'),
+ * mas o cliente não escolhe nem vê qual: o nome e a foto aparecem como "Suporte". Ver agente_suporte().
  *
  * Cada conversa tem uma chave: "u{id}" para a conversa direta com o usuário e "g{id}" para o grupo.
  * Mensagem direta: para_id = destinatário e grupo_id NULL. Mensagem de grupo: grupo_id preenchido e para_id = 0.
@@ -26,9 +31,20 @@ class Mensagens_model extends CI_Model
 
     // Início do nome dos grupos liberados por padrão (sem acento, minúsculo).
     private $grupos_padrao = array('admin', 'desenvolv', 'financ', 'supervis', 'suport');
+    // Grupos que entram sempre, mesmo com "Grupos com acesso às mensagens" configurado.
+    private $grupos_sempre = array('apont', 'client');
+    // Início do nome do grupo de clientes (sem acento, minúsculo).
+    private $inicio_grupo_cliente = 'client';
+    // Depois de tanto tempo sem conversa, o "Suporte" do cliente volta a ser distribuído entre os atendentes ativos.
+    const HORAS_ATENDIMENTO_SUPORTE = 24;
     private $cores_autor = array('#3c8dbc', '#00a65a', '#605ca8', '#d81b60', '#f39c12', '#00838f', '#6d4c41', '#c0392b');
 
     private static $cache_grupos = array();
+    private static $cache_grupos_cliente = array();
+    private static $cache_perfil = array();
+    private static $cache_unidades = array();
+    private static $cache_agentes = array();
+    private static $cache_agente = array();
     private static $cache_acesso = array();
     private static $cache_tabelas = array();
     private static $cache_colunas = array();
@@ -115,18 +131,20 @@ class Mensagens_model extends CI_Model
         if ($pref && isset($pref->grupos_mensagens) && $pref->grupos_mensagens) {
             $grupos = array_filter(array_map('intval', (array) @unserialize($pref->grupos_mensagens)));
         }
+        $inicios = $this->grupos_sempre;
         if (!$grupos) {
             if ($pref && (int) $pref->grupo_admin > 0) {
                 $grupos[] = (int) $pref->grupo_admin;
             }
-            $rows = $this->db->select('id, name')->where('empresa_id', $empresa_id)->get('groups')->result();
-            foreach ($rows as $row) {
-                $nome = $this->normalizar($row->name);
-                foreach ($this->grupos_padrao as $inicio) {
-                    if (strpos($nome, $inicio) === 0) {
-                        $grupos[] = (int) $row->id;
-                        break;
-                    }
+            $inicios = array_merge($this->grupos_padrao, $this->grupos_sempre);
+        }
+        $rows = $this->db->select('id, name')->where('empresa_id', $empresa_id)->get('groups')->result();
+        foreach ($rows as $row) {
+            $nome = $this->normalizar($row->name);
+            foreach ($inicios as $inicio) {
+                if (strpos($nome, $inicio) === 0) {
+                    $grupos[] = (int) $row->id;
+                    break;
                 }
             }
         }
@@ -172,6 +190,308 @@ class Mensagens_model extends CI_Model
         return $ok;
     }
 
+    /* ---------- Clientes e atendimento "Suporte" ---------- */
+
+    // Ids dos grupos "Clientes" da empresa.
+    public function grupos_cliente($empresa_id)
+    {
+        $empresa_id = (int) $empresa_id;
+        if (!isset(self::$cache_grupos_cliente[$empresa_id])) {
+            $ids = array();
+            $rows = $this->db->select('id, name')->where('empresa_id', $empresa_id)->get('groups')->result();
+            foreach ($rows as $row) {
+                if (strpos($this->normalizar($row->name), $this->inicio_grupo_cliente) === 0) {
+                    $ids[] = (int) $row->id;
+                }
+            }
+            self::$cache_grupos_cliente[$empresa_id] = $ids;
+        }
+        return self::$cache_grupos_cliente[$empresa_id];
+    }
+
+    /**
+     * Perfil de cada usuário dentro das mensagens: 'cliente' quando, entre os grupos liberados, ele só está em
+     * grupos "Clientes"; 'equipe' quando está em qualquer outro grupo liberado. Quem não tem grupo liberado fica fora.
+     */
+    private function perfis($user_ids, $empresa_id)
+    {
+        $empresa_id = (int) $empresa_id;
+        $saida = array();
+        $buscar = array();
+        foreach (array_unique(array_map('intval', (array) $user_ids)) as $uid) {
+            if ($uid <= 0) {
+                continue;
+            }
+            $chave = $empresa_id . '-' . $uid;
+            if (array_key_exists($chave, self::$cache_perfil)) {
+                if (self::$cache_perfil[$chave] !== null) {
+                    $saida[$uid] = self::$cache_perfil[$chave];
+                }
+            } else {
+                $buscar[] = $uid;
+            }
+        }
+        if (!$buscar) {
+            return $saida;
+        }
+        $grupos = $this->grupos_permitidos($empresa_id);
+        $achados = array();
+        if ($grupos) {
+            $clientes = array_flip($this->grupos_cliente($empresa_id));
+            foreach (array_chunk($buscar, 500) as $lote) {
+                $rows = $this->db->select('user_id, group_id')->where_in('user_id', $lote)->where_in('group_id', $grupos)->get('users_groups')->result();
+                foreach ($rows as $row) {
+                    $uid = (int) $row->user_id;
+                    $eh_grupo_cliente = isset($clientes[(int) $row->group_id]);
+                    // Qualquer grupo liberado que não seja de clientes faz a pessoa ser da equipe.
+                    if (!isset($achados[$uid]) || !$eh_grupo_cliente) {
+                        $achados[$uid] = $eh_grupo_cliente ? 'cliente' : 'equipe';
+                    }
+                }
+            }
+        }
+        foreach ($buscar as $uid) {
+            $perfil = isset($achados[$uid]) ? $achados[$uid] : null;
+            self::$cache_perfil[$empresa_id . '-' . $uid] = $perfil;
+            if ($perfil !== null) {
+                $saida[$uid] = $perfil;
+            }
+        }
+        return $saida;
+    }
+
+    /**
+     * Quem pode abrir chamado a partir do atendimento ao cliente nas Mensagens: atendente do suporte
+     * (users.suporte_ativo = 'S'), grupo admin ou grupo de desenvolvedores da empresa. Cliente nunca.
+     * (A permissão chamados/create é conferida à parte, no controller.)
+     */
+    public function pode_abrir_chamado_atendimento($user_id, $empresa_id)
+    {
+        $user_id = (int) $user_id;
+        $empresa_id = (int) $empresa_id;
+        if ($user_id <= 0 || !$this->tem_acesso($user_id, $empresa_id) || $this->eh_cliente($user_id, $empresa_id)) {
+            return false;
+        }
+        if ($this->tem_coluna('users', 'suporte_ativo')
+            && $this->db->where('id', $user_id)->where('suporte_ativo', 'S')->count_all_results('users') > 0) {
+            return true;
+        }
+        $grupos = $this->db->select('g.name')
+            ->join('groups g', 'g.id = ug.group_id')
+            ->where('ug.user_id', $user_id)
+            ->where('g.empresa_id', $empresa_id)
+            ->get('users_groups ug')
+            ->result();
+        foreach ($grupos as $g) {
+            $nome = $this->normalizar($g->name);
+            if ($nome === 'admin' || strpos($nome, 'administrador') === 0 || strpos($nome, 'desenvolv') === 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Unidades da empresa vinculadas ao usuário (id, unidade, razao_social), em ordem de nome.
+    public function unidades_do_cliente($user_id, $empresa_id)
+    {
+        $ids = $this->unidades_usuario($user_id, $empresa_id);
+        if (!$ids) {
+            return array();
+        }
+        return $this->db->select('id, unidade, razao_social')
+            ->where_in('id', $ids)
+            ->where('empresa_id', (int) $empresa_id)
+            ->order_by('unidade', 'ASC')
+            ->get('unidades')
+            ->result();
+    }
+
+    public function eh_cliente($user_id, $empresa_id)
+    {
+        $perfis = $this->perfis(array((int) $user_id), $empresa_id);
+        return isset($perfis[(int) $user_id]) && $perfis[(int) $user_id] === 'cliente';
+    }
+
+    // Unidades da EMPRESA às quais o usuário está vinculado.
+    private function unidades_usuario($user_id, $empresa_id)
+    {
+        $chave = (int) $empresa_id . '-' . (int) $user_id;
+        if (!isset(self::$cache_unidades[$chave])) {
+            $ids = array();
+            $rows = $this->db->select('uu.unidade_id')
+                ->join('unidades un', 'un.id = uu.unidade_id')
+                ->where('uu.user_id', (int) $user_id)
+                ->where('un.empresa_id', (int) $empresa_id)
+                ->get('user_unidade uu')
+                ->result();
+            foreach ($rows as $row) {
+                $ids[] = (int) $row->unidade_id;
+            }
+            self::$cache_unidades[$chave] = array_values(array_unique($ids));
+        }
+        return self::$cache_unidades[$chave];
+    }
+
+    // Dos $candidatos, os que têm alguma unidade em comum com o cliente.
+    private function clientes_da_mesma_unidade($cliente_id, $candidatos, $empresa_id)
+    {
+        $candidatos = array_values(array_unique(array_filter(array_map('intval', (array) $candidatos))));
+        $unidades = $this->unidades_usuario($cliente_id, $empresa_id);
+        if (!$candidatos || !$unidades) {
+            return array();
+        }
+        $ids = array();
+        foreach (array_chunk($candidatos, 500) as $lote) {
+            $rows = $this->db->distinct()->select('user_id')->where_in('unidade_id', $unidades)->where_in('user_id', $lote)->get('user_unidade')->result();
+            foreach ($rows as $row) {
+                $ids[] = (int) $row->user_id;
+            }
+        }
+        return $ids;
+    }
+
+    // Atendentes ativos (users.suporte_ativo = 'S') da equipe da empresa, em ordem de id.
+    public function agentes_suporte($empresa_id)
+    {
+        $empresa_id = (int) $empresa_id;
+        if (isset(self::$cache_agentes[$empresa_id])) {
+            return self::$cache_agentes[$empresa_id];
+        }
+        $agentes = array();
+        $grupos = $this->grupos_permitidos($empresa_id);
+        if ($grupos && $this->tem_coluna('users', 'suporte_ativo')) {
+            $rows = $this->db->distinct()->select('u.id')
+                ->join('users_groups ug', 'ug.user_id = u.id')
+                ->where_in('ug.group_id', $grupos)
+                ->where('u.active', 1)
+                ->where('u.suporte_ativo', 'S')
+                ->order_by('u.id', 'ASC')
+                ->get('users u')
+                ->result();
+            $ids = array();
+            foreach ($rows as $row) {
+                $ids[] = (int) $row->id;
+            }
+            $perfis = $this->perfis($ids, $empresa_id);
+            foreach ($ids as $id) {
+                if (isset($perfis[$id]) && $perfis[$id] === 'equipe') {
+                    $agentes[] = $id;
+                }
+            }
+        }
+        self::$cache_agentes[$empresa_id] = $agentes;
+        return $agentes;
+    }
+
+    // Usuários dos grupos de desenvolvedores da empresa (nome do grupo começa com "desenvolv", sem acento e sem diferenciar maiúsculas).
+    public function usuarios_desenvolvedores($empresa_id)
+    {
+        static $cache = array();
+        $empresa_id = (int) $empresa_id;
+        if (isset($cache[$empresa_id])) {
+            return $cache[$empresa_id];
+        }
+        $grupos = array();
+        $rows = $this->db->select('id, name')->where('empresa_id', $empresa_id)->get('groups')->result();
+        foreach ($rows as $row) {
+            if (strpos($this->normalizar($row->name), 'desenvolv') === 0) {
+                $grupos[] = (int) $row->id;
+            }
+        }
+        $ids = array();
+        if ($grupos) {
+            $rows = $this->db->distinct()->select('user_id')->where_in('group_id', $grupos)->get('users_groups')->result();
+            foreach ($rows as $row) {
+                $ids[] = (int) $row->user_id;
+            }
+        }
+        $cache[$empresa_id] = $ids;
+        return $ids;
+    }
+
+    /**
+     * Quem atende o cliente quando ele fala com "Suporte" (0 se não há ninguém).
+     * Continua com quem da equipe conversou com ele por último, se essa pessoa ainda é atendente ativa ou se a
+     * conversa é das últimas HORAS_ATENDIMENTO_SUPORTE horas. Senão, distribui entre os atendentes ativos
+     * (sempre o mesmo para o mesmo cliente enquanto a lista de atendentes não mudar).
+     */
+    public function agente_suporte($cliente_id, $empresa_id)
+    {
+        $cliente_id = (int) $cliente_id;
+        $empresa_id = (int) $empresa_id;
+        $chave = $empresa_id . '-' . $cliente_id;
+        if (isset(self::$cache_agente[$chave])) {
+            return self::$cache_agente[$chave];
+        }
+        $agentes = $this->agentes_suporte($empresa_id);
+        $agente = 0;
+        $sql = 'SELECT IF(m.de_id = ?, m.para_id, m.de_id) AS outro, MAX(m.id) AS ultima_id, MAX(m.created_at) AS ultima_em'
+            . ' FROM mensagem m WHERE m.empresa_id = ? AND (m.de_id = ? OR m.para_id = ?) AND m.para_id > 0'
+            . $this->sql_so_diretas('m')
+            . ' GROUP BY outro ORDER BY ultima_id DESC';
+        $rows = $this->db->query($sql, array($cliente_id, $empresa_id, $cliente_id, $cliente_id))->result();
+        $outros = array();
+        foreach ($rows as $row) {
+            $outros[] = (int) $row->outro;
+        }
+        $perfis = $this->perfis($outros, $empresa_id);
+        foreach ($rows as $row) {
+            $outro = (int) $row->outro;
+            if ($outro === $cliente_id || !isset($perfis[$outro]) || $perfis[$outro] !== 'equipe') {
+                continue;
+            }
+            $recente = strtotime($row->ultima_em) >= time() - self::HORAS_ATENDIMENTO_SUPORTE * 3600;
+            if (in_array($outro, $agentes, true) || ($recente && $this->tem_acesso($outro, $empresa_id))) {
+                $agente = $outro;
+            }
+            break;
+        }
+        if (!$agente && $agentes) {
+            $agente = $agentes[$cliente_id % count($agentes)];
+        }
+        self::$cache_agente[$chave] = $agente;
+        return $agente;
+    }
+
+    /**
+     * Se o usuário pode ter conversa direta com o outro. Equipe fala com todos que têm acesso; cliente só com
+     * clientes de uma mesma unidade e com o atendente que agente_suporte() escolheu para ele. O bot é tratado à parte.
+     */
+    public function pode_conversar($user_id, $outro_id, $empresa_id)
+    {
+        $user_id = (int) $user_id;
+        $outro_id = (int) $outro_id;
+        if ($user_id <= 0 || $outro_id <= 0 || $user_id === $outro_id || !$this->tem_acesso($outro_id, $empresa_id)) {
+            return false;
+        }
+        if (!$this->eh_cliente($user_id, $empresa_id)) {
+            return true;
+        }
+        if ($this->eh_cliente($outro_id, $empresa_id)) {
+            return count($this->clientes_da_mesma_unidade($user_id, array($outro_id), $empresa_id)) > 0;
+        }
+        return $outro_id === $this->agente_suporte($user_id, $empresa_id);
+    }
+
+    // Para o cliente, qualquer pessoa da equipe aparece como "Suporte".
+    public function ver_como_suporte($user_id, $outro_id, $empresa_id)
+    {
+        if ((int) $outro_id <= 0 || !$this->eh_cliente($user_id, $empresa_id)) {
+            return false;
+        }
+        $perfis = $this->perfis(array((int) $outro_id), $empresa_id);
+        return isset($perfis[(int) $outro_id]) && $perfis[(int) $outro_id] === 'equipe';
+    }
+
+    private function mascarar_suporte($contato)
+    {
+        $contato['nome'] = 'Suporte';
+        $contato['foto'] = null;
+        $contato['is_suporte'] = true;
+        $contato['status_texto'] = '';
+        return $contato;
+    }
+
     /* ---------- Pessoas e lista de conversas ---------- */
 
     /**
@@ -196,6 +516,31 @@ class Mensagens_model extends CI_Model
             ->where('u.id !=', $user_id)
             ->get('users u')
             ->result();
+        // Cliente: só clientes de uma mesma unidade e o atendente do "Suporte" (sem mostrar quem é).
+        $sou_cliente = $this->eh_cliente($user_id, $empresa_id);
+        $agente_id = 0;
+        if ($sou_cliente) {
+            $ids = array();
+            foreach ($usuarios as $ux) {
+                $ids[] = (int) $ux->id;
+            }
+            $perfis = $this->perfis($ids, $empresa_id);
+            $clientes_ids = array();
+            foreach ($ids as $id) {
+                if (isset($perfis[$id]) && $perfis[$id] === 'cliente') {
+                    $clientes_ids[] = $id;
+                }
+            }
+            $vizinhos = array_flip($this->clientes_da_mesma_unidade($user_id, $clientes_ids, $empresa_id));
+            $agente_id = $this->agente_suporte($user_id, $empresa_id);
+            $filtrados = array();
+            foreach ($usuarios as $ux) {
+                if (isset($vizinhos[(int) $ux->id]) || (int) $ux->id === $agente_id) {
+                    $filtrados[] = $ux;
+                }
+            }
+            $usuarios = $filtrados;
+        }
         if ($tem_bot_col) {
             $bots = $this->db->select('id, first_name, last_name, is_bot, ' . $this->campo_foto(''), false)
                 ->where('is_bot', 1)
@@ -227,6 +572,19 @@ class Mensagens_model extends CI_Model
         $rascunhos = $this->mensagens_recursos_model->rascunhos_usuario($empresa_id, $user_id);
         $etiquetas = $this->mensagens_recursos_model->etiquetas_por_conversa($empresa_id, $user_id);
         $fotos = $this->fotos($usuarios);
+        // Selos "Suporte" e "Desenvolvedor" na escolha de pessoas. Só para a equipe: o cliente não pode saber
+        // quem é o atendente por trás do contato "Suporte".
+        $atendentes = $sou_cliente ? array() : array_flip($this->agentes_suporte($empresa_id));
+        $desenvolvedores = $sou_cliente ? array() : array_flip($this->usuarios_desenvolvedores($empresa_id));
+        // Marca quem é cliente (botão "Abrir chamado" do atendimento). Também só para a equipe.
+        $perfis_contatos = array();
+        if (!$sou_cliente) {
+            $ids_contatos = array();
+            foreach ($usuarios as $ux) {
+                $ids_contatos[] = (int) $ux->id;
+            }
+            $perfis_contatos = $this->perfis($ids_contatos, $empresa_id);
+        }
         $contatos = array();
         foreach ($usuarios as $u) {
             $id = (int) $u->id;
@@ -237,13 +595,17 @@ class Mensagens_model extends CI_Model
             $st = $eh_bot
                 ? array('status' => 'online', 'rotulo' => 'Bot automático', 'texto' => 'Atualizações de chamados')
                 : (isset($status_map[$id]) ? $status_map[$id] : array('status' => 'offline', 'rotulo' => 'Offline', 'texto' => ''));
-            $contatos[] = array(
+            $contato = array(
                 'chave' => $chave,
                 'tipo' => 'direta',
                 'id' => $id,
                 'nome' => $this->nome($u),
                 'foto' => $fotos[$id],
                 'is_bot' => $eh_bot,
+                'is_suporte' => false,
+                'suporte_ativo' => isset($atendentes[$id]),
+                'desenvolvedor' => isset($desenvolvedores[$id]),
+                'cliente' => isset($perfis_contatos[$id]) && $perfis_contatos[$id] === 'cliente',
                 'somente_leitura' => $eh_bot,
                 'status' => $st['status'],
                 'status_rotulo' => $st['rotulo'],
@@ -262,6 +624,7 @@ class Mensagens_model extends CI_Model
                 'ultima_em' => $r ? $r['ultima_em'] : null,
                 'quando' => $r ? $this->quando($r['ultima_em']) : '',
             );
+            $contatos[] = ($sou_cliente && $id === $agente_id) ? $this->mascarar_suporte($contato) : $contato;
         }
         usort($contatos, array($this, 'ordenar_conversas'));
         return $contatos;
@@ -483,8 +846,12 @@ class Mensagens_model extends CI_Model
         return $canais;
     }
 
-    // Dados de uma pessoa com quem o usuário pode conversar (null se ela não tiver acesso às mensagens).
-    public function contato($user_id, $empresa_id)
+    /**
+     * Dados de uma pessoa com quem o usuário pode conversar (null se ela não tiver acesso às mensagens).
+     * Com $viewer_id, também confere se quem está vendo pode conversar com ela (regra dos clientes) e,
+     * para o cliente, mostra a pessoa da equipe como "Suporte".
+     */
+    public function contato($user_id, $empresa_id, $viewer_id = 0)
     {
         $tem_bot_col = $this->db->field_exists('is_bot', 'users');
         $campo_bot = $tem_bot_col ? 'is_bot' : '0 AS is_bot';
@@ -496,23 +863,33 @@ class Mensagens_model extends CI_Model
         if (!$eh_bot && !$this->tem_acesso($user_id, $empresa_id)) {
             return null;
         }
+        if (!$eh_bot && (int) $viewer_id > 0 && !$this->pode_conversar($viewer_id, $user_id, $empresa_id)) {
+            return null;
+        }
         $fotos = $this->fotos(array($u));
         $this->load->model('mensagens_recursos_model');
         $st = $eh_bot
             ? array('status' => 'online', 'rotulo' => 'Bot automático', 'texto' => 'Atualizações de chamados')
             : $this->mensagens_recursos_model->status_usuario($empresa_id, (int) $u->id);
-        return array(
+        $contato = array(
             'chave' => 'u' . (int) $u->id,
             'tipo' => 'direta',
             'id' => (int) $u->id,
             'nome' => $this->nome($u),
             'foto' => $fotos[(int) $u->id],
             'is_bot' => $eh_bot,
+            'is_suporte' => false,
             'somente_leitura' => $eh_bot,
             'status' => $st['status'],
             'status_rotulo' => $st['rotulo'],
             'status_texto' => $st['texto'],
+            // Só a equipe sabe quem é cliente (botão "Abrir chamado" do atendimento).
+            'cliente' => !$eh_bot && (int) $viewer_id > 0 && !$this->eh_cliente($viewer_id, $empresa_id) && $this->eh_cliente($u->id, $empresa_id),
         );
+        if (!$eh_bot && (int) $viewer_id > 0 && $this->ver_como_suporte($viewer_id, $u->id, $empresa_id)) {
+            $contato = $this->mascarar_suporte($contato);
+        }
+        return $contato;
     }
 
     /* ---------- Conversa direta ---------- */
@@ -680,18 +1057,21 @@ class Mensagens_model extends CI_Model
         );
     }
 
-    // Participantes ativos, o criador primeiro e depois por ordem de entrada.
-    public function membros($grupo_id)
+    // Participantes que não saíram (e, por padrão, só usuários ativos), o criador primeiro e depois por ordem de entrada.
+    public function membros($grupo_id, $somente_ativos = true)
     {
         $grupo_id = (int) $grupo_id;
         $grupo = $this->db->select('criador_id')->where('id', $grupo_id)->get('mensagem_grupo')->row();
         $criador_id = $grupo ? (int) $grupo->criador_id : 0;
         // Ordenação no SQL (o usort do PHP 5.6 não é estável): criador, depois quem entrou primeiro.
-        $rows = $this->db->select('u.id, u.first_name, u.last_name, gm.entrou_em, ' . $this->campo_foto('u'), false)
+        $this->db->select('u.id, u.first_name, u.last_name, gm.entrou_em, ' . $this->campo_foto('u'), false)
             ->join('users u', 'u.id = gm.user_id')
             ->where('gm.grupo_id', $grupo_id)
-            ->where('gm.saiu_em IS NULL', null, false)
-            ->order_by('(gm.user_id = ' . $criador_id . ')', 'DESC', false)
+            ->where('gm.saiu_em IS NULL', null, false);
+        if ($somente_ativos) {
+            $this->db->where('u.active', 1);
+        }
+        $rows = $this->db->order_by('(gm.user_id = ' . $criador_id . ')', 'DESC', false)
             ->order_by('gm.entrou_em', 'ASC')
             ->order_by('gm.user_id', 'ASC')
             ->get('mensagem_grupo_membro gm')
@@ -874,7 +1254,7 @@ class Mensagens_model extends CI_Model
     public function adicionar_membros($grupo, $empresa_id, $autor_id, $membros)
     {
         $ativos = array();
-        foreach ($this->membros($grupo->id) as $m) {
+        foreach ($this->membros($grupo->id, false) as $m) {
             $ativos[$m['id']] = true;
         }
         $novos = array();
@@ -923,14 +1303,15 @@ class Mensagens_model extends CI_Model
     {
         $this->db->where('grupo_id', (int) $grupo->id)->where('user_id', (int) $user_id)->where('saiu_em IS NULL', null, false)
             ->update('mensagem_grupo_membro', array('saiu_em' => date('Y-m-d H:i:s')));
-        $restantes = $this->membros($grupo->id);
+        $restantes = $this->membros($grupo->id, false);
         if (!$restantes) {
             $this->db->where('id', (int) $grupo->id)->update('mensagem_grupo', array('excluido_em' => date('Y-m-d H:i:s')));
             return true;
         }
         $this->aviso_grupo($grupo->id, $empresa_id, $user_id, $this->nome_usuario($user_id) . ' saiu do grupo.');
         if ((int) $grupo->criador_id === (int) $user_id) {
-            $novo = $restantes[0]['id'];
+            $restantes_ativos = $this->membros($grupo->id);
+            $novo = $restantes_ativos ? $restantes_ativos[0]['id'] : $restantes[0]['id'];
             $this->db->where('id', (int) $grupo->id)->update('mensagem_grupo', array('criador_id' => $novo));
             $this->aviso_grupo($grupo->id, $empresa_id, $novo, $this->nome_usuario($novo) . ' agora administra o grupo.');
         }
@@ -958,14 +1339,20 @@ class Mensagens_model extends CI_Model
     }
 
     // Ids únicos, sem o próprio usuário e só de quem tem acesso às mensagens na empresa.
+    // Cliente só monta grupo com clientes de uma mesma unidade (o atendente do "Suporte" não entra).
     private function membros_validos($membros, $proprio_id, $empresa_id)
     {
         $validos = array();
+        $sou_cliente = $this->eh_cliente($proprio_id, $empresa_id);
         foreach ((array) $membros as $user_id) {
             $user_id = (int) $user_id;
-            if ($user_id > 0 && $user_id !== (int) $proprio_id && !in_array($user_id, $validos, true) && $this->tem_acesso($user_id, $empresa_id)) {
-                $validos[] = $user_id;
+            if ($user_id <= 0 || $user_id === (int) $proprio_id || in_array($user_id, $validos, true) || !$this->pode_conversar($proprio_id, $user_id, $empresa_id)) {
+                continue;
             }
+            if ($sou_cliente && !$this->eh_cliente($user_id, $empresa_id)) {
+                continue;
+            }
+            $validos[] = $user_id;
         }
         return $validos;
     }
@@ -1067,7 +1454,8 @@ class Mensagens_model extends CI_Model
         );
     }
 
-    public function membros_canal($canal_id, $empresa_id)
+    // Usuários ativos que veem o canal. Com $viewer_id de um cliente, só aparecem quem ele pode ver (pode_conversar).
+    public function membros_canal($canal_id, $empresa_id, $viewer_id = 0)
     {
         $canal = $this->db->where('id', (int) $canal_id)->where('empresa_id', (int) $empresa_id)->get('mensagem_canal')->row();
         if (!$canal) {
@@ -1090,6 +1478,28 @@ class Mensagens_model extends CI_Model
             $this->db->or_where_in('ug.group_id', $gids);
         }
         $rows = $this->db->group_end()->order_by('u.first_name', 'ASC')->get()->result();
+        $viewer_id = (int) $viewer_id;
+        if ($viewer_id > 0 && $this->eh_cliente($viewer_id, $empresa_id)) {
+            $ids = array();
+            foreach ($rows as $u) {
+                $ids[] = (int) $u->id;
+            }
+            $perfis = $this->perfis($ids, $empresa_id);
+            $clientes_ids = array();
+            foreach ($ids as $id) {
+                if (isset($perfis[$id]) && $perfis[$id] === 'cliente') {
+                    $clientes_ids[] = $id;
+                }
+            }
+            $vizinhos = array_flip($this->clientes_da_mesma_unidade($viewer_id, $clientes_ids, $empresa_id));
+            $visiveis = array();
+            foreach ($rows as $u) {
+                if ((int) $u->id === $viewer_id || isset($vizinhos[(int) $u->id])) {
+                    $visiveis[] = $u;
+                }
+            }
+            $rows = $visiveis;
+        }
         $fotos = $this->fotos($rows);
         $membros = array();
         foreach ($rows as $u) {
@@ -1434,7 +1844,7 @@ class Mensagens_model extends CI_Model
                 if ($this->pode_enviar_canal($alvo['id'], $user_id, $empresa_id)) {
                     $alvos['c' . $alvo['id']] = array('tipo' => 'canal', 'id' => $alvo['id']);
                 }
-            } elseif ($alvo['id'] !== (int) $user_id && $this->tem_acesso($alvo['id'], $empresa_id)) {
+            } elseif ($this->pode_conversar($user_id, $alvo['id'], $empresa_id)) {
                 $alvos['u' . $alvo['id']] = array('tipo' => 'direta', 'id' => $alvo['id']);
             }
         }
@@ -1868,7 +2278,9 @@ class Mensagens_model extends CI_Model
                 $outro = ((int) $r->de_id === $user_id) ? (int) $r->para_id : (int) $r->de_id;
                 $m['conversa_chave'] = 'u' . $outro;
                 $m['conversa_tipo'] = 'direta';
-                $m['conversa_nome'] = isset($nomes_usuarios[$outro]) ? $nomes_usuarios[$outro] : 'Usuário #' . $outro;
+                $m['conversa_nome'] = $this->ver_como_suporte($user_id, $outro, $empresa_id)
+                    ? 'Suporte'
+                    : (isset($nomes_usuarios[$outro]) ? $nomes_usuarios[$outro] : 'Usuário #' . $outro);
             }
             $saida[] = $m;
         }
@@ -1881,7 +2293,7 @@ class Mensagens_model extends CI_Model
     {
         $candidatos = array();
         if ($canal_id) {
-            foreach ($this->membros_canal($canal_id, $empresa_id) as $mb) {
+            foreach ($this->membros_canal($canal_id, $empresa_id, $de_id) as $mb) {
                 if ((int) $mb['id'] !== (int) $de_id) {
                     $candidatos[(int) $mb['id']] = $mb['nome'];
                 }
@@ -1892,7 +2304,7 @@ class Mensagens_model extends CI_Model
                     $candidatos[(int) $mb['id']] = $mb['nome'];
                 }
             }
-        } elseif ($para_id > 0 && (int) $para_id !== (int) $de_id && $this->tem_acesso($para_id, $empresa_id)) {
+        } elseif ($para_id > 0 && $this->pode_conversar($de_id, $para_id, $empresa_id)) {
             $candidatos[(int) $para_id] = $this->nome_usuario($para_id);
         }
         if (!$candidatos) {
@@ -2042,9 +2454,10 @@ class Mensagens_model extends CI_Model
         $rows = $this->db->get()->result();
         $lista = array();
         foreach ($rows as $r) {
+            $suporte = $alvo['tipo'] === 'direta' && $this->ver_como_suporte($user_id, $r->id, $empresa_id);
             $lista[] = array(
                 'id' => (int) $r->id,
-                'nome' => trim($r->first_name),
+                'nome' => $suporte ? 'Suporte' : trim($r->first_name),
                 'estado' => $r->estado === 'gravando' ? 'gravando' : 'digitando',
             );
         }
@@ -2307,13 +2720,20 @@ class Mensagens_model extends CI_Model
         $mencoes_conv = $this->mencoes_nao_lidas_por_conversa($user_id, $empresa_id);
 
         $fotos = $this->fotos($rows, 'de_id');
+        $sou_cliente = $this->eh_cliente($user_id, $empresa_id);
         foreach ($rows as $m) {
             $de = (int) $m->de_id;
             $grupo = (int) $m->grupo_id;
             $canal = (int) $m->canal_id;
+            // Para o cliente, a equipe é o "Suporte"; conversa antiga com outro atendente não aparece.
+            $como_suporte = $sou_cliente && !$grupo && !$canal && $this->ver_como_suporte($user_id, $de, $empresa_id);
+            if ($como_suporte && !$this->pode_conversar($user_id, $de, $empresa_id)) {
+                continue;
+            }
+            $foto_de = $como_suporte ? null : $fotos[$de];
             $chave = $canal ? 'c' . $canal : ($grupo ? 'g' . $grupo : 'u' . $de);
             $cfg = isset($configs[$chave]) ? $configs[$chave] : array('modo_notif' => 'todas', 'silenciada' => false);
-            $autor = $this->nome($m);
+            $autor = $como_suporte ? 'Suporte' : $this->nome($m);
             $resultado['total']++;
             $resultado['ultimo_id'] = max($resultado['ultimo_id'], (int) $m->id);
             if (!isset($resultado['remetentes'][$chave])) {
@@ -2322,7 +2742,7 @@ class Mensagens_model extends CI_Model
                     'chave' => $chave,
                     'grupo' => (bool) ($grupo || $canal),
                     'nome' => $nome_conv,
-                    'foto' => ($grupo || $canal) ? null : $fotos[$de],
+                    'foto' => ($grupo || $canal) ? null : $foto_de,
                     'quantidade' => 0,
                     'mencoes' => isset($mencoes_conv[$chave]) ? (int) $mencoes_conv[$chave] : 0,
                     'silenciada' => $cfg['silenciada'],
@@ -2343,7 +2763,7 @@ class Mensagens_model extends CI_Model
                         'id' => (int) $m->id,
                         'chave' => $chave,
                         'nome' => $titulo_notif,
-                        'foto' => $fotos[$de],
+                        'foto' => $foto_de,
                         'mencionado' => $foi_mencionado,
                         'texto' => ($foi_mencionado ? '@ Mencionou você: ' : '') . $this->previa($m, 140),
                         'url' => site_url('mensagens/index/' . $chave),

@@ -116,6 +116,9 @@ if ($meu_nome === '' && isset($user_login)) {
                         <span class="mensagens-topo-status" id="mensagens-atual-status" hidden></span>
                     </div>
                     <button type="button" class="btn btn-default btn-sm" id="mensagens-ligar-btn" title="Ligação por voz" aria-label="Ligação por voz"><i class="fa fa-phone"></i></button>
+                    <?php if (!empty($pode_chamado_atendimento)) { ?>
+                    <button type="button" class="btn btn-default btn-sm" id="mensagens-chat-btn" title="Abrir chamado para este cliente" aria-label="Abrir chamado para este cliente" hidden><i class="fa fa-ticket"></i></button>
+                    <?php } ?>
                     <button type="button" class="btn btn-default btn-sm" id="mensagens-midias-btn" title="Caixa de mídias e arquivos" aria-label="Caixa de mídias"><i class="fa fa-folder-open-o"></i></button>
                     <button type="button" class="btn btn-default btn-sm" id="mensagens-notas-btn" title="Notas privadas desta conversa" aria-label="Notas privadas"><i class="fa fa-sticky-note-o"></i></button>
                     <button type="button" class="btn btn-default btn-sm" id="mensagens-etiquetas-btn" title="Etiquetas desta conversa" aria-label="Etiquetas"><i class="fa fa-tags"></i></button>
@@ -238,6 +241,96 @@ if ($meu_nome === '' && isset($user_login)) {
     <button type="button" class="mensagens-menu-item" data-acao="editar"><i class="fa fa-pencil"></i> Editar</button>
     <button type="button" class="mensagens-menu-item is-perigo" data-acao="excluir"><i class="fa fa-trash-o"></i> Excluir</button>
 </div>
+
+<?php if (!empty($pode_chamado_atendimento)) { ?>
+<!-- Modal: abrir chamado a partir do atendimento ao cliente (suporte, admin e desenvolvedores) -->
+<div class="modal fade mensagens-chat-modal" id="mensagens-chat-modal" tabindex="-1" role="dialog" aria-labelledby="mensagens-chat-titulo">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fechar"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="mensagens-chat-titulo"><i class="fa fa-ticket"></i> Abrir chamado para o cliente</h4>
+                <small class="text-muted">O chamado é criado com as mesmas regras da tela de chamados.</small>
+            </div>
+            <form id="mensagens-chat-form" autocomplete="off">
+                <div class="modal-body">
+                    <div class="mensagens-chat-carregando" id="mensagens-chat-carregando"><i class="fa fa-spinner fa-spin"></i> Carregando dados do cliente...</div>
+                    <div id="mensagens-chat-corpo" hidden>
+                        <div class="mensagens-chat-card">
+                            <h5><span class="step-number">1</span> Cliente</h5>
+                            <div class="row">
+                                <div class="col-sm-6 form-group">
+                                    <label>Solicitante</label>
+                                    <div class="mensagens-chat-solicitante"><i class="fa fa-user"></i> <strong id="mensagens-chat-cliente"></strong> <small class="text-muted" id="mensagens-chat-email"></small></div>
+                                </div>
+                                <div class="col-sm-6 form-group">
+                                    <label for="mensagens-chat-unidade">Unidade *</label>
+                                    <select class="form-control" id="mensagens-chat-unidade" name="unidade" required></select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mensagens-chat-card">
+                            <h5><span class="step-number">2</span> Classificação</h5>
+                            <div class="row">
+                                <div class="col-sm-4 form-group"><label for="mensagens-chat-produto">Produto *</label><select class="form-control" id="mensagens-chat-produto" name="produto" required></select></div>
+                                <div class="col-sm-4 form-group"><label for="mensagens-chat-modulo">Módulo *</label><select class="form-control" id="mensagens-chat-modulo" name="modulo" required></select></div>
+                                <div class="col-sm-4 form-group"><label for="mensagens-chat-categoria">Categoria *</label><select class="form-control" id="mensagens-chat-categoria" name="categoria" required></select></div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm-4 form-group"><label for="mensagens-chat-servico">Tipo de serviço *</label><select class="form-control" id="mensagens-chat-servico" name="tipo_servico" required></select></div>
+                                <div class="col-sm-4 form-group"><label for="mensagens-chat-nivel">Nível *</label><select class="form-control" id="mensagens-chat-nivel" name="nivel" required></select></div>
+                                <div class="col-sm-4 form-group js-chat-completo"><label for="mensagens-chat-prioridade">Prioridade *</label><select class="form-control" id="mensagens-chat-prioridade" name="prioridade"></select></div>
+                            </div>
+                            <div class="row js-chat-completo">
+                                <div class="col-sm-6 form-group"><label for="mensagens-chat-responsavel">Responsável *</label><select class="form-control" id="mensagens-chat-responsavel" name="responsavel"></select></div>
+                            </div>
+                        </div>
+                        <div class="mensagens-chat-card">
+                            <h5><span class="step-number">3</span> Descrição</h5>
+                            <div class="form-group">
+                                <label for="mensagens-chat-tit">Título *</label>
+                                <input type="text" class="form-control" id="mensagens-chat-tit" name="titulo" maxlength="200" required placeholder="Resumo em uma frase. Ex.: Erro ao emitir o relatório de vendas">
+                            </div>
+                            <div class="form-group">
+                                <label for="mensagens-chat-desc">Descrição *</label>
+                                <textarea class="form-control" id="mensagens-chat-desc" name="desc" rows="5" placeholder="O que aconteceu ou o que precisa ser feito?"></textarea>
+                            </div>
+                        </div>
+                        <div class="mensagens-chat-card">
+                            <h5><span class="step-number">4</span> Da conversa</h5>
+                            <div class="form-group">
+                                <label for="mensagens-chat-contexto">Contexto</label>
+                                <select class="form-control" id="mensagens-chat-contexto" name="contexto_qtd">
+                                    <option value="0">Não incluir a conversa</option>
+                                    <option value="10">Incluir as últimas 10 mensagens na descrição</option>
+                                    <option value="20" selected>Incluir as últimas 20 mensagens na descrição</option>
+                                    <option value="50">Incluir as últimas 50 mensagens na descrição</option>
+                                    <option value="100">Incluir as últimas 100 mensagens na descrição</option>
+                                </select>
+                            </div>
+                            <div class="mensagens-chat-anexos-topo">
+                                <label>Anexar ao chamado <small class="text-muted">(prints, gravações, áudios e arquivos da conversa)</small></label>
+                                <button type="button" class="btn btn-link btn-xs" id="mensagens-chat-todos">Marcar todos</button>
+                            </div>
+                            <div class="mensagens-chat-anexos" id="mensagens-chat-anexos"></div>
+                        </div>
+                    </div>
+                    <div class="mensagens-chat-pronto" id="mensagens-chat-pronto" hidden>
+                        <i class="fa fa-check-circle"></i>
+                        <h4 id="mensagens-chat-pronto-titulo"></h4>
+                        <p class="text-muted" id="mensagens-chat-pronto-avisos"></p>
+                        <a class="btn btn-primary" id="mensagens-chat-pronto-link" target="_blank" rel="noopener"><i class="fa fa-external-link"></i> Ver chamado</a>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Fechar</button>
+                    <button type="submit" class="btn btn-primary" id="mensagens-chat-enviar" disabled><i class="fa fa-ticket"></i> Abrir chamado</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<?php } ?>
 
 <!-- Participantes do grupo -->
 <div class="modal fade mensagens-grupo-modal" id="mensagens-grupo-modal" tabindex="-1" role="dialog" aria-labelledby="mensagens-grupo-modal-titulo">
@@ -806,6 +899,7 @@ if ($meu_nome === '' && isset($user_login)) {
         var maximo = <?php echo (int) $tamanho_maximo ?>;
         var limiteArquivo = <?php echo (int) $tamanho_anexo_mb ?> * 1024 * 1024;
         var anexosAtivos = <?php echo $anexos_ativos ? 'true' : 'false' ?>;
+        var podeLigar = <?php echo (!isset($pode_ligar) || $pode_ligar) ? 'true' : 'false' ?>;
         var minimoGrupo = <?php echo (int) $minimo_grupo ?>;
         var meuId = <?php echo (int) $this->session->userdata('user_id') ?>;
         var meuNome = <?php echo json_encode($meu_nome, $json) ?>;
@@ -908,6 +1002,8 @@ if ($meu_nome === '' && isset($user_login)) {
             var $el;
             if (c && c.is_bot) {
                 $el = $('<span class="mensagens-avatar mensagens-avatar-bot" aria-hidden="true"><i class="fa fa-android"></i></span>');
+            } else if (c && c.is_suporte) {
+                $el = $('<span class="mensagens-avatar mensagens-avatar-suporte" aria-hidden="true"><i class="fa fa-headphones"></i></span>');
             } else if (c && c.tipo === 'canal') {
                 $el = $('<span class="mensagens-avatar mensagens-avatar-canal" aria-hidden="true"><i class="fa fa-bullhorn"></i></span>');
             } else if (c && c.foto) {
@@ -1081,11 +1177,23 @@ if ($meu_nome === '' && isset($user_login)) {
 
         function itemPessoa(p, marcado) {
             var sub = marcado === undefined
-                ? (p.status_texto ? p.status_texto : (p.status && statusRotulos[p.status] ? statusRotulos[p.status].rotulo : (p.ultima_id ? 'Já conversaram' : 'Começar conversa')))
+                ? (p.is_suporte ? 'Fale com a nossa equipe de suporte' : (p.status_texto ? p.status_texto : (p.status && statusRotulos[p.status] ? statusRotulos[p.status].rotulo : (p.ultima_id ? 'Já conversaram' : 'Começar conversa'))))
                 : (marcado ? 'Escolhida' : 'Toque para escolher');
+            // Selos para identificar atendentes do suporte (suporte_ativo = 'S') e desenvolvedores (o servidor só manda para a equipe).
+            var $linhaNome = $('<span class="mensagens-contato-linha">').append($('<strong class="mensagens-contato-nome">').text(p.nome));
+            if (p.suporte_ativo || p.desenvolvedor) {
+                var $selos = $('<span class="mensagens-selos-pessoa">');
+                if (p.suporte_ativo) {
+                    $selos.append($('<span class="label mensagens-selo-pessoa is-suporte">').append('<i class="fa fa-headphones"></i> ', document.createTextNode('Suporte')));
+                }
+                if (p.desenvolvedor) {
+                    $selos.append($('<span class="label mensagens-selo-pessoa is-dev">').append('<i class="fa fa-code"></i> ', document.createTextNode('Desenvolvedor')));
+                }
+                $linhaNome.append($selos);
+            }
             var $botao = $('<button type="button" class="mensagens-contato">').attr('data-id', p.id)
                 .append(avatar(p, marcado === undefined), $('<span class="mensagens-contato-corpo">')
-                    .append($('<span class="mensagens-contato-linha">').append($('<strong class="mensagens-contato-nome">').text(p.nome)))
+                    .append($linhaNome)
                     .append($('<span class="mensagens-contato-linha">').append($('<span class="mensagens-contato-ultima">').text(sub))));
             if (marcado === undefined) {
                 $botao.addClass('js-abrir').attr('data-chave', p.chave);
@@ -1144,7 +1252,7 @@ if ($meu_nome === '' && isset($user_login)) {
 
         function renderizarEscolhaGrupo() {
             var $lista = $('#mensagens-grupo-pessoas').empty();
-            var ordenadas = $.grep(pessoas, function(p) { return !p.is_bot; }).sort(function(a, b) { return a.nome.localeCompare(b.nome); });
+            var ordenadas = $.grep(pessoas, function(p) { return !p.is_bot && !p.is_suporte; }).sort(function(a, b) { return a.nome.localeCompare(b.nome); });
             var achadas = filtrar(ordenadas, $('#mensagens-busca-grupo').val());
             $.each(achadas, function(i, p) { $lista.append(itemPessoa(p, $.inArray(p.id, escolhidosGrupo) !== -1)); });
             if (!achadas.length) { $lista.append(vazio('Ninguém encontrado.')); }
@@ -1476,10 +1584,10 @@ if ($meu_nome === '' && isset($user_login)) {
                     $bolha.append(
                         $('<a class="mensagens-chamado-link" target="_blank" rel="noopener">')
                             .attr('href', m.chamado.url)
+                            .attr('title', m.chamado.titulo || '')
                             .append(
                                 '<i class="fa fa-ticket"></i> ',
-                                $('<strong>').text('Chamado #' + (m.chamado.protocolo || m.chamado.id)),
-                                $('<span>').text(' — ' + m.chamado.titulo)
+                                $('<strong>').text('Chamado #' + m.chamado.id)
                             )
                     );
                 }
@@ -1664,7 +1772,10 @@ if ($meu_nome === '' && isset($user_login)) {
             }
             $('#mensagens-grupo-btn').prop('hidden', !grupo);
             $('#mensagens-canal-config-btn').prop('hidden', !(canal && atual.sou_criador));
-            $('#mensagens-ligar-btn').prop('hidden', ehBot);
+            // Cliente não inicia ligação: só atende (aviso de ligação) ou entra pela faixa "Ligação em andamento".
+            $('#mensagens-ligar-btn').prop('hidden', ehBot || !podeLigar);
+            // "Abrir chamado" só na conversa direta com um cliente (o servidor confere de novo).
+            $('#mensagens-chat-btn').prop('hidden', !(atual && atual.tipo === 'direta' && atual.cliente && !ehBot));
             $('#mensagens-enquete-btn, #mensagens-reuniao-btn').prop('hidden', !(canal && podeEnviar));
             $('#mensagens-somente-leitura-txt').text(ehBot
                 ? 'Bot de chamados automático — apenas recebimento de atualizações.'
@@ -2222,7 +2333,7 @@ if ($meu_nome === '' && isset($user_login)) {
             $('#mensagens-adicionar').prop('hidden', !atual.sou_criador);
             $('#mensagens-excluir-grupo').prop('hidden', !atual.sou_criador);
             var noGrupo = $.map(membrosGrupo, function(m) { return m.id; });
-            var disponiveis = $.grep(pessoas, function(p) { return $.inArray(p.id, noGrupo) === -1; });
+            var disponiveis = $.grep(pessoas, function(p) { return !p.is_bot && !p.is_suporte && $.inArray(p.id, noGrupo) === -1; });
             var $adicionar = $('#mensagens-adicionar-pessoas').empty();
             var achadas = filtrar(disponiveis.sort(function(a, b) { return a.nome.localeCompare(b.nome); }), $('#mensagens-busca-adicionar').val());
             $.each(achadas, function(i, p) { $adicionar.append(itemPessoa(p, $.inArray(p.id, escolhidosAdicionar) !== -1)); });
@@ -3313,6 +3424,154 @@ if ($meu_nome === '' && isset($user_login)) {
             if (e.key === 'Escape') { fecharEmojis(); fecharMenuMensagem(); fecharPopupReacoes(); fecharMencoes(); }
         });
 
+        /* ---------- Abrir chamado pelo atendimento ao cliente ----------
+           Suporte, admin e desenvolvedores. O cliente da conversa é o solicitante; a primeira unidade dele vem
+           escolhida. A cascata produto → módulo → categoria → serviço → nível usa os mesmos endpoints da tela de
+           chamados, e o envio vai para chamados/create (origem=mensagens), que valida tudo e responde em JSON. */
+        var chatAtend = null;
+
+        function chatOpcoes($sel, itens, rotuloVazio, selecionado) {
+            $sel.empty();
+            if (!itens || !itens.length) {
+                $sel.append($('<option value="">').text(rotuloVazio));
+                return;
+            }
+            $sel.append($('<option value="">').text('Selecione'));
+            $.each(itens, function(i, it) {
+                $sel.append($('<option>').attr('value', it.id).text(it.nome));
+            });
+            if (selecionado) { $sel.val(String(selecionado)); }
+            if (itens.length === 1) { $sel.val(String(itens[0].id)); }
+        }
+
+        function chatCarregar($sel, url, dados, rotuloVazio, extrair, depois) {
+            $sel.empty().append($('<option value="">').text('Carregando...'));
+            $.ajax({ url: chatAtend.url_base + url, method: 'POST', dataType: 'json', data: dados }).done(function(res) {
+                var itens = extrair ? extrair(res) : res;
+                chatOpcoes($sel, $.isArray(itens) ? itens : [], rotuloVazio);
+                if (depois) { depois(res); }
+                $sel.trigger('change');
+            }).fail(function() {
+                chatOpcoes($sel, [], 'Não foi possível carregar');
+            });
+        }
+
+        function chatLimpar(ids) {
+            $.each(ids, function(i, id) { $('#' + id).empty().append($('<option value="">').text('—')); });
+        }
+
+        function chatIconeAnexo(tipo) {
+            return { video: 'fa-film', audio: 'fa-microphone', arquivo: 'fa-file-o' }[tipo] || 'fa-file-o';
+        }
+
+        function abrirChamadoAtendimento() {
+            if (!atual || atual.tipo !== 'direta') { return; }
+            var chave = atual.chave;
+            chatAtend = null;
+            $('#mensagens-chat-corpo, #mensagens-chat-pronto').prop('hidden', true);
+            $('#mensagens-chat-carregando').prop('hidden', false).html('<i class="fa fa-spinner fa-spin"></i> Carregando dados do cliente...');
+            $('#mensagens-chat-enviar').prop('disabled', true).show();
+            $('#mensagens-chat-form')[0].reset();
+            $('#mensagens-chat-modal').modal('show');
+            $.ajax({ url: api + '/atendimento_chamado/' + encodeURIComponent(chave), dataType: 'json' }).done(function(res) {
+                if (!res || !res.ok) { return; }
+                chatAtend = res;
+                chatAtend.chave = chave;
+                $('#mensagens-chat-cliente').text(res.cliente.nome);
+                $('#mensagens-chat-email').text(res.cliente.email || '');
+                chatOpcoes($('#mensagens-chat-unidade'), $.map(res.unidades, function(u) { return { id: u.id, nome: u.nome }; }), 'Cliente sem unidade');
+                $('#mensagens-chat-unidade').val(String(res.unidades[0].id)); // mais de uma: a primeira
+                $('.js-chat-completo').toggle(!!res.completo);
+                $('#mensagens-chat-prioridade, #mensagens-chat-responsavel').prop('required', !!res.completo);
+                chatOpcoes($('#mensagens-chat-prioridade'), res.prioridades, 'Sem prioridades', 2);
+                chatOpcoes($('#mensagens-chat-responsavel'), res.responsaveis, 'Sem responsáveis', meuId);
+                var $anexos = $('#mensagens-chat-anexos').empty();
+                if (!res.midias || !res.midias.length) {
+                    $anexos.append($('<p class="text-muted">').text('Nenhum anexo nesta conversa.'));
+                }
+                $.each(res.midias || [], function(i, a) {
+                    var $miniatura = a.tipo === 'imagem'
+                        ? $('<img loading="lazy" alt="">').attr('src', a.url)
+                        : $('<span class="mensagens-chat-anexo-icone">').append($('<i class="fa">').addClass(chatIconeAnexo(a.tipo)));
+                    $anexos.append(
+                        $('<label class="mensagens-chat-anexo">').append(
+                            $('<input type="checkbox" name="mensagens_anexos[]">').val(a.id),
+                            $miniatura,
+                            $('<span class="mensagens-chat-anexo-info">').append(
+                                $('<strong>').text(a.nome),
+                                $('<small>').text(a.data + ' · ' + a.autor + ' · ' + a.tamanho)
+                            )
+                        )
+                    );
+                });
+                $('#mensagens-chat-carregando').prop('hidden', true);
+                $('#mensagens-chat-corpo').prop('hidden', false);
+                $('#mensagens-chat-enviar').prop('disabled', false);
+                $('#mensagens-chat-unidade').trigger('change');
+            }).fail(function(xhr) {
+                $('#mensagens-chat-carregando').empty().append($('<span class="text-danger">').text(erroDe(xhr)));
+            });
+        }
+
+        $('#mensagens-chat-btn').on('click', abrirChamadoAtendimento);
+        $('#mensagens-chat-unidade').on('change', function() {
+            chatLimpar(['mensagens-chat-modulo', 'mensagens-chat-categoria', 'mensagens-chat-servico', 'mensagens-chat-nivel']);
+            if (!chatAtend || !$(this).val()) { chatLimpar(['mensagens-chat-produto']); return; }
+            chatCarregar($('#mensagens-chat-produto'), 'chamados/get_produtos_habilitados', { id: $(this).val() }, 'Esta unidade não possui produtos habilitados');
+        });
+        $('#mensagens-chat-produto').on('change', function() {
+            chatLimpar(['mensagens-chat-categoria', 'mensagens-chat-servico', 'mensagens-chat-nivel']);
+            if (!chatAtend || !$(this).val()) { chatLimpar(['mensagens-chat-modulo']); return; }
+            chatCarregar($('#mensagens-chat-modulo'), 'chamados/get_modulos_habilitados', { id_unidade: $('#mensagens-chat-unidade').val(), id_produto: $(this).val() }, 'Este produto não possui módulos habilitados');
+        });
+        $('#mensagens-chat-modulo').on('change', function() {
+            chatLimpar(['mensagens-chat-servico', 'mensagens-chat-nivel']);
+            if (!chatAtend || !$(this).val()) { chatLimpar(['mensagens-chat-categoria']); return; }
+            chatCarregar($('#mensagens-chat-categoria'), 'chamados/get_modulo_categorias', { id: $(this).val() }, 'Este módulo não possui categorias');
+        });
+        $('#mensagens-chat-categoria').on('change', function() {
+            chatLimpar(['mensagens-chat-nivel']);
+            if (!chatAtend || !$(this).val()) { chatLimpar(['mensagens-chat-servico']); return; }
+            chatCarregar($('#mensagens-chat-servico'), 'chamados/get_servicos', { id: $(this).val() }, 'Esta categoria não possui serviço', function(res) { return res && res.select; }, function(res) {
+                // Modelo de descrição da categoria, só se a pessoa ainda não escreveu nada.
+                var $desc = $('#mensagens-chat-desc');
+                if (res && res.layout && !$.trim($desc.val())) { $desc.val($('<textarea>').html(res.layout).val()); }
+            });
+        });
+        $('#mensagens-chat-servico').on('change', function() {
+            if (!chatAtend || !$(this).val()) { chatLimpar(['mensagens-chat-nivel']); return; }
+            chatCarregar($('#mensagens-chat-nivel'), 'chamados/get_niveis', { id: $(this).val() }, 'Este serviço não possui níveis', function(res) { return res && res.select; });
+        });
+        $('#mensagens-chat-todos').on('click', function() {
+            var $c = $('#mensagens-chat-anexos input[type=checkbox]');
+            $c.prop('checked', $c.filter(':checked').length !== $c.length);
+        });
+        $('#mensagens-chat-form').on('submit', function(e) {
+            e.preventDefault();
+            if (!chatAtend) { return; }
+            var fd = new FormData(this);
+            fd.append('origem', 'mensagens');
+            fd.append('conversa', chatAtend.chave);
+            if (!chatAtend.completo) { fd.delete && fd.delete('responsavel'); fd.delete && fd.delete('prioridade'); }
+            var $btn = $('#mensagens-chat-enviar').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Abrindo...');
+            $.ajax({ url: chatAtend.url_criar, method: 'POST', data: fd, processData: false, contentType: false, dataType: 'json' }).done(function(res) {
+                if (!res || !res.ok) {
+                    avisar('error', 'Não foi possível abrir o chamado', res && res.erro ? res.erro : '');
+                    return;
+                }
+                $('#mensagens-chat-corpo').prop('hidden', true);
+                $('#mensagens-chat-pronto-titulo').text('Chamado #' + res.chamado.id + ' aberto para ' + chatAtend.cliente.nome);
+                $('#mensagens-chat-pronto-avisos').text(res.avisos && res.avisos.length ? 'Alguns anexos não foram copiados: ' + res.avisos.join(' ') : '');
+                $('#mensagens-chat-pronto-link').attr('href', res.chamado.url);
+                $('#mensagens-chat-pronto').prop('hidden', false);
+                $btn.hide();
+            }).fail(function(xhr) {
+                avisar('error', 'Não foi possível abrir o chamado', erroDe(xhr));
+            }).always(function() {
+                $btn.prop('disabled', false).html('<i class="fa fa-ticket"></i> Abrir chamado');
+            });
+        });
+
         /* ---------- Visualizador de fotos e vídeos ----------
            Abre sobre a conversa (não ocupa a tela toda), como no WhatsApp: assistir e ampliar sem baixar.
            Setas ← → (ou os botões laterais) passam pelas fotos e vídeos carregados da conversa; Esc ou clique fora fecha. */
@@ -3847,7 +4106,7 @@ if ($meu_nome === '' && isset($user_login)) {
                         mensagensMapa[mid].chamado = res.chamado;
                         atualizarBolhaExistente(mensagensMapa[mid]);
                     }
-                    avisar('success', 'Chamado #' + (res.chamado.protocolo || res.chamado.id) + ' criado', res.chamado.titulo);
+                    avisar('success', 'Chamado #' + res.chamado.id + ' criado', res.chamado.titulo);
                 }
             }).fail(function(xhr) {
                 avisar('error', 'Não foi possível criar o chamado', erroDe(xhr));
@@ -3955,7 +4214,7 @@ if ($meu_nome === '' && isset($user_login)) {
 
             var termo = semAcento($.trim($('#mensagens-canal-busca-escritor').val()));
             var candidatos = [{ id: meuId, nome: (meuNome || 'Você') + ' (Você)', busca: meuNome || 'Você' }];
-            $.each($.grep(pessoas, function(p) { return !p.is_bot; }).sort(function(a, b) { return a.nome.localeCompare(b.nome); }), function(i, p) {
+            $.each($.grep(pessoas, function(p) { return !p.is_bot && !p.is_suporte; }).sort(function(a, b) { return a.nome.localeCompare(b.nome); }), function(i, p) {
                 candidatos.push({ id: p.id, nome: p.nome, busca: p.nome });
             });
             var filtrados = $.grep(candidatos, function(c) {
@@ -4472,8 +4731,8 @@ if ($meu_nome === '' && isset($user_login)) {
                 osc.frequency.value = 425;
                 // Rampa curta na entrada e na saída para o tom não "estalar".
                 ganho.gain.setValueAtTime(0.0001, t);
-                ganho.gain.exponentialRampToValueAtTime(0.16, t + 0.04);
-                ganho.gain.setValueAtTime(0.16, t + 0.96);
+                ganho.gain.exponentialRampToValueAtTime(0.5, t + 0.04); // volume alto (antes 0.16)
+                ganho.gain.setValueAtTime(0.5, t + 0.96);
                 ganho.gain.exponentialRampToValueAtTime(0.0001, t + 1);
                 osc.connect(ganho);
                 ganho.connect(ctx.destination);
@@ -4957,6 +5216,10 @@ if ($meu_nome === '' && isset($user_login)) {
     .mensagens-contato-corpo { flex: 1; min-width: 0; }
     .mensagens-contato-linha { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
     .mensagens-contato-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; color: #333; }
+    .mensagens-selos-pessoa { flex: 0 0 auto; display: inline-flex; gap: 4px; }
+    .mensagens-selo-pessoa { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 3px; color: #fff; }
+    .mensagens-selo-pessoa.is-suporte { background: #00a65a; }
+    .mensagens-selo-pessoa.is-dev { background: #605ca8; }
     .mensagens-contato-quando { flex: 0 0 auto; color: #999; font-size: 11px; }
     .mensagens-contato-ultima { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #888; font-size: 12px; }
     .mensagens-contato-ultima.is-digitando { color: #00a65a; font-style: italic; font-weight: 600; }
@@ -5030,6 +5293,30 @@ if ($meu_nome === '' && isset($user_login)) {
     .mensagens-anexo-midia { display: block; width: 100%; min-height: 120px; max-height: 300px; object-fit: cover; background: #000; pointer-events: none; }
     .mensagens-anexo-play { position: absolute; top: 50%; left: 50%; display: flex; align-items: center; justify-content: center; width: 54px; height: 54px; margin: -27px 0 0 -27px; padding-left: 4px; border-radius: 50%; background: rgba(0, 0, 0, .55); color: #fff; font-size: 21px; transition: transform .15s ease, background .15s ease; }
     .mensagens-anexo-video:hover .mensagens-anexo-play { transform: scale(1.08); background: rgba(0, 0, 0, .72); }
+
+    /* Modal "Abrir chamado" do atendimento: cards numerados como nos formulários de chamados/projetos. */
+    .mensagens-chat-modal .modal-body { max-height: calc(100vh - 210px); overflow-y: auto; background: #f7f9fb; }
+    .mensagens-chat-carregando { padding: 30px 0; text-align: center; color: #64748b; }
+    .mensagens-chat-card { margin-bottom: 12px; padding: 12px 14px 4px; border: 1px solid #d2d6de; border-radius: 6px; background: #fff; }
+    .mensagens-chat-card h5 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-weight: 600; color: #334155; }
+    .mensagens-chat-card .step-number { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #1E1D3F; color: #fff; font-size: 12px; }
+    .mensagens-chat-solicitante { padding: 7px 10px; border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mensagens-chat-anexos-topo { display: flex; align-items: center; justify-content: space-between; }
+    .mensagens-chat-anexos { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; max-height: 260px; overflow-y: auto; margin-bottom: 10px; }
+    .mensagens-chat-anexo { display: flex; align-items: center; gap: 8px; margin: 0; padding: 6px 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-weight: normal; cursor: pointer; }
+    .mensagens-chat-anexo:hover { border-color: #1E1D3F; background: #f1f0f8; }
+    .mensagens-chat-anexo input { margin: 0; flex: 0 0 auto; }
+    .mensagens-chat-anexo img, .mensagens-chat-anexo-icone { flex: 0 0 auto; width: 42px; height: 42px; border-radius: 4px; object-fit: cover; background: #e2e8f0; }
+    .mensagens-chat-anexo-icone { display: inline-flex; align-items: center; justify-content: center; color: #1E1D3F; font-size: 18px; }
+    .mensagens-chat-anexo-info { min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+    .mensagens-chat-anexo-info strong, .mensagens-chat-anexo-info small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mensagens-chat-anexo-info small { color: #64748b; }
+    .mensagens-chat-pronto { padding: 26px 10px; text-align: center; }
+    .mensagens-chat-pronto > .fa { font-size: 44px; color: #00a65a; }
+    body.dark-mode .mensagens-chat-modal .modal-body { background: #1e1e1e; }
+    body.dark-mode .mensagens-chat-card, body.dark-mode .mensagens-chat-solicitante { background: #252525; border-color: #383838; color: #e6e6e6; }
+    body.dark-mode .mensagens-chat-card h5 { color: #e6e6e6; }
+    body.dark-mode .mensagens-chat-anexo { border-color: #383838; }
 
     /* Visualizador de fotos e vídeos: sobre a conversa, sem tomar a tela toda (fundo na cor do tema). */
     .mensagens-visualizador { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 20; display: flex; flex-direction: column; background: rgba(20, 19, 44, .95); color: #fff; animation: mensagens-vis-entrar .15s ease-out; }
@@ -5364,6 +5651,7 @@ if ($meu_nome === '' && isset($user_login)) {
     body.dark-mode .mensagens-chamada-banner { background: #1e3a2f !important; border-color: #2c5e4a !important; color: #a7f3d0 !important; }
 
     /* ---------- Reações, Enquetes, Reuniões e Bot ---------- */
+    .mensagens-avatar-suporte { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%; background: #1E1D3F; color: #fff; font-size: 18px; }
     .mensagens-avatar-bot { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%; background: #00a65a; color: #fff; font-size: 19px; }
     .mensagens-bot-tag { padding: 1px 5px; font-size: 10px; vertical-align: middle; }
     .mensagens-msg-reagir-btn { position: absolute; top: 3px; right: 25px; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; opacity: 0; cursor: pointer; transition: opacity .15s, background .15s; z-index: 2; }

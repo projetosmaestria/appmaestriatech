@@ -16,6 +16,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
                                     <li class=""><?php echo anchor('prefs/index', lang('menu_int_admin')); ?></li>
                                     <li class="active"><?php echo anchor('prefs/dashboard', lang('menu_int_dashboard')); ?></li>
                                     <li class=""><?php echo anchor('prefs/email', lang('menu_int_email')); ?></li>
+                                    <?php if ($this->ion_auth->is_admin()) { ?><li class=""><?php echo anchor('prefs/integracao', 'Integração'); ?></li><?php } ?>
                                 </ul>
                                 <div class="tab-content">
                                     <div class="tab-pane active" id="tab_dashboard">
