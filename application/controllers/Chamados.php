@@ -3188,7 +3188,10 @@ class Chamados extends Admin_Controller
 			if (!$this->ion_auth->has_permissao("chamados", "reagendar")) {
 				$catalogo_servico = $this->chamados_model->get_catalogo_servico($this->input->post('tipo_servico'))->row();
 				$parametro = $this->chamados_model->get_parametro()->row();
-				$calculaPrazo = calcula_horas_uteis($catalogo_servico->prazo_padrao, $parametro->expediente_inicio, $parametro->expediente_fim, new DateTime($chamado->created))->format("Y-m-d H:i:s");
+				$expediente_inicio = $parametro ? $parametro->expediente_inicio : null;
+				$expediente_fim = $parametro ? $parametro->expediente_fim : null;
+				$prazo_padrao = $catalogo_servico ? $catalogo_servico->prazo_padrao : 0;
+				$calculaPrazo = calcula_horas_uteis($prazo_padrao, $expediente_inicio, $expediente_fim, new DateTime($chamado->created))->format("Y-m-d H:i:s");
 			} else {
 				$data_reagendar = explode(" ", $_POST["data_reagendar"]);
 				$data_reagendar_verif = explode("/", $data_reagendar[0]);
@@ -3197,7 +3200,10 @@ class Chamados extends Admin_Controller
 				} else {
 					$catalogo_servico = $this->chamados_model->get_catalogo_servico($this->input->post('tipo_servico'))->row();
 					$parametro = $this->chamados_model->get_parametro()->row();
-					$calculaPrazo = calcula_horas_uteis($catalogo_servico->prazo_padrao, $parametro->expediente_inicio, $parametro->expediente_fim, new DateTime($chamado->created))->format("Y-m-d H:i:s");
+					$expediente_inicio = $parametro ? $parametro->expediente_inicio : null;
+					$expediente_fim = $parametro ? $parametro->expediente_fim : null;
+					$prazo_padrao = $catalogo_servico ? $catalogo_servico->prazo_padrao : 0;
+					$calculaPrazo = calcula_horas_uteis($prazo_padrao, $expediente_inicio, $expediente_fim, new DateTime($chamado->created))->format("Y-m-d H:i:s");
 				}
 			}
 
@@ -3476,8 +3482,12 @@ class Chamados extends Admin_Controller
 		if ($_POST['tipo_servico']) {
 			$catalogo_servico = $this->chamados_model->get_catalogo_servico($_POST['tipo_servico'])->row();
 			$parametro = $this->chamados_model->get_parametro()->row();
-			$calculaPrazo = date("d/m/Y H:i", strtotime(calcula_horas_uteis($catalogo_servico->prazo_padrao, $parametro->expediente_inicio, $parametro->expediente_fim, new DateTime($chamado->created))->format("Y-m-d H:i:s")));
-			$horas_prevista = str_replace(".", ",", $catalogo_servico->tempo_padrao);
+			if ($catalogo_servico && $chamado) {
+				$expediente_inicio = $parametro ? $parametro->expediente_inicio : null;
+				$expediente_fim = $parametro ? $parametro->expediente_fim : null;
+				$calculaPrazo = date("d/m/Y H:i", strtotime(calcula_horas_uteis($catalogo_servico->prazo_padrao, $expediente_inicio, $expediente_fim, new DateTime($chamado->created))->format("Y-m-d H:i:s")));
+				$horas_prevista = str_replace(".", ",", $catalogo_servico->tempo_padrao);
+			}
 		}
 		exit(json_encode(array("calculaPrazo" => $calculaPrazo, "horas_prevista" => $horas_prevista)));
 	}
@@ -3601,8 +3611,8 @@ class Chamados extends Admin_Controller
 			$this->email->from($from_email, utf8_decode($from_name));
 
 			$chamado = $this->chamados_model->get(array(
-				'select' => 'c.id, c.dono_id, u.email as email_dono, c.responsavel_id, c.interessados, u.first_name, u.last_name, us.email as email_resp, c.plano_acao, udev.email as email_dev',
-				'join' => array(array('users u', 'u.id = c.dono_id', 'left'), array('users us', 'us.id = c.responsavel_id', 'left'), array('users udev', 'udev.id = c.desenvolvedor_id', 'left')),
+				'select' => 'c.id, c.dono_id, u.email as email_dono, c.responsavel_id, c.interessados, u.first_name, u.last_name, us.email as email_resp, c.plano_acao, udev.email as email_dev, un.unidade as cliente',
+				'join' => array(array('users u', 'u.id = c.dono_id', 'left'), array('users us', 'us.id = c.responsavel_id', 'left'), array('users udev', 'udev.id = c.desenvolvedor_id', 'left'), array('unidades un', 'un.id = c.unidade_id', 'inner')),
 				'where' => 'c.id = "' . $_POST["chamado_id"] . '"',
 				'order_by' => array('c.id', 'desc')
 			))->row();
