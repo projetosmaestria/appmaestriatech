@@ -102,10 +102,10 @@ switch (ENVIRONMENT)
 	case 'development':
 		$db['default'] = array(
 			'dsn'	=> '',
-			'hostname' => 'mysql.xkeysti.com.br',
-			'username' => 'xkeysti1',
-			'password' => 'WtUV]!3_T6V,',
-			'database' => 'xkeysti1',
+			'hostname' => 'xmysql.rodney.x-br.com',
+			'username' => 'rodney',
+			'password' => 'b7gVA@K2QXtrKjsz',
+			'database' => 'rodney',
 			'dbdriver' => 'mysqli',
 			'dbprefix' => '',
 			'pconnect' => FALSE,
@@ -126,10 +126,10 @@ switch (ENVIRONMENT)
 	case 'production':
 		$db['default'] = array(
 			'dsn'	=> '',
-			'hostname' => 'mysql.xkeysti.com.br',
-			'username' => 'xkeysti1',
-			'password' => 'WtUV]!3_T6V,',
-			'database' => 'xkeysti1',
+			'hostname' => 'xmysql.rodney.x-br.com',
+			'username' => 'rodney',
+			'password' => 'b7gVA@K2QXtrKjsz',
+			'database' => 'rodney',
 			'dbdriver' => 'mysqli',
 			'dbprefix' => '',
 			'pconnect' => FALSE,

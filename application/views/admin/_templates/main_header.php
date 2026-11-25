@@ -11,10 +11,12 @@ defined('BASEPATH') or exit('No direct script access allowed');
 <header class="main-header">
     <a href="<?php echo site_url('dashboard'); ?>" class="logo" title="MaestriaTech">
         <span class="logo-lg">
-            <img src="<?php echo base_url('assets/images/login/page-login-logo.png?v=' . time()) ?>" class="logo-image" alt="MaestriaTech">
+            <img src="<?php echo base_url('assets/images/login/page-login-logo.png?v=' . time()) ?>" class="logo-image logo-claro" alt="MaestriaTech">
+            <img src="<?php echo base_url('assets/images/login/page-login-logo-dark.png?v=' . time()) ?>" class="logo-image logo-escuro" alt="MaestriaTech">
         </span>
         <span class="logo-mini">
-            <img src="<?php echo base_url('assets/images/login/logo.png?v=' . time()) ?>" class="logo-image-mini" alt="MT">
+            <img src="<?php echo base_url('assets/images/login/logo.png?v=' . time()) ?>" class="logo-image-mini logo-claro" alt="MT">
+            <img src="<?php echo base_url('assets/images/login/logo-dark.png?v=' . time()) ?>" class="logo-image-mini logo-escuro" alt="MT">
         </span>
     </a>
 
@@ -70,18 +72,6 @@ defined('BASEPATH') or exit('No direct script access allowed');
                             </div>
                         </a>
                     </li>
-
-                <?php if ($admin_prefs['tasks_menu'] == TRUE): ?>
-                    <!-- Tasks -->
-                    <li class="dropdown tasks-menu modern-dropdown">
-                        <a href="#" class="modern-dropdown-toggle" data-drawer="tarefas" aria-controls="header-drawer" aria-expanded="false" aria-label="Tarefas">
-                            <div class="nav-icon-wrapper">
-                                <i class="fa fa-flag-o"></i>
-                                <span class="label label-danger modern-badge">0</span>
-                            </div>
-                        </a>
-                    </li>
-                <?php endif; ?>
 
                     <!-- Dark Mode Toggle -->
                     <li class="dropdown theme-toggle-menu modern-dropdown">
@@ -148,9 +138,6 @@ defined('BASEPATH') or exit('No direct script access allowed');
             <button type="button" class="header-drawer-aba" role="tab" id="header-drawer-aba-mensagens" data-drawer="mensagens" aria-controls="header-drawer-painel-mensagens" aria-selected="false"><i class="fa fa-envelope-o"></i><span>Mensagens</span></button>
 <?php endif; ?>
             <button type="button" class="header-drawer-aba" role="tab" id="header-drawer-aba-notificacoes" data-drawer="notificacoes" aria-controls="header-drawer-painel-notificacoes" aria-selected="false"><i class="fa fa-bell-o"></i><span>Notificações</span></button>
-<?php if ($admin_prefs['tasks_menu'] == TRUE): ?>
-            <button type="button" class="header-drawer-aba" role="tab" id="header-drawer-aba-tarefas" data-drawer="tarefas" aria-controls="header-drawer-painel-tarefas" aria-selected="false"><i class="fa fa-flag-o"></i><span>Tarefas</span></button>
-<?php endif; ?>
             <button type="button" class="header-drawer-aba" role="tab" id="header-drawer-aba-chamados" data-drawer="chamados" aria-controls="header-drawer-painel-chamados" aria-selected="false"><i class="fa fa-ticket"></i><span>Chamados</span></button>
         </div>
         <button type="button" class="header-drawer-fechar" id="header-drawer-fechar" aria-label="Fechar painel">&times;</button>
@@ -246,30 +233,6 @@ defined('BASEPATH') or exit('No direct script access allowed');
                 </li>
             </ul>
         </section>
-<?php if ($admin_prefs['tasks_menu'] == TRUE): ?>
-        <section class="header-drawer-painel" role="tabpanel" id="header-drawer-painel-tarefas" data-painel="tarefas" aria-labelledby="header-drawer-aba-tarefas" hidden>
-            <ul class="modern-dropdown-menu header-drawer-conteudo">
-                <li class="header modern-dropdown-header"><?php echo lang('header_you_have'); ?> 0 <?php echo lang('header_task'); ?></li>
-                <li>
-                    <ul class="menu modern-menu-list">
-                        <li>
-                            <a href="#" class="modern-task-item">
-                                <h3>Design some buttons<small class="pull-right">20%</small></h3>
-                                <div class="progress xs modern-progress">
-                                    <div class="progress-bar progress-bar-aqua modern-progress-bar" style="width: 20%" role="progressbar" aria-valuenow="20" aria-valuemin="0" aria-valuemax="100">
-                                        <span class="sr-only">20% <?php echo lang('header_complete'); ?></span>
-                                    </div>
-                                </div>
-                            </a>
-                        </li>
-                    </ul>
-                </li>
-                <li class="footer modern-dropdown-footer">
-                    <a href="#" class="modern-dropdown-link"><?php echo lang('header_view_all'); ?></a>
-                </li>
-            </ul>
-        </section>
-<?php endif; ?>
         <section class="header-drawer-painel" role="tabpanel" id="header-drawer-painel-chamados" data-painel="chamados" aria-labelledby="header-drawer-aba-chamados" hidden>
             <ul class="modern-dropdown-menu header-drawer-conteudo chamados-dropdown-menu">
                 <li class="header modern-dropdown-header chamados-dropdown-header">
@@ -442,6 +405,19 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
     .main-header .logo:hover .logo-image-mini {
         transform: scale(1.1);
+    }
+
+    /* Logo do modo escuro: o azul-marinho vira claro para dar contraste com o header escuro. */
+    .main-header .logo img.logo-escuro {
+        display: none !important;
+    }
+
+    body.dark-mode .main-header .logo img.logo-claro {
+        display: none !important;
+    }
+
+    body.dark-mode .main-header .logo img.logo-escuro {
+        display: block !important;
     }
 
     /* Comportamento Colapsado da Barra Lateral (Desktop) */
@@ -654,7 +630,18 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
     .modern-dropdown-toggle:hover {
         background: rgba(30, 29, 63, 0.05) !important;
-        transform: translateY(-1px);
+    }
+
+    /* Desktop: o botão (e o fundo do hover) cabe nos 50px do header. O padding de 15px do .modern-nav>li>a deixava 54px (60px no perfil). */
+    @media (min-width: 992px) {
+        .modern-nav > li > a.modern-dropdown-toggle {
+            padding: 7px 8px !important;
+            margin: 6px 2px !important;
+        }
+
+        .modern-nav > li > a.user-toggle {
+            padding: 4px 12px !important;
+        }
     }
 
     .nav-icon-wrapper {
